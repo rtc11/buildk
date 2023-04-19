@@ -1,0 +1,26 @@
+[package]
+name = "buildk"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "buildk"
+path = "lib.rs"
+
+[workspace]
+members = ["crates/*"]
+
+[workspace.dependencies]
+console = { path = "crates/console" }
+fs = { path = "crates/fs" }
+kotlinc = { path = "crates/kotlinc" }
+
+time = "0.3.20"
+anyhow = "1.0"
+
+[dependencies]
+kotlinc.workspace = true
+console.workspace = true
+
+time.workspace = true
+anyhow.workspace = true

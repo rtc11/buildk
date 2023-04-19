@@ -1,0 +1,18 @@
+# RUST/CARGO
+debug/
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# KOTLIN
+test/build
+
+# IDEA
+*.iml
+.idea/
+!.idea/codeStyles/
+.run
+
+# OS
+.DS_Store

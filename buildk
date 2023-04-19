@@ -1,0 +1,7 @@
+#!bin/bash
+
+# todo: create executable wrapper to be used in project root
+# buildk clean build
+# buildk test
+# buildk appify
+# buildk libify
