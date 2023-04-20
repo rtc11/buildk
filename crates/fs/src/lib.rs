@@ -1,3 +1,5 @@
+pub mod toml;
+
 use std::fs::{
     // copy,
     // create_dir,

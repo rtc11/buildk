@@ -11,16 +11,20 @@ path = "lib.rs"
 members = ["crates/*"]
 
 [workspace.dependencies]
+# LOCAL
 console = { path = "crates/console" }
 fs = { path = "crates/fs" }
-kotlinc = { path = "crates/kotlinc" }
+cmd = { path = "crates/cmd" }
 
-time = "0.3.20"
+# EXTERNAL
 anyhow = "1.0"
+toml = "0.7.3"
+serde = "1.0.160"
+serde_derive = "1.0.160"
 
 [dependencies]
-kotlinc.workspace = true
+cmd.workspace = true
 console.workspace = true
+fs.workspace = true
 
-time.workspace = true
 anyhow.workspace = true
