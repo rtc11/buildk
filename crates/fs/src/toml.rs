@@ -16,7 +16,7 @@ pub struct Project {
     pub dir: String,
 }
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Build {
     #[serde(default = "default_build_output")]
     output: String,
@@ -26,36 +26,58 @@ pub struct Build {
     test: String,
 }
 
-fn default_build_output() -> String { "/build".to_string() }
-fn default_build_src() -> String { "/src".to_string() }
-fn default_build_test() -> String { "/test".to_string() }
+impl Default for Build {
+    fn default() -> Self {
+        Build {
+            output: default_build_output(),
+            src: default_build_src(),
+            test: default_build_test(),
+        }
+    }
+}
+
+fn default_build_output() -> String { "build".to_string() }
+fn default_build_src() -> String { "src".to_string() }
+fn default_build_test() -> String { "test".to_string() }
 fn default_project_dir() -> String { ".".to_string() }
 
 impl Config {
     pub fn is_app(&self) -> bool { true }
 
     pub fn output_jar(&self) -> String {
-        format!("{}/{}/app.jar", self.project.dir, self.build.output)
+        let str = format!("{}/{}/app.jar", self.project.dir, self.build.output);
+        // println!("output_jar:{str}");
+        str
     }
 
     pub fn output_dir(&self) -> String {
-        format!("{}/{}", self.project.dir, self.build.output)
+        let str = format!("{}/{}", self.project.dir, self.build.output);
+        // println!("output_dir:{str}");
+        str
     }
 
     pub fn src_dir(&self) -> String {
-        format!("{}/{}", self.project.dir, self.build.src)
+        let str = format!("{}/{}", self.project.dir, self.build.src);
+        // println!("src_dir:{str}");
+        str
     }
 
     pub fn test_dir(&self) -> String {
-        format!("{}/{}", self.project.dir, self.build.test)
+        let str = format!("{}/{}", self.project.dir, self.build.test);
+        // println!("test_dir:{str}");
+        str
     }
 
     pub fn output_src(&self) -> String {
-        format!("{}/{}/{}", self.project.dir, self.build.output, self.build.src)
+        let str = format!("{}/{}/{}", self.project.dir, self.build.output, self.build.src);
+        // println!("output_src:{str}");
+        str
     }
 
     pub fn output_test(&self) -> String {
-        format!("{}/{}/{}", self.project.dir, self.build.output, self.build.test)
+        let str = format!("{}/{}/{}", self.project.dir, self.build.output, self.build.test);
+        // println!("output_test:{str}");
+        str
     }
 }
 

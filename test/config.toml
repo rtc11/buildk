@@ -1,3 +1,8 @@
-[app]
+[project]
 main = "Main.kt"
-project_dir = "test"
+dir = "test"
+
+[build]
+output = "build"
+src = "src"
+test = "test"
