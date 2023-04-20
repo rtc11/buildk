@@ -11,27 +11,21 @@ impl Timer {
         }
     }
     pub fn elapsed(&self) -> String {
-        let mut str = String::new();
-
-        macro_rules! item {
-            ($name:literal, $value:expr) => {
-                let value = $value;
-                if value >= 1.0 {
-                    str = format!("{}{}{}", str, $name, $value)
-                }
-            };
-        }
-
         let seconds = self.time.elapsed().as_secs_f64();
 
-        item!("d", seconds / 86_400.);
-        item!("h", seconds / 3_600.);
-        item!("m", seconds / 60.);
-        item!("s", seconds);
-        item!("ms", seconds * 1_000.);
-        item!("µs", seconds * 1_000_000.);
-        item!("ns", seconds * 1_000_000_000.);
+        Self::reminder(seconds / 60., "m")
+            .or(Self::reminder(seconds, "s"))
+            .or(Self::reminder(seconds * 1_000., "ms"))
+            .or(Self::reminder(seconds * 1_000_000., "µs"))
+            .or(Self::reminder(seconds * 1_000_000_000., "ns"))
+            .unwrap_or(format!("{} s", seconds))
+    }
 
-        str
+    fn reminder(time: f64, label: &str) -> Option<String> {
+        if time >= 1.0 {
+            Some(format!("{:.0} {}", time, label))
+        } else {
+            None
+        }
     }
 }

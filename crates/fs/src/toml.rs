@@ -4,66 +4,64 @@ use serde_derive::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
-    project_dir: Option<String>,
-    build_dir: Option<String>,
-    src_dir: Option<String>,
-    test_dir: Option<String>,
-    app: Option<App>,
-    lib: Option<Lib>,
+    pub project: Project,
+    #[serde(default)]
+    build: Build,
 }
 
 #[derive(Deserialize, Debug, Clone)]
-pub struct App {
+pub struct Project {
     main: String,
+    #[serde(default = "default_project_dir")]
+    pub dir: String,
 }
 
-#[derive(Deserialize, Debug, Clone)]
-pub struct Lib {
-    main: String,
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct Build {
+    #[serde(default = "default_build_output")]
+    output: String,
+    #[serde(default = "default_build_src")]
+    src: String,
+    #[serde(default = "default_build_test")]
+    test: String,
 }
+
+fn default_build_output() -> String { "/build".to_string() }
+fn default_build_src() -> String { "/src".to_string() }
+fn default_build_test() -> String { "/test".to_string() }
+fn default_project_dir() -> String { ".".to_string() }
 
 impl Config {
-    pub fn is_app(&self) -> bool { self.app.is_some() }
-    pub fn is_lib(&self) -> bool { self.lib.is_some() }
+    pub fn is_app(&self) -> bool { true }
 
-    pub fn project_dir(&self) -> String {
-        self.project_dir.clone().unwrap_or(String::from("."))
+    pub fn output_jar(&self) -> String {
+        format!("{}/{}/app.jar", self.project.dir, self.build.output)
     }
 
-    pub fn build_dir(&self) -> String {
-        self.build_dir.clone().unwrap_or(format!("{}{}", self.project_dir(), "/build"))
+    pub fn output_dir(&self) -> String {
+        format!("{}/{}", self.project.dir, self.build.output)
     }
 
     pub fn src_dir(&self) -> String {
-        self.src_dir.clone().unwrap_or(format!("{}{}", self.project_dir(), "/src"))
+        format!("{}/{}", self.project.dir, self.build.src)
     }
 
     pub fn test_dir(&self) -> String {
-        self.test_dir.clone().unwrap_or(format!("{}{}", self.project_dir(), "/test"))
+        format!("{}/{}", self.project.dir, self.build.test)
     }
 
-    pub fn build_src_dir(&self) -> String {
-        format!("{}/{}", self.build_dir(), self.src_dir())
+    pub fn output_src(&self) -> String {
+        format!("{}/{}/{}", self.project.dir, self.build.output, self.build.src)
     }
 
-    pub fn build_test_dir(&self) -> String {
-        format!("{}/{}", self.build_dir(), self.test_dir())
+    pub fn output_test(&self) -> String {
+        format!("{}/{}/{}", self.project.dir, self.build.output, self.build.test)
     }
+}
 
-    pub fn target(&self) -> String {
-        match self.is_app() {
-            true => format!("{}/app.jar", self.build_dir()),
-            false => format!("{}/lib.jar", self.build_dir()),
-        }
-    }
-
+impl Project {
     pub fn main(&self) -> String {
-        let filename = match self.is_app() {
-            true => self.app.clone().expect("main not specified").main,
-            false => self.lib.clone().expect("main not specified").main,
-        };
-
-        filename.replace(".kt", "Kt")
+        self.main.replace(".kt", "Kt")
     }
 }
 
@@ -75,6 +73,6 @@ pub fn read() -> Config {
 
     match toml::from_str(&contents) {
         Ok(config) => config,
-        Err(_) => panic!("Unable to parse config.toml into"),
+        Err(e) => panic!("Unable to parse config.toml into: {e}"),
     }
 }

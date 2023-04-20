@@ -1,13 +1,20 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use console::PartialConclusion;
 use fs::toml::Config;
 
 pub(crate) fn build_dir(config: &Config) -> Result<String> {
-    print!("▸ {:<7}{}/", "clean ", config.build_dir());
+    print!("▸ {:<7}{}", "clean ", config.output_dir());
 
-    fs::rm(&std::path::PathBuf::from(config.build_dir()))?;
+    let result = fs::rm(&std::path::PathBuf::from(config.output_dir()));
 
-    println!("{}", PartialConclusion::SUCCESS);
-
-    Ok(String::default())
+    match result {
+        Ok(_) => {
+            println!("{}", PartialConclusion::SUCCESS);
+            Ok(String::new())
+        },
+        Err(err) => {
+            println!("{}", PartialConclusion::FAILED);
+            bail!(err)
+        },
+    }
 }
