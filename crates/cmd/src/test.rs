@@ -13,12 +13,16 @@ pub(crate) fn run(config: &Config) -> Result<String> {
         config.build.output_test(),
     ].join(":");
 
+    let report_output_dir = format!("{}/report", config.build.output_test());
+
     let output = Command::new("java")
         .current_dir(&config.project.dir)
         .args(["-jar", "libs/junit-platform-console-standalone-1.9.2.jar"])
         .args(["-cp", &classpath])
         // .args(["--select-package", "no.tordly.test"])
         .args(["--select-class", "PrefixTest"])
+        .args(["--details", "none"])
+        .args(["--reports-dir", &report_output_dir])
         .output()
         .with_context(|| PartialConclusion::FAILED)?;
 
