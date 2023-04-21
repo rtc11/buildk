@@ -8,5 +8,6 @@ pub enum Conclusion {
 
 pub enum PartialConclusion {
     SUCCESS,
-    FAILED
+    FAILED,
+    CACHED
 }

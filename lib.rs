@@ -10,7 +10,7 @@ use fs::toml::Config;
 fn main() {
     let timer = Timer::start();
 
-    let config = fs::toml::read();
+    let config: Config = fs::toml::read_file("test/config.toml").expect("config.toml file missing");
     // println!("{}", config);
 
     let args = args();

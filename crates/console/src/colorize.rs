@@ -41,7 +41,8 @@ impl fmt::Display for PartialConclusion {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let colored_str = match self {
             PartialConclusion::SUCCESS => format!(" {}", "✓".to_green()),
-            PartialConclusion::FAILED =>format!(" {}", "✕".to_red()),
+            PartialConclusion::FAILED => format!(" {}", "✕".to_red()),
+            PartialConclusion::CACHED => format!(" {}", "📌".to_blue()),
         };
 
         f.write_str(&colored_str)

@@ -1,7 +1,9 @@
 use std::fmt::{Display, Formatter};
 use std::fs;
 
-use serde_derive::Deserialize;
+use anyhow::{Context, Error};
+use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Clone)]
 pub struct Config {
@@ -31,6 +33,7 @@ impl Build {
     pub fn output_src(&self) -> String { format!("{}/{}", self.output, self.src) }
     pub fn output_test(&self) -> String { format!("{}/{}", self.output, self.test) }
     pub fn target(&self) -> String { format!("{}/app.jar", self.output) }
+    pub fn cache(&self) -> String { format!("{}/cache.toml", self.output) }
 }
 
 impl Display for Config {
@@ -76,14 +79,26 @@ impl Project {
     pub fn main_class(&self) -> String { self.main.replace(".kt", "Kt") }
 }
 
-pub fn read() -> Config {
-    let contents = match fs::read_to_string("test/config.toml") {
-        Ok(contents) => contents,
-        Err(_) => panic!("config.toml not found."),
-    };
+pub fn read_file<T: for<'a> Deserialize<'a>>(file: &str) -> Result<T, Error> {
+    let content = fs::read_to_string(file)?;
+    toml::from_str(&content).with_context(|| format!("Failed to generate toml for {file}"))
+}
 
-    match toml::from_str(&contents) {
-        Ok(config) => config,
-        Err(e) => panic!("Unable to parse config.toml into: {e}"),
-    }
+pub fn write_file<T: Serialize>(file: &str, toml: &T) -> Result<(), Error> {
+    let content = toml::to_string::<T>(&toml).with_context(|| "Failed to stringify toml Struct")?;
+    fs::write(file, content).with_context(|| format!("Failed to create file {file}"))
+}
+
+// todo: hash instead
+#[derive(Deserialize, Serialize, Default, Clone)]
+pub struct BuildCache {
+    src: Vec<String>,
+    test: Vec<String>,
+}
+
+impl BuildCache {
+    pub fn missing_src(&self) -> bool { self.src.is_empty() }
+    pub fn missing_test(&self) -> bool { self.test.is_empty() }
+    pub fn set_src(&mut self, src: Vec<String>) { self.src = src }
+    pub fn set_test(&mut self, test: Vec<String>) { self.test = test }
 }
