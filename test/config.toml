@@ -2,10 +2,10 @@
 main = "Main.kt"
 dir = "test"
 
-[build]
-output = "build"
-src = "src"
-test = "test"
+#[build]
+#output = "build"
+#src = "src"
+#test = "test"
 
 #[dependencies]
 #io.ktor.ktor-server-core-jvm = "2.2.4"

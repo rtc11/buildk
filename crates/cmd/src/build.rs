@@ -8,7 +8,7 @@ use fs::toml::Config;
 use crate::{KOTLINC, log_result};
 
 pub(crate) fn src(config: &Config) -> Result<String> {
-    print!("▸ {:<7}{}", "build ", config.build.src);
+    print!("▸ {:<7}{:<7}", "build ", config.build.src);
 
     let output = Command::new(KOTLINC)
         .current_dir(&config.project.dir)
@@ -21,7 +21,7 @@ pub(crate) fn src(config: &Config) -> Result<String> {
 }
 
 pub(crate) fn test(config: &Config) -> Result<String> {
-    print!("▸ {:<7}{}", "build ", config.build.test);
+    print!("▸ {:<7}{:<7}", "build ", config.build.test);
 
     let classpath = [
         &config.build.output_src(),

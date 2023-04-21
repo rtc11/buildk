@@ -6,7 +6,7 @@ use fs::toml::Config;
 use crate::log_result;
 
 pub(crate) fn app(config: &Config) -> Result<String> {
-    print!("▸ {:<7}{}", "run", config.project.main_class());
+    print!("▸ {:<7}{:<7}", "run", config.project.main_class());
 
     let output = Command::new("java")
         .current_dir(&config.project.dir)

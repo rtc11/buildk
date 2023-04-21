@@ -7,7 +7,7 @@ use fs::toml::Config;
 use crate::{KOTLINC, log_result};
 
 pub(crate) fn jar(config: &Config) -> Result<String> {
-    print!("▸ {:<7}{}", "target ", config.build.target());
+    print!("▸ {:<7}{:<7}", "target ", config.build.target());
 
     let runtime = if config.is_app() { "-include-runtime" } else { "" };
 

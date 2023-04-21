@@ -11,7 +11,7 @@ fn main() {
     let timer = Timer::start();
 
     let config = fs::toml::read();
-    println!("{}", config);
+    // println!("{}", config);
 
     let args = args();
     if args.len() == 1 { eprintln!("Missing command, e.g clean build") }

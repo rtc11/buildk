@@ -6,11 +6,11 @@ use fs::toml::Config;
 use crate::log_result;
 
 pub(crate) fn run(config: &Config) -> Result<String> {
-    print!("▸ {:<7}", "run test");
+    print!("▸ {:<7}{:<7}", "run", "test");
 
     let classpath = [
-        config.build.src.clone(),
-        config.build.test.clone(),
+        config.build.output_src(),
+        config.build.output_test(),
     ].join(":");
 
     let output = Command::new("java")
