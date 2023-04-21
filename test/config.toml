@@ -6,3 +6,9 @@ dir = "test"
 output = "build"
 src = "src"
 test = "test"
+
+#[dependencies]
+#io.ktor.ktor-server-core-jvm = "2.2.4"
+#
+#[dependencies.dev]
+#io.ktor.ktor-server-test-host-hvm = "2.2.4"

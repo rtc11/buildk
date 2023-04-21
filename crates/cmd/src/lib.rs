@@ -38,7 +38,7 @@ impl TryFrom<String> for Cmd {
 pub fn build(config: &Config) -> Vec<Result<String>> {
     vec![
         build::src(config),
-        build::test(config),
+        // build::test(config),
     ]
 }
 

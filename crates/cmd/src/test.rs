@@ -1,6 +1,7 @@
 use std::process::Command;
 
 use anyhow::{Context, Result};
+use console::PartialConclusion;
 use fs::toml::Config;
 use crate::log_result;
 
@@ -8,8 +9,8 @@ pub(crate) fn run(config: &Config) -> Result<String> {
     print!("▸ {:<7}", "run test");
 
     let classpath = [
-        config.src_dir(),
-        config.test_dir()
+        config.build.src.clone(),
+        config.build.test.clone(),
     ].join(":");
 
     let output = Command::new("java")
@@ -19,7 +20,7 @@ pub(crate) fn run(config: &Config) -> Result<String> {
         // .args(["--select-package", "no.tordly.test"])
         .args(["--select-class", "PrefixTest"])
         .output()
-        .with_context(|| "failed to run tests")?;
+        .with_context(|| PartialConclusion::FAILED)?;
 
     log_result(output)
 }
