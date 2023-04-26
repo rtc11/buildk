@@ -1,11 +1,12 @@
 [package]
-name = "fs"
+name = "config"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 toml.workspace = true
-serde.workspace = true
-serde_derive.workspace = true
 
 anyhow.workspace = true
+home.workspace = true
+serde.workspace = true
+serde_derive.workspace = true
