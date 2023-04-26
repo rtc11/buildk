@@ -11,7 +11,7 @@ mod clean;
 mod build;
 mod test;
 mod run;
-mod target;
+mod release;
 
 #[derive(Debug)]
 pub struct Kotlin {

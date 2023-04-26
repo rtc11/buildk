@@ -16,7 +16,6 @@ pub struct ProcessBuilder {
     program: OsString,
     args: Vec<OsString>,
     env: BTreeMap<String, Option<OsString>>,
-    /// Current working directory (to run the program in)
     cwd: Option<OsString>,
     stdin: Option<Vec<u8>>,
 }
@@ -52,11 +51,6 @@ impl ProcessBuilder {
             env: BTreeMap::new(),
             stdin: None,
         }
-    }
-
-    pub fn program<T: AsRef<OsStr>>(&mut self, program: T) -> &mut ProcessBuilder {
-        self.program = program.as_ref().to_os_string();
-        self
     }
 
     pub fn arg<T: AsRef<OsStr>>(&mut self, arg: T) -> &mut ProcessBuilder {

@@ -5,9 +5,10 @@ use util::process_builder::ProcessBuilder;
 use crate::Kotlin;
 
 impl Kotlin {
-    pub fn target(&self, config: &Config) -> BuildkOutput {
+    pub fn release(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-        let mut java = ProcessBuilder::new("java");
+        let mut java = ProcessBuilder::new(&self.compiler);
+
         java.cwd(&config.cwd)
             .sources(&config.manifest.build.src)
             .include_runtime()

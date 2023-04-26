@@ -33,8 +33,14 @@ fn main() {
             Cmd::BuildSrc => kotlinc.build_src(config),
             Cmd::BuildTest => kotlinc.build_test(config),
             Cmd::Test => kotlinc.run_tests(config),
-            Cmd::Run => kotlinc.run(config),
-            Cmd::Release => kotlinc.target(config),
+            Cmd::Release => kotlinc.release(config),
+            Cmd::Run => {
+                let run = kotlinc.run(config);
+                if let Some(stdout) = run.get_stdout() {
+                    println!("{stdout}");
+                }
+                run
+            },
         };
         println!("{:<6} {:<12} ▸ {}", output.conclusion(), command, output.elapsed());
         output

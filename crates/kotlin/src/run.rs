@@ -10,8 +10,8 @@ impl Kotlin {
         let mut java = ProcessBuilder::new("java");
 
         java.cwd(&config.cwd)
-            .sources(&config.manifest.project.main_class())
-            .classpath(&config.manifest.build.src);
+            .classpath(&config.manifest.build.output_src())
+            .sources(&config.manifest.project.main_class());
 
         self.execute(&mut output, &java, 0)
     }

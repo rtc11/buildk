@@ -4,7 +4,7 @@ dir = "test"
 
 [build]
 output = "build"
-src = "src"
+src = "src/"
 test = "test"
 
 [kotlin]
