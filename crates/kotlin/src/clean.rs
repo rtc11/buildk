@@ -9,7 +9,7 @@ impl Kotlin {
         let mut output = BuildkOutput::default();
         let project_output_dir = config.cwd.join(&config.manifest.build.output);
 
-        match std::fs::remove_file(&project_output_dir) {
+        match std::fs::remove_dir_all(&project_output_dir) {
             Ok(_) => output
                 .conclude(PartialConclusion::SUCCESS)
                 .stdout(format!("cleared {}", project_output_dir.display()))

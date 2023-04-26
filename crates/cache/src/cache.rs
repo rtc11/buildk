@@ -33,7 +33,7 @@ impl Cache {
                 let empty = CacheData::empty(fingerprint);
                 let mut dirty = true;
 
-                let data = match read(&cache_location) {
+                let data = match read(cache_location) {
                     Ok(data) => {
                         if data.fingerprint() == fingerprint {
                             dirty = false;
@@ -44,11 +44,8 @@ impl Cache {
                     }
                     Err(_) => empty
                 };
-                return Cache {
-                    location: cache_location.to_path_buf(),
-                    dirty,
-                    data,
-                };
+                let location = cache_location.to_path_buf();
+                return Cache { location, dirty, data };
 
                 fn read(path: &Path) -> BuildkResult<CacheData> {
                     let json = paths::read(path)?;
@@ -106,7 +103,7 @@ impl Drop for Cache {
             Err(e) => println!("failed to create cache file: {e}"),
             Ok(file) => match serde_json::to_writer_pretty(&file, &self.data) {
                 Err(e) => println!("failed to update kotlinc info cache: {e}"),
-                Ok(()) => println!("updated kotlinc info cache"),
+                Ok(()) => {}
             }
         }
     }

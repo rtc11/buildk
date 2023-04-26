@@ -20,7 +20,7 @@ fn main() {
 
     let outputs = commands.iter().map(|cmd| {
         let output = execute(cmd, &config, &mut kotlinc);
-        println!("{} {:<12} ▸ {}", output.conclusion(), cmd, output.elapsed());
+        println!("{:<6} {:<12} ▸ {}", output.conclusion(), cmd, output.elapsed());
         output
     }).collect::<Vec<BuildkOutput>>();
 

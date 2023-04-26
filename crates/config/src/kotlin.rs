@@ -6,7 +6,7 @@ use serde_derive::Deserialize;
 pub struct Kotlin {
     /// path to kotlin bin directory. TODO: require envar KOTLIN_HOME?
     #[serde(default = "default_kotlin_path")]
-    path: PathBuf,
+    pub path: PathBuf,
 }
 
 fn default_kotlin_path() -> PathBuf { PathBuf::from("..kotlinc") }

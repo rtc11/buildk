@@ -37,8 +37,8 @@ impl Kotlin {
             runner: config.manifest.kotlin.bin().join("kotlin"),
             cache: Mutex::new(cache),
             test_libs: vec![
-                config.manifest.kotlin.bin().join("lib/kotlin-test-junit5.jar"),
-                config.manifest.kotlin.bin().join("lib/kotlin-test.jar"),
+                config.manifest.kotlin.path.join("lib/kotlin-test-junit5.jar"),
+                config.manifest.kotlin.path.join("lib/kotlin-test.jar"),
             ],
         };
 

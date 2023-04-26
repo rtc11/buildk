@@ -19,7 +19,7 @@ impl fmt::Display for PartialConclusion {
             PartialConclusion::INIT => format!(" {}", "∅".to_green()),
             PartialConclusion::SUCCESS => format!(" {}", "✓".to_green()),
             PartialConclusion::FAILED => format!(" {}", "✕".to_red()),
-            PartialConclusion::CACHED => format!(" {}", "📌".to_blue()),
+            PartialConclusion::CACHED => format!(" {}", "❤".to_blue()),
         };
 
         f.write_str(&colored_str)
