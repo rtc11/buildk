@@ -22,6 +22,6 @@ impl Kotlin {
             .args(&["--details", "none"])
             .test_report(&config.manifest.build.output_test_report());
 
-        self.cached_output(&mut output, &java, 0)
+        self.execute(&mut output, &java, 0)
     }
 }

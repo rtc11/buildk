@@ -57,7 +57,7 @@ impl Kotlin {
         Ok(kotlinc)
     }
 
-    fn cached_output(
+    fn execute(
         &self,
         output: &mut BuildkOutput,
         cmd: &ProcessBuilder,

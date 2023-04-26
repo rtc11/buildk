@@ -14,7 +14,7 @@ impl Kotlin {
             .sources(&config.manifest.build.src)
             .destination(&config.manifest.build.output_src());
 
-        self.cached_output(&mut output, &kotlinc, 0)
+        self.execute(&mut output, &kotlinc, 0)
     }
 
     pub fn build_test(&self, config: &Config) -> BuildkOutput {
@@ -32,6 +32,6 @@ impl Kotlin {
             .classpaths(paths)
             .destination(&config.manifest.build.output_test());
 
-        self.cached_output(&mut output, &kotlinc, 0)
+        self.execute(&mut output, &kotlinc, 0)
     }
 }

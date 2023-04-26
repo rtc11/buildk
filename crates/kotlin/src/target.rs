@@ -13,6 +13,6 @@ impl Kotlin {
             .include_runtime()
             .destination(&config.manifest.build.output_target());
 
-        self.cached_output(&mut output, &java, 0)
+        self.execute(&mut output, &java, 0)
     }
 }

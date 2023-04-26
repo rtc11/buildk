@@ -35,8 +35,6 @@ pub struct LazyConfig {
 
 impl LazyConfig {
     pub fn new() -> Self { Self { config: None } }
-    pub fn is_init(&self) -> bool { self.config.is_some() }
-    pub fn get(&mut self) -> &Config { self.get_mut() }
     pub fn get_mut(&mut self) -> &mut Config {
         self.config.get_or_insert_with(|| match Config::default() {
             Ok(cfg) => cfg,

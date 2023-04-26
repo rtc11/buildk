@@ -85,7 +85,7 @@ impl Cache {
         match output.success {
             true => Ok((output.stdout.clone(), output.stderr.clone(), partial_conclusion)),
             false => Err(ProcessError::new_with_raw_output(
-                &format!("process didn't exit successfully: {cmd}"),
+                &format!("process didn't exit successfully (cache): {cmd}"),
                 output.code,
                 &output.status,
                 Some(output.stdout.as_ref()),
