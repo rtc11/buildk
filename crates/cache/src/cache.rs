@@ -101,9 +101,8 @@ impl Drop for Cache {
 
         match File::create(&self.location) {
             Err(e) => println!("failed to create cache file: {e}"),
-            Ok(file) => match serde_json::to_writer_pretty(&file, &self.data) {
-                Err(e) => println!("failed to update kotlinc info cache: {e}"),
-                Ok(()) => {}
+            Ok(file) => if let Err(e) = serde_json::to_writer_pretty(&file, &self.data) {
+                println!("failed to update kotlinc info cache: {e}")
             }
         }
     }

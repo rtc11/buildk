@@ -9,14 +9,13 @@ use util::timer::Timer;
 
 fn main() {
     let timer = Timer::start();
-    let config = Config::default().unwrap();
+    let config = Config::default();
     let mut kotlin = Kotlin::new(&config).expect("kotlin expected");
     let errors = args()
         .skip(1)
-        .flat_map(|arg| Cmd::from(arg))
+        .flat_map(Cmd::from)
         .map(|cmd| execute(&cmd, &config, &mut kotlin))
-        .filter(|output| output.get_stderr().is_some())
-        .map(|output| output.get_stderr().unwrap())
+        .filter_map(|output| output.get_stderr())
         .fold(String::new(), |errors, output| format!("{errors}\n{output}"));
 
     if errors.is_empty() {

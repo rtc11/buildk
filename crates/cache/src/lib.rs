@@ -10,7 +10,7 @@ mod output;
 
 fn kotlinc_fingerprint(kotlin_bin: &Path) -> BuildkResult<u64> {
     let kotlinc = kotlin_bin.join("kotlinc");
-    let mut hasher = StableHasher::new();
+    let mut hasher = StableHasher::default();
     let hash_exe = |hasher: &mut _, path| -> BuildkResult<()> {
         let path = paths::resolve_executable(path)?;
         path.hash(hasher);
@@ -23,7 +23,7 @@ fn kotlinc_fingerprint(kotlin_bin: &Path) -> BuildkResult<u64> {
 }
 
 fn process_fingerprint(cmd: &ProcessBuilder, extra_fingerprint: u64) -> u64 {
-    let mut hasher = StableHasher::new();
+    let mut hasher = StableHasher::default();
     extra_fingerprint.hash(&mut hasher);
     cmd.get_args().for_each(|arg| arg.hash(&mut hasher));
     let mut env = cmd.get_envs().iter().collect::<Vec<_>>();

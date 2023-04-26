@@ -8,7 +8,7 @@ pub fn resolve_executable(exec: &Path) -> anyhow::Result<PathBuf> {
     if exec.components().count() == 1 {
         let paths = env::var_os("PATH").ok_or_else(|| anyhow::format_err!("no PATH"))?;
         let candidates = env::split_paths(&paths).flat_map(|path| {
-            let candidate = path.join(&exec);
+            let candidate = path.join(exec);
             iter::once(candidate)
         });
 

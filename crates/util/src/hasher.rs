@@ -4,8 +4,8 @@ use std::hash::{Hasher, SipHasher};
 
 pub struct StableHasher(SipHasher);
 
-impl StableHasher {
-    pub fn new() -> StableHasher {
+impl Default for StableHasher {
+    fn default() -> Self {
         StableHasher(SipHasher::new())
     }
 }

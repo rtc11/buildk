@@ -15,16 +15,21 @@ pub struct Config {
     pub manifest: Manifest,
 }
 
-impl Config {
-    pub fn new(cwd: PathBuf, home: PathBuf, manifest: Manifest) -> Config {
-        Config { cwd, home, manifest }
+impl Default for Config {
+    fn default() -> Self {
+        match Config::new() {
+            Ok(config) => config,
+            Err(e) => panic!("Failed to configure: {e}")
+        }
     }
+}
 
-    pub fn default() -> anyhow::Result<Config> {
+impl Config {
+    fn new() -> anyhow::Result<Config> {
         let manifest = read_file::<Manifest>(Path::new(Self::manifest_path()))?;
         let cwd = manifest.project.dir.clone();
         let home = buildk_home_dir().with_context(|| "buildk could not find its home directory")?;
-        Ok(Config::new(cwd, home, manifest))
+        Ok(Config { cwd, home, manifest })
     }
 
     #[cfg(debug_assertions)]

@@ -28,7 +28,7 @@ impl Kotlin {
     ) -> BuildkResult<Kotlin> {
         let cache = Cache::load(
             &config.manifest.kotlin.bin(),
-            &config.cwd.join(&config.manifest.build.output_cache()),
+            &config.cwd.join(config.manifest.build.output_cache()),
         );
 
         let mut kotlinc = Kotlin {
