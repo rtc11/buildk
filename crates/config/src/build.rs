@@ -33,12 +33,12 @@ impl Build {
 
 impl Display for Build {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:<26}{}", "build.src:", self.src.display())?;
-        writeln!(f, "{:<26}{}", "build.test:", self.test.display())?;
-        writeln!(f, "{:<26}{}", "build.output:", self.output.display())?;
-        writeln!(f, "{:<26}{}", "build.output.src:", self.output_src().display())?;
-        writeln!(f, "{:<26}{}", "build.output.test:", self.output_test().display())?;
-        writeln!(f, "{:<26}{}", "build.output.target:", self.output_target().display())?;
+        writeln!(f, "{:<26}{}", "build.src", self.src.display())?;
+        writeln!(f, "{:<26}{}", "build.test", self.test.display())?;
+        writeln!(f, "{:<26}{}", "build.output", self.output.display())?;
+        writeln!(f, "{:<26}{}", "build.output.src", self.output_src().display())?;
+        writeln!(f, "{:<26}{}", "build.output.test", self.output_test().display())?;
+        writeln!(f, "{:<26}{}", "build.output.target", self.output_target().display())?;
         writeln!(f, "{:<26}{}", "build.output.cache", self.output_cache().display())
     }
 }

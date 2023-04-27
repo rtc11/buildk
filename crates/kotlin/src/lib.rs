@@ -37,7 +37,7 @@ impl Kotlin {
             ],
         };
 
-        let mut runner = ProcessBuilder::new(&kotlin_home.join("bin/kotlin"));
+        let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
         runner.cwd(&config.cwd).arg("-version");
 
         let (verbose_version, _, _) = kotlinc.cache.lock().unwrap().cached_output(&runner, 0)?;

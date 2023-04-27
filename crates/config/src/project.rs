@@ -21,7 +21,7 @@ impl Project {
 
 impl Display for Project {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:<26}{}", "project.main:", self.main)?;
-        writeln!(f, "{:<26}{}", "project.dir:", self.dir.display())
+        writeln!(f, "{:<26}{}", "project.main", self.main)?;
+        writeln!(f, "{:<26}{}", "project.dir", self.dir.display())
     }
 }

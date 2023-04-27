@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 toml.workspace = true
+util.workspace = true
 
 anyhow.workspace = true
 home.workspace = true
