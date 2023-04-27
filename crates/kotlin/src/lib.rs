@@ -76,4 +76,8 @@ impl Kotlin {
                 .clone()
         }
     }
+
+    fn invalidate_cache(&mut self) {
+        self.cache.lock().unwrap().invalidate()
+    }
 }

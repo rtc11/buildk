@@ -93,6 +93,10 @@ impl Cache {
             ).into())
         }
     }
+
+    pub fn invalidate(&mut self) {
+        self.dirty = false;
+    }
 }
 
 impl Drop for Cache {
