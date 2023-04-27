@@ -1,5 +1,6 @@
 use config::config::Config;
 use util::buildk_output::BuildkOutput;
+use util::get_kotlinc;
 use util::process_builder::ProcessBuilder;
 
 use crate::Kotlin;
@@ -7,7 +8,7 @@ use crate::Kotlin;
 impl Kotlin {
     pub fn release(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-        let mut java = ProcessBuilder::new(&self.compiler);
+        let mut java = ProcessBuilder::new(get_kotlinc());
 
         java.cwd(&config.cwd)
             .sources(&config.manifest.build.src)

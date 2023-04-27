@@ -5,7 +5,7 @@ use std::ffi::{OsStr, OsString};
 use std::fmt::Formatter;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Output, Stdio};
+use std::process::{Command, Output, Stdio};
 
 use anyhow::{Context, Result};
 
@@ -116,29 +116,6 @@ impl ProcessBuilder {
             .and_then(|s| s) // flatmap
     }
 
-    pub fn stdin<T: Into<Vec<u8>>>(&mut self, stdin: T) -> &mut Self {
-        self.stdin = Some(stdin.into());
-        self
-    }
-
-    pub fn status(&self) -> Result<ExitStatus> {
-        self.build_command().spawn()?.wait().with_context(|| ProcessError::could_not_execute(self))
-    }
-
-    pub fn exec(&self) -> Result<()> {
-        let exit = self.status()?;
-        if exit.success() {
-            Ok(())
-        } else {
-            let error = ProcessError::new(
-                &format!("process dit not exit successfully: {}", self),
-                Some(exit),
-                None,
-            );
-            Err(error.into())
-        }
-    }
-
     pub fn build_command(&self) -> Command {
         let mut cmd = self.build_command_without_args();
         for arg in &self.args {
@@ -172,20 +149,6 @@ impl ProcessBuilder {
             child.stdin.take().unwrap().write_all(stdin)?;
         }
         child.wait_with_output()
-    }
-
-    pub fn exec_with_output(&self) -> Result<Output> {
-        let output = self.output()?;
-        if output.status.success() {
-            Ok(output)
-        } else {
-            let error = ProcessError::new(
-                &format!("process didn't exit successfully: {}", self),
-                Some(output.status),
-                Some(&output),
-            );
-            Err(error.into())
-        }
     }
 }
 

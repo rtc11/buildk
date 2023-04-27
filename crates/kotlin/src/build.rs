@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use config::config::Config;
 use util::buildk_output::BuildkOutput;
+use util::get_kotlinc;
 use util::process_builder::ProcessBuilder;
 
 use crate::Kotlin;
@@ -9,7 +10,7 @@ use crate::Kotlin;
 impl Kotlin {
     pub fn build_src(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-        let mut kotlinc = ProcessBuilder::new(&self.compiler);
+        let mut kotlinc = ProcessBuilder::new(get_kotlinc());
         kotlinc.cwd(&config.cwd)
             .sources(&config.manifest.build.src)
             .destination(&config.manifest.build.output_src());
@@ -26,7 +27,7 @@ impl Kotlin {
             PathBuf::from("libs/junit-platform-console-standalone-1.9.2.jar"),
         ]);
 
-        let mut kotlinc = ProcessBuilder::new(&self.compiler);
+        let mut kotlinc = ProcessBuilder::new(get_kotlinc());
         kotlinc.cwd(&config.cwd)
             .sources(&config.manifest.build.test)
             .classpaths(paths)

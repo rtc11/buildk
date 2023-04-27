@@ -7,9 +7,6 @@ output = "build"
 src = "src/"
 test = "test"
 
-[kotlin]
-path = "../kotlinc"
-
 #[dependencies]
 #io.ktor.ktor-server-core-jvm = "2.2.4"
 #

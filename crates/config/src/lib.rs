@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 
 pub mod manifest;
 pub mod config;
-pub mod kotlin;
 pub mod project;
 pub mod build;
 

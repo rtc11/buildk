@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
-use cache::cache::Cache;
 
+use cache::cache::Cache;
 use config::config::Config;
+use util::{BuildkResult, get_kotlin_home, PartialConclusion};
 use util::buildk_output::BuildkOutput;
-use util::{BuildkResult, PartialConclusion};
 use util::process_builder::ProcessBuilder;
 
 mod clean;
@@ -16,8 +16,6 @@ mod release;
 #[derive(Debug)]
 pub struct Kotlin {
     pub version: String,
-    runner: PathBuf,
-    compiler: PathBuf,
     cache: Mutex<Cache>,
     test_libs: Vec<PathBuf>,
 }
@@ -26,23 +24,20 @@ impl Kotlin {
     pub fn new(
         config: &Config,
     ) -> BuildkResult<Kotlin> {
-        let cache = Cache::load(
-            &config.manifest.kotlin.bin(),
-            &config.cwd.join(config.manifest.build.output_cache()),
-        );
+        let cache_location = config.cwd.join(config.manifest.build.output_cache());
+        let kotlin_home = get_kotlin_home();
+        let cache = Cache::load(&kotlin_home, &cache_location);
 
         let mut kotlinc = Kotlin {
             version: "unknown".to_string(),
-            compiler: config.manifest.kotlin.bin().join("kotlinc"),
-            runner: config.manifest.kotlin.bin().join("kotlin"),
             cache: Mutex::new(cache),
             test_libs: vec![
-                config.manifest.kotlin.path.join("lib/kotlin-test-junit5.jar"),
-                config.manifest.kotlin.path.join("lib/kotlin-test.jar"),
+                kotlin_home.join("lib/kotlin-test-junit5.jar"),
+                kotlin_home.join("lib/kotlin-test.jar"),
             ],
         };
 
-        let mut runner = ProcessBuilder::new(&kotlinc.runner);
+        let mut runner = ProcessBuilder::new(&kotlin_home.join("bin/kotlin"));
         runner.cwd(&config.cwd).arg("-version");
 
         let (verbose_version, _, _) = kotlinc.cache.lock().unwrap().cached_output(&runner, 0)?;

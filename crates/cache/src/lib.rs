@@ -1,6 +1,6 @@
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use util::{BuildkResult, paths};
+use util::{BuildkResult, get_kotlinc, paths};
 use util::hasher::StableHasher;
 use util::process_builder::ProcessBuilder;
 
@@ -9,7 +9,7 @@ mod data;
 mod output;
 
 fn kotlinc_fingerprint(kotlin_bin: &Path) -> BuildkResult<u64> {
-    let kotlinc = kotlin_bin.join("kotlinc");
+    let kotlinc = kotlin_bin.join(get_kotlinc());
     let mut hasher = StableHasher::default();
     let hash_exe = |hasher: &mut _, path| -> BuildkResult<()> {
         let path = paths::resolve_executable(path)?;

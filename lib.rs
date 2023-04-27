@@ -8,7 +8,6 @@ use util::Conclusion;
 use util::timer::Timer;
 
 fn main() {
-    option_env!("PATH").unwrap();
     let timer = Timer::start();
     let config = Config::default();
     let mut kotlin = Kotlin::new(&config).expect("kotlin expected");

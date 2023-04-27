@@ -16,17 +16,8 @@ pub struct Cache {
 }
 
 impl Cache {
-    #[cfg(not(debug_assertions))]
-    fn kotlin_bin_path(kotlin_bin: &Path) -> PathBuf { PathBuf::from(kotlin_bin) }
-
-    #[cfg(debug_assertions)]
-    fn kotlin_bin_path(_kotlin_bin: &Path) -> PathBuf {
-        PathBuf::from("kotlinc/bin")
-    }
-
-    pub fn load(kotlin_bin: &Path, cache_location: &Path) -> Cache {
-        // temprary fix for relative path in dev
-        let kotlin_bin = Self::kotlin_bin_path(kotlin_bin);
+    pub fn load(kotlin_home: &Path, cache_location: &Path) -> Cache {
+        let kotlin_bin = kotlin_home.join("bin");
 
         match kotlinc_fingerprint(&kotlin_bin) {
             Ok(fingerprint) => {
