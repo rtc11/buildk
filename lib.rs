@@ -7,7 +7,8 @@ use util::cmd::Cmd;
 use util::Conclusion;
 use util::timer::Timer;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let timer = Timer::start();
     let config = Config::default();
     let mut kotlin = Kotlin::new(&config).expect("kotlin expected");
@@ -20,6 +21,7 @@ fn main() {
 
     if errors.is_empty() {
         println!("{} in {}", Conclusion::SUCCESS, timer.elapsed());
+        println!("{config}");
     } else {
         println!("{} in {}", Conclusion::FAILED, timer.elapsed());
         println!("{errors}");

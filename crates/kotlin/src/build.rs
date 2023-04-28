@@ -8,10 +8,13 @@ use util::process_builder::ProcessBuilder;
 use crate::Kotlin;
 
 impl Kotlin {
-    pub fn build_src(&self, config: &Config) -> BuildkOutput {
+    pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
+        // let dependency = config.manifest.dependencies.iter().next().unwrap();
+        // self.client.download_info(&dependency.name, &dependency.version).unwrap();
+
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
-        kotlinc.cwd(&config.cwd)
+        kotlinc.cwd(&config.manifest.project.path)
             .sources(&config.manifest.build.src)
             .destination(&config.manifest.build.output_src());
 
@@ -28,7 +31,7 @@ impl Kotlin {
         ]);
 
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
-        kotlinc.cwd(&config.cwd)
+        kotlinc.cwd(&config.manifest.project.path)
             .sources(&config.manifest.build.test)
             .classpaths(paths)
             .destination(&config.manifest.build.output_test());

@@ -10,7 +10,7 @@ impl Kotlin {
         let mut output = BuildkOutput::default();
         let mut java = ProcessBuilder::new(get_kotlinc());
 
-        java.cwd(&config.cwd)
+        java.cwd(&config.manifest.project.path)
             .sources(&config.manifest.build.src)
             .include_runtime()
             .destination(&config.manifest.build.output_target());

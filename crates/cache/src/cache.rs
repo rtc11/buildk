@@ -8,7 +8,6 @@ use util::process_error::ProcessError;
 use crate::{kotlinc_fingerprint, process_fingerprint};
 use crate::data::CacheData;
 
-#[derive(Debug)]
 pub struct Cache {
     location: PathBuf,
     dirty: bool,

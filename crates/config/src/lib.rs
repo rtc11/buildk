@@ -1,7 +1,7 @@
 extern crate core;
 
-use std::{fs, io};
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::path::Path;
 
 use anyhow::{Context, Error};
 use serde::{Deserialize, Serialize};
@@ -10,9 +10,14 @@ pub mod manifest;
 pub mod config;
 pub mod project;
 pub mod build;
+pub mod dependency;
 
-pub fn read_file<T: for<'a> Deserialize<'a>>(file: &Path) -> Result<T, Error> {
-    let content = fs::read_to_string(file)?;
+pub fn read_file(file: &Path) -> anyhow::Result<String> {
+    fs::read_to_string(file)
+        .with_context(|| format!("Failed to read file into string: {}", file.display()))
+}
+
+pub fn toml<T: for<'a> Deserialize<'a>>(content: String) -> anyhow::Result<T> {
     toml::from_str(&content).with_context(|| "Failed to file as toml")
 }
 
@@ -21,7 +26,15 @@ pub fn write_file<T: Serialize>(file: &str, toml: &T) -> Result<(), Error> {
     fs::write(file, content).with_context(|| format!("Failed to create file {file}"))
 }
 
-fn buildk_home_dir() -> io::Result<PathBuf> {
-    home::home_dir().map(|home| home.join(".buildk"))
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "$HOME env probably missing."))
+mod buildk {
+    use std::io;
+    use std::path::PathBuf;
+
+    use anyhow::Context;
+
+    pub fn home_dir() -> anyhow::Result<PathBuf> {
+        home::home_dir().map(|home| home.join(".buildk"))
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "$HOME env probably missing."))
+            .with_context(|| "buildk could not find its home directory")
+    }
 }

@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use cache::cache::Cache;
 use config::config::Config;
+use dependencies::client::Client;
 use util::{BuildkResult, get_kotlin_home, PartialConclusion};
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
@@ -13,18 +14,18 @@ mod test;
 mod run;
 mod release;
 
-#[derive(Debug)]
 pub struct Kotlin {
     pub version: String,
     cache: Mutex<Cache>,
     test_libs: Vec<PathBuf>,
+    pub client: Client,
 }
 
 impl Kotlin {
     pub fn new(
         config: &Config,
     ) -> BuildkResult<Kotlin> {
-        let cache_location = config.cwd.join(config.manifest.build.output_cache());
+        let cache_location = config.manifest.project.path.join(config.manifest.build.output_cache());
         let kotlin_home = get_kotlin_home();
         let cache = Cache::load(&kotlin_home, &cache_location);
 
@@ -35,10 +36,11 @@ impl Kotlin {
                 kotlin_home.join("lib/kotlin-test-junit5.jar"),
                 kotlin_home.join("lib/kotlin-test.jar"),
             ],
+            client: Client::new(config),
         };
 
         let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
-        runner.cwd(&config.cwd).arg("-version");
+        runner.cwd(&config.manifest.project.path).arg("-version");
 
         let (verbose_version, _, _) = kotlinc.cache.lock().unwrap().cached_output(&runner, 0)?;
 

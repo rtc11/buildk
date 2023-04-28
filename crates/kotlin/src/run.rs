@@ -9,7 +9,7 @@ impl Kotlin {
         let mut output = BuildkOutput::default();
         let mut java = ProcessBuilder::new("java");
 
-        java.cwd(&config.cwd)
+        java.cwd(&config.manifest.project.path)
             .classpath(&config.manifest.build.output_src())
             .sources(&config.manifest.project.main_class());
 

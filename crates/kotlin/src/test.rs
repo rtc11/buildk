@@ -14,7 +14,7 @@ impl Kotlin {
         ];
 
         let mut java = ProcessBuilder::new("java");
-        java.cwd(&config.cwd)
+        java.cwd(&config.manifest.project.path)
             .args(&["-jar", "libs/junit-platform-console-standalone-1.9.2.jar"])
             .classpaths(classpath)
             .args(&["--select-class", "PrefixTest"])

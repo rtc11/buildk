@@ -11,7 +11,7 @@ const OS_2_ERROR: &str = "No such file or directory (os error 2)";
 impl Kotlin {
     pub fn clean(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-        let project_output_dir = config.cwd.join(&config.manifest.build.output);
+        let project_output_dir = config.manifest.project.path.join(&config.manifest.build.output);
 
         match std::fs::remove_dir_all(&project_output_dir) {
             Ok(_) => self.cleaned(&mut output, &project_output_dir),
