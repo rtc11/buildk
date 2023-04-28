@@ -9,8 +9,13 @@ use crate::Kotlin;
 
 impl Kotlin {
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
-        // let dependency = config.manifest.dependencies.iter().next().unwrap();
-        // self.client.download_info(&dependency.name, &dependency.version).unwrap();
+        let (name, version) = config.manifest.dependencies.deps.iter().next().unwrap();
+        let res = self.client.download_info(name, version).unwrap();
+        println!("{:?}", res);
+
+        let (name, version) = config.manifest.test_dependencies.deps.iter().next().unwrap();
+        let res = self.client.download_info(name, version).unwrap();
+        println!("{:?}", res);
 
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());

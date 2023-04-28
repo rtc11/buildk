@@ -17,7 +17,7 @@ impl Default for Config {
             manifest: Manifest::default(),
             home: match buildk::home_dir() {
                 Ok(home_dir) => home_dir,
-                Err(e) => panic!("Failed to fconstruct config.home: {}", e)
+                Err(e) => panic!("Failed to construct config.home: {}", e)
             }
         }
     }
@@ -25,7 +25,7 @@ impl Default for Config {
 
 impl Display for Config {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.manifest)?;
-        writeln!(f, "{:<26}{}", "buildk.home:", self.home.display())
+        writeln!(f, "{:<26}{}", "buildk.home:", self.home.display())?;
+        write!(f, "{}", self.manifest)
     }
 }

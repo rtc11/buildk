@@ -12,6 +12,7 @@ use tempfile::Builder;
 use config::config::Config;
 
 // TODO: use fingerprint to retrieve cache?
+#[derive(Debug)]
 pub struct DependencyInfo {
     path: PathBuf,
     url: String,
@@ -32,7 +33,7 @@ pub struct Client {
 impl Client {
     pub fn new(config: &Config) -> Self {
         Client {
-            cache_location: config.home.clone(),
+            cache_location: config.home.join("cache"),
             cache: Mutex::default(),
         }
     }
@@ -40,20 +41,20 @@ impl Client {
     /// artifact: e.g. `org/apache/kafka/kafka-clients`
     /// version: e.g. `3.4.0`
     pub fn download_info(&mut self, dependency: &str, version: &str) -> anyhow::Result<DependencyInfo> {
-        let after_last_slash = Regex::new(r"([^\/]+)$").unwrap();
-        let dependency = dependency.replace(".", "/");
+        let after_last_slash = Regex::new(r"([^/]+)$").unwrap();
+        let dependency = dependency.replace('.', "/");
 
         match after_last_slash.find(&dependency) {
-            None => bail!("artifact not fonud for dependency"),
+            None => bail!("artifact not found for dependency"),
             Some(artifact_name) => {
-                match dependency.split("/").map(PathBuf::from).reduce(|a, b| a.join(&b)) {
+                match dependency.split('/').map(PathBuf::from).reduce(|a, b| a.join(b)) {
                     None => bail!("relative path for dependency not deduced"),
                     Some(relative_path) => {
-                        println!("relative path for dependency: {}", relative_path.display());
+                        // println!("relative path for dependency: {}", relative_path.display());
                         let jar = format!("{}-{version}.jar", artifact_name.as_str());
                         Ok(DependencyInfo {
                             url: format!("https://repo1.maven.org/maven2/{dependency}/{version}/{jar}"),
-                            path: self.cache_location.join(&relative_path),
+                            path: self.cache_location.join(relative_path),
                             name: artifact_name.as_str().to_string(),
                             version: version.to_string(),
                         })
