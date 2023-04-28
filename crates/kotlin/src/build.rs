@@ -9,14 +9,6 @@ use crate::Kotlin;
 
 impl Kotlin {
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
-        let (name, version) = config.manifest.dependencies.deps.iter().next().unwrap();
-        let res = self.client.download_info(name, version).unwrap();
-        println!("{:?}", res);
-
-        let (name, version) = config.manifest.test_dependencies.deps.iter().next().unwrap();
-        let res = self.client.download_info(name, version).unwrap();
-        println!("{:?}", res);
-
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
         kotlinc.cwd(&config.manifest.project.path)
@@ -28,7 +20,6 @@ impl Kotlin {
 
     pub fn build_test(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-
         let mut paths = self.test_libs.clone();
         paths.extend_from_slice(&[
             config.manifest.build.output_src(),

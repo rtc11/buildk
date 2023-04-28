@@ -4,6 +4,7 @@ pub enum Cmd {
     Clean,
     BuildTest,
     BuildSrc,
+    Fetch,
     Test,
     Run,
     Release,
@@ -13,7 +14,7 @@ impl Cmd {
     pub fn from(value: String) -> Vec<Cmd> {
         match value.as_str() {
             "clean" => vec![Cmd::Clean],
-            "build" => vec![Cmd::BuildSrc, Cmd::BuildTest],
+            "build" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::BuildTest],
             "test" => vec![Cmd::Test],
             "run" => vec![Cmd::Run],
             "release" => vec![Cmd::Release],
@@ -28,6 +29,7 @@ impl Display for Cmd {
             Cmd::Clean => "clean",
             Cmd::BuildSrc => "build src",
             Cmd::BuildTest => "build test",
+            Cmd::Fetch => "fetch",
             Cmd::Test => "test",
             Cmd::Run => "run",
             Cmd::Release => "release",

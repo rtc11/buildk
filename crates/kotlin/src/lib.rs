@@ -13,6 +13,7 @@ mod build;
 mod test;
 mod run;
 mod release;
+mod fetch;
 
 pub struct Kotlin {
     pub version: String,

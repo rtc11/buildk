@@ -7,8 +7,7 @@ use util::cmd::Cmd;
 use util::Conclusion;
 use util::timer::Timer;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let timer = Timer::start();
     let config = Config::default();
     let mut kotlin = Kotlin::new(&config).expect("kotlin expected");
@@ -31,6 +30,7 @@ async fn main() {
     fn execute(command: &Cmd, config: &Config, kotlinc: &mut Kotlin) -> BuildkOutput {
         let output = match command {
             Cmd::Clean => kotlinc.clean(config),
+            Cmd::Fetch => kotlinc.fetch(config),
             Cmd::BuildSrc => kotlinc.build_src(config),
             Cmd::BuildTest => kotlinc.build_test(config),
             Cmd::Test => kotlinc.run_tests(config),
