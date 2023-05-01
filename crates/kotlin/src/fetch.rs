@@ -7,8 +7,8 @@ use crate::Kotlin;
 impl Kotlin {
     pub fn fetch(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-        config.manifest.dependencies.deps.iter().for_each(|(name, version)| {
-            let info = self.client.dependency_info(name, version).unwrap();
+        config.manifest.dependencies.iter().for_each(|dependency| {
+            let info = self.client.dependency_info(&dependency.name, &dependency.version).unwrap();
             self.client.download(info).expect("downloaded")
         });
 

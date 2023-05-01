@@ -11,10 +11,10 @@ pub mod config;
 pub mod project;
 pub mod build;
 pub mod dependencies;
+pub mod module;
 
 pub fn read_file(file: &Path) -> anyhow::Result<String> {
-    fs::read_to_string(file)
-        .with_context(|| format!("Failed to read file into string: {}", file.display()))
+    fs::read_to_string(file).context(format!("File not found: {}", file.display()))
 }
 
 pub fn toml<T: for<'a> Deserialize<'a>>(content: &str) -> anyhow::Result<T> {
@@ -22,7 +22,7 @@ pub fn toml<T: for<'a> Deserialize<'a>>(content: &str) -> anyhow::Result<T> {
 }
 
 pub fn write_file<T: Serialize>(file: &str, toml: &T) -> Result<(), Error> {
-    let content = toml::to_string::<T>(toml).with_context(|| "Failed to stringify toml Struct")?;
+    let content = toml_edit::ser::to_string::<T>(toml).with_context(|| "Failed to stringify toml Struct")?;
     fs::write(file, content).with_context(|| format!("Failed to create file {file}"))
 }
 

@@ -11,9 +11,9 @@ impl Kotlin {
         let mut java = ProcessBuilder::new(get_kotlinc());
 
         java.cwd(&config.manifest.project.path)
-            .sources(&config.manifest.build.src)
+            .sources(&config.manifest.project.src)
             .include_runtime()
-            .destination(&config.manifest.build.output_target());
+            .destination(&config.manifest.project.out.jar);
 
         self.execute(&mut output, &java, 0)
     }

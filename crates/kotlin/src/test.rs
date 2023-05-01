@@ -9,8 +9,8 @@ impl Kotlin {
         let mut output = BuildkOutput::default();
 
         let classpath = vec![
-            config.manifest.build.output_src(),
-            config.manifest.build.output_test(),
+            &config.manifest.project.out.src,
+            &config.manifest.project.out.test,
         ];
 
         let mut java = ProcessBuilder::new("java");
@@ -20,7 +20,7 @@ impl Kotlin {
             .args(&["--select-class", "PrefixTest"])
             // .args(&["--select-package", "no.tordly.test"])
             .args(&["--details", "none"])
-            .test_report(&config.manifest.build.output_test_report());
+            .test_report(&config.manifest.project.out.test_report);
 
         self.execute(&mut output, &java, 0)
     }

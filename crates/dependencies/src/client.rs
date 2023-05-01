@@ -40,9 +40,9 @@ impl Client {
 
     /// artifact: e.g. `org/apache/kafka/kafka-clients`
     /// version: e.g. `3.4.0`
-    pub fn dependency_info(&mut self, dependency: &str, version: &str) -> anyhow::Result<DependencyInfo> {
+    pub fn dependency_info(&mut self, name: &str, version: &str) -> anyhow::Result<DependencyInfo> {
         let after_last_slash = Regex::new(r"([^/]+)$").unwrap();
-        let dependency = dependency.replace('.', "/");
+        let dependency = name.replace('.', "/");
 
         match after_last_slash.find(&dependency) {
             None => bail!("artifact not found for dependency"),

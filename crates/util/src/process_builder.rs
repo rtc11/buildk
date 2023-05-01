@@ -62,8 +62,8 @@ impl ProcessBuilder {
         self.args(&[OsString::from("-cp"), path.as_ref().to_os_string()])
     }
 
-    pub fn classpaths(&mut self, paths: Vec<PathBuf>) -> &mut ProcessBuilder {
-        let classpath = paths.iter()
+    pub fn classpaths(&mut self, paths: Vec<&PathBuf>) -> &mut ProcessBuilder {
+        let classpath = paths.into_iter()
             .map(|path| path.as_os_str())
             .collect::<Vec<&OsStr>>()
             .as_slice()
