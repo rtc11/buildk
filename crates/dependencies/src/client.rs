@@ -13,11 +13,11 @@ use config::config::Config;
 // TODO: use fingerprint to retrieve cache?
 #[derive(Debug)]
 pub struct DependencyInfo {
-    path: PathBuf,
-    filename: String,
-    url: String,
-    name: String,
-    version: String,
+    pub path: PathBuf,
+    pub filename: String,
+    pub url: String,
+    pub name: String,
+    pub version: String,
 }
 
 #[derive(Default)]
@@ -28,6 +28,12 @@ struct DependencyCache {
 pub struct Client {
     cache_location: PathBuf,
     cache: Mutex<DependencyCache>,
+}
+
+impl DependencyInfo {
+    pub fn is_cached(&self) -> bool {
+        self.path.join(&self.filename).is_file()
+    }
 }
 
 impl Client {
@@ -64,11 +70,11 @@ impl Client {
     }
 
     // todo: do I have to download all the contents, or only the one jar?
-    pub fn download(&mut self, dep: DependencyInfo) -> anyhow::Result<()> {
-        let filepath = dep.path.join(dep.filename);
+    pub fn download(&mut self, dep: &DependencyInfo) -> anyhow::Result<()> {
+        let filepath = dep.path.join(&dep.filename);
         create_dir_all(&dep.path)?;
         let mut destination = File::create(filepath)?;
-        let response = reqwest::blocking::get(dep.url)?;
+        let response = reqwest::blocking::get(&dep.url)?;
         let content = response.text()?;
         io::copy(&mut content.as_bytes(), &mut destination)?;
         Ok(())
