@@ -97,3 +97,135 @@ fn traverse_decending_keys<'a>(mut keys: Vec<&'a str>, item: &'a Item) -> (Vec<&
         _ => panic!(r#"Unsupported dependency syntax. A dependency should look like: a.b.c = "1.2.3""#),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::dependencies::{Dependency, Kind};
+    use crate::manifest::TomlParser;
+
+    #[test]
+    fn single_dependency() {
+        let manifest = TomlParser::from_str(r#"
+[dependencies]
+splendid = "4.0.0"
+"#).unwrap();
+
+        let dependencies = manifest.dependencies();
+        assert_eq!(dependencies.len(), 1);
+        assert_eq!(dependencies.version_for("splendid"), Some("4.0.0"));
+    }
+
+    #[test]
+    fn dependency_with_dotted_keys() {
+        let manifest = TomlParser::from_str(r#"
+[dependencies]
+dotted.keys = "1.1"
+"#).unwrap();
+
+        let dependencies = manifest.dependencies();
+        assert_eq!(dependencies.len(), 1);
+        assert_eq!(dependencies.version_for("dotted.keys"), Some("1.1"));
+    }
+
+    #[test]
+    fn multiple_dependencies() {
+        let manifest = TomlParser::from_str(r#"
+[dependencies]
+nice = "3.2.1"
+amazing = "2.0"
+"#).unwrap();
+
+        let dependencies = manifest.dependencies();
+        assert_eq!(dependencies.len(), 2);
+        assert_eq!(dependencies.version_for("nice"), Some("3.2.1"));
+        assert_eq!(dependencies.version_for("amazing"), Some("2.0"));
+    }
+
+    #[test]
+    fn single_test_dependency() {
+        let manifest = TomlParser::from_str(r#"
+[test-dependencies]
+awesome = "1.2.3"
+"#).unwrap();
+        let dependencies = manifest.dependencies();
+        assert_eq!(dependencies.len(), 1);
+        assert_eq!(dependencies.version_for("awesome"), Some("1.2.3"));
+    }
+
+    #[test]
+    fn multiple_test_dependencies() {
+        let manifest = TomlParser::from_str(r#"
+[test-dependencies]
+nice = "3.2.1"
+amazing = "2.0"
+"#).unwrap();
+
+        let dependencies = manifest.dependencies();
+        assert_eq!(dependencies.len(), 2);
+        assert_eq!(dependencies.version_for("nice"), Some("3.2.1"));
+        assert_eq!(dependencies.version_for("amazing"), Some("2.0"));
+    }
+
+    #[test]
+    fn multiple_dependencies_and_test_dependencies() {
+        let manifest = TomlParser::from_str(r#"
+[dependencies]
+awesome.lib = "3.0.0"
+another.amazing.dep = "2.4"
+
+[test-dependencies]
+splendid.test.lib = "3.2.1"
+amazing = "2.0"
+"#).unwrap();
+
+        let dependencies = manifest.dependencies();
+        assert_eq!(dependencies.len(), 4);
+        assert_eq!(dependencies.version_for("awesome.lib"), Some("3.0.0"));
+        assert_eq!(dependencies.version_for("another.amazing.dep"), Some("2.4"));
+        assert_eq!(dependencies.version_for("splendid.test.lib"), Some("3.2.1"));
+        assert_eq!(dependencies.version_for("amazing"), Some("2.0"));
+    }
+
+    #[test]
+    fn test_dependency_kind() {
+        let manifest = TomlParser::from_str(r#"
+[dependencies]
+awesome.lib = "3.0.0"
+[test-dependencies]
+splendid.test.lib = "3.2.1"
+"#).unwrap();
+
+        let dependencies = manifest.dependencies();
+        assert_eq!(dependencies.len(), 2);
+        assert_eq!(dependencies.kind_for("awesome.lib"), Some(&Kind::PRODUCTION));
+        assert_eq!(dependencies.kind_for("splendid.test.lib"), Some(&Kind::TEST));
+    }
+
+    trait Version {
+        fn version_for(&self, lib: &str) -> Option<&str>;
+    }
+
+    impl Version for Vec<Dependency> {
+        fn version_for(&self, lib: &str) -> Option<&str> {
+            match self.into_iter().find(|dep| dep.name.eq(lib)) {
+                Some(dependency) => Some(&dependency.version),
+                None => None,
+            }
+        }
+    }
+
+    trait DependencyKind {
+        fn kind_for(&self, lib: &str) -> Option<&Kind>;
+    }
+
+    impl DependencyKind for Vec<Dependency> {
+        fn kind_for(&self, lib: &str) -> Option<&Kind> {
+            match self.into_iter().find(|dep| dep.name.eq(lib)) {
+                Some(dependency) => Some(&dependency.kind),
+                None => None,
+            }
+        }
+    }
+}

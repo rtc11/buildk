@@ -12,11 +12,11 @@ pub struct Project {
     pub path: PathBuf,
     pub src: PathBuf,
     pub test: PathBuf,
-    pub out: Output,
+    pub out: ProjectOutput,
     main: String,
 }
 
-pub struct Output {
+pub struct ProjectOutput {
     pub path: PathBuf,
     pub src: PathBuf,
     pub cache: PathBuf,
@@ -25,7 +25,7 @@ pub struct Output {
     pub jar: PathBuf,
 }
 
-impl Output {
+impl ProjectOutput {
     fn new(path: PathBuf) -> Self {
         Self {
             src: path.join("src"),
@@ -46,7 +46,7 @@ impl Default for Project {
             main: String::from("Main.kt"),
             src: path.join("src"),
             test: path.join("test"),
-            out: Output::new(path.join("out")),
+            out: ProjectOutput::new(path.join("out")),
             path,
         }
     }
@@ -70,7 +70,7 @@ impl Project {
             main: main.unwrap_or("Main.kt").to_string(),
             src: path.join("src"),
             test: path.join("test"),
-            out: Output::new(path.join("out")),
+            out: ProjectOutput::new(path.join("out")),
             path,
         })
     }
@@ -131,7 +131,7 @@ impl Display for Project {
     }
 }
 
-impl Display for Output {
+impl Display for ProjectOutput {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{:<26}{}", "project.out.path", self.path.display())?;
         writeln!(f, "{:<26}{}", "project.out.cache", self.cache.display())?;
@@ -139,5 +139,119 @@ impl Display for Output {
         writeln!(f, "{:<26}{}", "project.out.test", self.test.display())?;
         writeln!(f, "{:<26}{}", "project.out.test-report", self.test_report.display())?;
         writeln!(f, "{:<26}{}", "project.out.jar", self.jar.display())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::str::FromStr;
+
+    use crate::manifest::TomlParser;
+
+    #[test]
+    fn main() {
+        let manifest = TomlParser::from_str(r#"
+[project]
+main = "incredible.kt"
+"#).unwrap();
+
+        let project = manifest.project().unwrap();
+        assert_eq!(project.main, "incredible.kt");
+        assert_eq!(project.compiled_main_file(), "incredibleKt")
+    }
+
+
+    #[test]
+    fn default_path() {
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.path, PathBuf::from(std::env::current_dir().unwrap()))
+    }
+
+    #[test]
+    fn path() {
+        let manifest = TomlParser::from_str(r#"
+[project]
+path = "/Users"
+"#).unwrap();
+
+        let project = manifest.project().unwrap();
+        assert_eq!(project.path, PathBuf::from("/Users"))
+    }
+
+    #[test]
+    fn relative_path() {
+        let current_path = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"
+[project]
+relative-path = "src"
+"#).unwrap();
+
+        let project = manifest.project().unwrap();
+        assert_eq!(project.path, current_path.join("src"))
+    }
+
+    #[test]
+    fn default_src() {
+        let current_path = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.src, current_path.join("src"))
+    }
+
+    #[test]
+    fn default_test() {
+        let current_path = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.test, current_path.join("test"))
+    }
+
+    #[test]
+    fn default_out_path() {
+        let default_out = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.out.path, default_out.join("out"));
+    }
+
+    #[test]
+    fn default_out_src() {
+        let default_out = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.out.src, default_out.join("out").join("src"));
+    }
+
+    #[test]
+    fn default_out_test() {
+        let default_out = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.out.test, default_out.join("out").join("test"));
+    }
+
+    #[test]
+    fn default_out_test_report() {
+        let default_out = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.out.test_report, default_out.join("out").join("test-report"));
+    }
+
+    #[test]
+    fn default_out_cache() {
+        let default_out = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.out.cache, default_out.join("out").join("cache.json"));
+    }
+    #[test]
+    fn default_out_jar() {
+        let default_out = std::env::current_dir().unwrap();
+        let manifest = TomlParser::from_str(r#"[project]"#).unwrap();
+        let project = manifest.project().unwrap();
+        assert_eq!(project.out.jar, default_out.join("out").join("app.jar"));
     }
 }
