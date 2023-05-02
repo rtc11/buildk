@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use std::path::PathBuf;
-use crate::dependencies::Dependency;
+use crate::dependencies::dependency::Dependency;
 
 pub struct Module {
     path: PathBuf,

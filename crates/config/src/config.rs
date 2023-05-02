@@ -7,6 +7,7 @@ use crate::manifest::Manifest;
 pub struct Config {
     /// buildk home dir `$HOME/.buildk`
     pub home: PathBuf,
+
     /// project manifest `buildk.toml`
     pub manifest: Manifest,
 }
