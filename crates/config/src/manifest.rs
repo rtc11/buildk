@@ -3,13 +3,12 @@ use std::path::Path;
 use std::str::FromStr;
 
 use anyhow::Context;
-use toml_edit::{Item, Table};
 
 use util::get_kotlin_home;
 
-use crate::dependencies::{Dependency, Kind};
+use crate::dependencies::{dependencies, Dependency};
 use crate::module::Module;
-use crate::project::Project;
+use crate::project::{Project, project};
 use crate::read_file;
 
 pub struct Manifest {
@@ -47,8 +46,8 @@ impl FromStr for Section {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
-            "product" => Section::Project,
-            "part" => Section::Module,
+            "project" => Section::Project,
+            "module" => Section::Module,
             "dependencies" => Section::Dependencies,
             "test-dependencies" => Section::TestDependencies,
             _ => anyhow::bail!("Invalid section: {}", s),
@@ -56,32 +55,9 @@ impl FromStr for Section {
     }
 }
 
-// TODO: parsing will be faster if data is iterated once.
 impl TomlParser {
     pub fn project(&self) -> Option<Project> {
-        let projects = self.data.as_table().into_iter().filter_map(|(key, value)| {
-            match Section::from_str(&key){
-                Ok(Section::Project) => {
-                    match value.as_table() {
-                        None => None,
-                        Some(table) => {
-                            let main = match table.get("main") {
-                                Some(item) => item.as_str(),
-                                None => None,
-                            };
-
-                            let path = match table.get("path") {
-                                Some(item) => item.as_str(),
-                                None => None
-                            };
-                            Some(Project::new(main, path))
-                        }
-                    }
-                }
-                _ => None,
-            }
-        }).collect::<Vec<Project>>();
-        projects.into_iter().next()
+        project(&self.data)
     }
 
     pub fn modules(&self) -> Vec<Module> {
@@ -89,52 +65,7 @@ impl TomlParser {
     }
 
     pub fn dependencies(&self) -> Vec<Dependency> {
-        self.data.as_table().into_iter().flat_map(|(key, value)| {
-            match Section::from_str(&key) {
-                Ok(Section::Dependencies) =>
-                    match value.as_table() {
-                        None => vec![],
-                        Some(table) => Self::dependencies_for(table, Kind::PRODUCTION)
-                    }
-                Ok(Section::TestDependencies) =>
-                    match value.as_table() {
-                        None => vec![],
-                        Some(table) => Self::dependencies_for(table, Kind::TEST)
-                    }
-                _ => vec![]
-            }
-        }).collect::<Vec<Dependency>>()
-    }
-
-    fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
-        table.iter().flat_map(|(key, item)| {
-            let (traversed_keys, item) = Self::traverse_decending_keys(vec![key], item);
-            let dependency_name = traversed_keys.join(".");
-            match Dependency::from_toml(kind.clone(), &dependency_name, item) {
-                Ok(dependency) => Some(dependency),
-                Err(_) => None
-            }
-        }).collect()
-    }
-
-    /// In TOML syntax a dot (.) represents an inline table and not part of the field name.
-    /// This is a workaround to get a list of all keys until the value field (that should be the version).
-    fn traverse_decending_keys<'a>(mut keys: Vec<&'a str>, item: &'a Item) -> (Vec<&'a str>, &'a Item) {
-        match item {
-            Item::Table(table) => {
-                match table.len() {
-                    0 => (keys, item),
-                    1 => {
-                        let (next_key, next_item) = table.iter().last().unwrap();
-                        keys.push(next_key);
-                        Self::traverse_decending_keys(keys, next_item)
-                    }
-                    _ => panic!(r#"Unsupported dependency syntax. A dependency should look like: a.b.c = "1.2.3""#),
-                }
-            }
-            Item::Value(_) => (keys, item),
-            _ => panic!(r#"Unsupported dependency syntax. A dependency should look like: a.b.c = "1.2.3""#),
-        }
+        dependencies(&self.data)
     }
 }
 

@@ -26,9 +26,8 @@ impl Kotlin {
     pub fn new(
         config: &Config,
     ) -> BuildkResult<Kotlin> {
-        let cache_location = &config.manifest.project.out.cache;
         let kotlin_home = get_kotlin_home();
-        let cache = Cache::load(&kotlin_home, &cache_location);
+        let cache = Cache::load(&kotlin_home, &config.manifest.project.out.cache);
 
         let mut kotlinc = Kotlin {
             version: "unknown".to_string(),

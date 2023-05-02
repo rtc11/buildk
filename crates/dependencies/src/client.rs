@@ -38,8 +38,7 @@ impl Client {
         }
     }
 
-    /// artifact: e.g. `org/apache/kafka/kafka-clients`
-    /// version: e.g. `3.4.0`
+    /// [name] "org.apache.kafka.kafka-clients" [version] "3.4.0"
     pub fn dependency_info(&mut self, name: &str, version: &str) -> anyhow::Result<DependencyInfo> {
         let after_last_slash = Regex::new(r"([^/]+)$").unwrap();
         let dependency = name.replace('.', "/");
@@ -50,7 +49,6 @@ impl Client {
                 match dependency.split('/').map(PathBuf::from).reduce(|a, b| a.join(b)) {
                     None => bail!("relative path for dependency not deduced"),
                     Some(relative_path) => {
-                        // println!("relative path for dependency: {}", relative_path.display());
                         let jar = format!("{}-{version}.jar", artifact_name.as_str());
                         Ok(DependencyInfo {
                             url: format!("https://repo1.maven.org/maven2/{dependency}/{version}/{jar}"),

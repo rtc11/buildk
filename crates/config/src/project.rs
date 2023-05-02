@@ -1,6 +1,12 @@
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
+use std::str::FromStr;
+
+use anyhow::ensure;
+use toml_edit::Document;
+
+use crate::manifest::Section;
 
 pub struct Project {
     pub path: PathBuf,
@@ -34,10 +40,10 @@ impl Output {
 
 impl Default for Project {
     fn default() -> Self {
-        let path = env::current_dir().expect("could not find the current directory");
+        let path = current_dir();
 
         Project {
-            main: String::from("main.kt"),
+            main: String::from("Main.kt"),
             src: path.join("src"),
             test: path.join("test"),
             out: Output::new(path.join("out")),
@@ -47,22 +53,72 @@ impl Default for Project {
 }
 
 impl Project {
-    pub fn new(main: Option<&str>, path: Option<&str>) -> Self {
+    pub fn new(
+        main: Option<&str>,
+        path: Option<&str>,
+        relative_path: Option<&str>,
+    ) -> anyhow::Result<Self> {
         let path = path
-            .map(|p| PathBuf::from(p))
-            .unwrap_or(env::current_dir().expect("could not find the current directory"));
+            .map(PathBuf::from)
+            .or(relative_path.map(|relative| current_dir().join(relative)))
+            .unwrap_or(current_dir());
 
-        Self {
-            main: main.unwrap_or("main.kr").to_string(),
+        ensure!(path.is_dir(), "project path be a directory. Verify your 'path' under [project] in buildk.toml");
+        ensure!(path.is_absolute(), "project path must be an absolute path. Verify your 'path' under [project] in  buildk.toml");
+
+        Ok(Self {
+            main: main.unwrap_or("Main.kt").to_string(),
             src: path.join("src"),
             test: path.join("test"),
             out: Output::new(path.join("out")),
             path,
-        }
+        })
     }
     pub fn compiled_main_file(&self) -> String {
         self.main.replace(".kt", "Kt")
     }
+}
+
+fn current_dir() -> PathBuf {
+    env::current_dir().expect("could not find the current directory")
+}
+
+pub fn project(data: &Document) -> Option<Project> {
+    let projects = data.as_table().into_iter().filter_map(|(key, value)| {
+        match Section::from_str(key) {
+            Ok(Section::Project) => {
+                match value.as_table() {
+                    None => None,
+                    Some(table) => {
+                        let main = match table.get("main") {
+                            Some(item) => item.as_str(),
+                            None => None,
+                        };
+
+                        let path = match table.get("path") {
+                            Some(item) => item.as_str(),
+                            None => None
+                        };
+
+                        let relative_path = match table.get("relative-path") {
+                            Some(item) => item.as_str(),
+                            None => None,
+                        };
+
+                        match Project::new(main, path, relative_path) {
+                            Ok(project) => Some(project),
+                            Err(e) => {
+                                eprintln!("Will configure default project settings due to:\n{e}");
+                                Some(Project::default())
+                            }
+                        }
+                    }
+                }
+            }
+            _ => None,
+        }
+    }).collect::<Vec<Project>>();
+    projects.into_iter().next()
 }
 
 impl Display for Project {
