@@ -107,6 +107,20 @@ amazing = "2.0"
 }
 
 #[test]
+fn multiple_dependencies_within_same_namespace() {
+    let dependencies = dependencies(&r#"
+[dependencies]
+awesome.lib.prod = "3.0.0"
+awesome.lib.test = "3.0.1"
+
+"#.parse().unwrap());
+
+    assert_eq!(dependencies.len(), 2);
+    assert_eq!(dependencies.version_for("awesome.lib.prod"), Some("3.0.0"));
+    assert_eq!(dependencies.version_for("awesome.lib.test"), Some("3.0.1"));
+}
+
+#[test]
 fn test_dependency_kind() {
     let dependencies = dependencies(&r#"
 [dependencies]

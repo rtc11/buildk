@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
 use std::str::FromStr;
-use toml_edit::{Document, Item, Table};
+
+use toml_edit::{Document, Item, Table, Value};
+
 use crate::dependencies::dependency::Dependency;
 use crate::dependencies::kind::Kind;
 use crate::section::Section;
@@ -28,32 +31,34 @@ pub(crate) fn dependencies(data: &Document) -> Vec<Dependency> {
 }
 
 fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
-    table.iter().flat_map(|(key, item)| {
-        let (traversed_keys, item) = traverse_decending_keys(vec![key], item);
-        let dependency_name = traversed_keys.join(".");
-        match Dependency::from_toml(kind.clone(), &dependency_name, item) {
-            Ok(dependency) => Some(dependency),
-            Err(_) => None
-        }
-    }).collect()
+    let mut map = BTreeMap::new();
+    table.iter().for_each(|(key, value)| {
+        map = decend(map.clone(), vec![key], value);
+    });
+    map.into_iter()
+        .filter_map(|(key, value)| Dependency::from_toml(&kind, &key, value).ok())
+        .collect()
 }
 
 /// In TOML syntax a dot (.) represents an inline table and not part of the field name.
 /// This is a workaround to get a list of all keys until the value field (that should be the version).
-fn traverse_decending_keys<'a>(mut keys: Vec<&'a str>, item: &'a Item) -> (Vec<&'a str>, &'a Item) {
-    match item {
-        Item::Table(table) => {
-            match table.len() {
-                0 => (keys, item),
-                1 => {
-                    let (next_key, next_item) = table.iter().last().unwrap();
-                    keys.push(next_key);
-                    traverse_decending_keys(keys, next_item)
-                }
-                _ => panic!(r#"Unsupported dependency syntax. A dependency should look like: a.b.c = "1.2.3""#),
-            }
+fn decend<'a>(
+    mut map: BTreeMap<String, &'a Value>,
+    keys: Vec<&'a str>,
+    value: &'a Item,
+) -> BTreeMap<String, &'a Value> {
+    match value {
+        Item::Value(value) => {
+            map.insert(keys.join("."), value);
         }
-        Item::Value(_) => (keys, item),
-        _ => panic!(r#"Unsupported dependency syntax. A dependency should look like: a.b.c = "1.2.3""#),
+        Item::Table(table) => {
+            table.iter().for_each(|(key, value)| {
+                let mut branching_keys = keys.clone();
+                branching_keys.push(key);
+                map = decend(map.clone(), branching_keys, value)
+            });
+        }
+        _ => {} // do nothing
     }
+    map
 }

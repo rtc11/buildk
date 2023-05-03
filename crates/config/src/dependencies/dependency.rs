@@ -32,9 +32,9 @@ impl Dependency {
         }
     }
 
-    pub fn from_toml(kind: Kind, name: &str, item: &toml_edit::Item) -> anyhow::Result<Dependency> {
+    pub fn from_toml(kind: &Kind, name: &str, item: &toml_edit::Value) -> anyhow::Result<Dependency> {
         if let Some(version) = item.as_str() {
-            let dependency = Self::new(kind, name, version);
+            let dependency = Self::new(kind.clone(), name, version);
             Ok(dependency)
         } else {
             anyhow::bail!("Unresolved dependency, kind: {:?}, name: {name}, version: {item}", kind)
