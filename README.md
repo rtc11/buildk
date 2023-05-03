@@ -1,5 +1,5 @@
-# BuilK
-Minimalistic Kotlin package manager and build system.
+# BuildK
+Kotlin package manager and build tool.
 
 # Manifest
 Create a `buildk.toml` in your project root.

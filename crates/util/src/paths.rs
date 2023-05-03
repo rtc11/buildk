@@ -44,3 +44,17 @@ pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> anyhow::Re
     let path = path.as_ref();
     fs::write(path, contents.as_ref()).with_context(|| format!("failed to write `{}`", path.display()))
 }
+
+pub fn all_files_recursive(mut files: Vec<PathBuf>, path: PathBuf) -> Vec<PathBuf>{
+    if path.is_file() {
+        files.push(path)
+    }
+    else if path.is_dir() {
+        fs::read_dir(&path).unwrap().map(|res| res.map(|e| e.path()))
+            .filter_map(|it|it.ok())
+            .for_each(|it| {
+                files.extend(all_files_recursive(vec![], it));
+            })
+    }
+    files
+}

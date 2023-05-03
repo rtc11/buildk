@@ -5,8 +5,9 @@ use util::{BuildkResult, PartialConclusion, paths};
 use util::process_builder::ProcessBuilder;
 use util::process_error::ProcessError;
 
-use crate::{kotlinc_fingerprint, process_fingerprint};
+use crate::{kotlinc_fingerprint, kt_fingerprint, process_fingerprint};
 use crate::data::CacheData;
+use crate::output::Output;
 
 pub struct Cache {
     location: PathBuf,
@@ -54,7 +55,7 @@ impl Cache {
         }
     }
 
-    pub fn cached_output(
+    pub fn cache_command(
         &mut self,
         cmd: &ProcessBuilder,
         extra_fingerprint: u64,
@@ -64,7 +65,7 @@ impl Cache {
             true => PartialConclusion::CACHED,
             false => {
                 let output = cmd.output()?;
-                self.data.insert(key, output.try_into()?);
+                self.data.insert(key, Output::try_from(cmd, output)?);
                 self.dirty = true;
                 PartialConclusion::SUCCESS
             }
@@ -81,6 +82,22 @@ impl Cache {
                 Some(output.stdout.as_ref()),
                 Some(output.stderr.as_ref()),
             ).into())
+        }
+    }
+
+    pub fn cache_file(
+        &mut self,
+        file: &PathBuf,
+    ) -> BuildkResult<PartialConclusion> {
+        let key = kt_fingerprint(file)?;
+        match self.data.contains_key(&key) {
+            true => Ok(PartialConclusion::CACHED),
+            false => {
+                let output = Output::new(&file);
+                self.data.insert(key, output);
+                self.dirty = true;
+                Ok(PartialConclusion::SUCCESS)
+            }
         }
     }
 

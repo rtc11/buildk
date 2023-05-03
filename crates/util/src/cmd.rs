@@ -15,9 +15,9 @@ impl Cmd {
         match value.as_str() {
             "clean" => vec![Cmd::Clean],
             "build" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::BuildTest],
-            "test" => vec![Cmd::Test],
-            "run" => vec![Cmd::Run],
-            "release" => vec![Cmd::Release],
+            "test" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::BuildTest, Cmd::Test],
+            "run" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::Run],
+            "release" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::Release],
             _ => vec![]
         }
     }

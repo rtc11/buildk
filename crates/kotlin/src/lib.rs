@@ -42,7 +42,7 @@ impl Kotlin {
         let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
         runner.cwd(&config.manifest.project.path).arg("-version");
 
-        let (verbose_version, _, _) = kotlinc.cache.lock().unwrap().cached_output(&runner, 0)?;
+        let (verbose_version, _, _) = kotlinc.cache.lock().unwrap().cache_command(&runner, 0)?;
 
         let version = verbose_version.lines()
             .find(|l| l.starts_with("Kotlin version "))
@@ -60,7 +60,7 @@ impl Kotlin {
         cmd: &ProcessBuilder,
         extra_fingerprint: u64,
     ) -> BuildkOutput {
-        let result = self.cache.lock().unwrap().cached_output(cmd, extra_fingerprint);
+        let result = self.cache.lock().unwrap().cache_command(cmd, extra_fingerprint);
         match result {
             Ok((stdout, stderr, conclusion)) => output
                 .conclude(conclusion)
