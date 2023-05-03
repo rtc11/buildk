@@ -10,6 +10,9 @@ path = "lib.rs"
 [workspace]
 members = ["crates/*"]
 
+[profile.release]
+lto = true
+
 [workspace.dependencies]
 cache = { path = "crates/cache" }
 cli = { path = "crates/cli" }
