@@ -18,7 +18,7 @@ pub(crate) fn dependencies(data: &Document) -> Vec<Dependency> {
             Ok(Section::Dependencies) =>
                 match value.as_table() {
                     None => vec![],
-                    Some(table) => dependencies_for(table, Kind::Production)
+                    Some(table) => dependencies_for(table, Kind::Source)
                 }
             Ok(Section::TestDependencies) =>
                 match value.as_table() {
@@ -55,7 +55,7 @@ fn decend<'a>(
             table.iter().for_each(|(key, value)| {
                 let mut branching_keys = keys.clone();
                 branching_keys.push(key);
-                map = decend(map.clone(), branching_keys, value)
+                map = decend(map.clone(), branching_keys, value);
             });
         }
         _ => {} // do nothing

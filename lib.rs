@@ -20,7 +20,6 @@ fn main() {
 
     if errors.is_empty() {
         println!("{} in {}", Conclusion::SUCCESS, timer.elapsed());
-        println!("{config}");
     } else {
         println!("{} in {}", Conclusion::FAILED, timer.elapsed());
         println!("{errors}");

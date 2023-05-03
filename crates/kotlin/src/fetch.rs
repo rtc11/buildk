@@ -9,19 +9,18 @@ impl Kotlin {
         let mut output = BuildkOutput::default();
 
         config.manifest.dependencies.iter().for_each(|dependency| {
-            let info = self.client.dependency_info(&dependency.name, &dependency.version).unwrap();
-            match info.is_cached() {
+            match dependency.is_cached() {
                 true => {
-                    println!("found dependency in cache: {}", &info.filename);
+                    println!("found dependency in cache: {}", dependency.filename.display());
                     output.conclude(PartialConclusion::CACHED);
                 },
-                false => match self.client.download(&info) {
+                false => match self.client.download(dependency) {
                     Ok(_) => {
-                        println!("downloaded and cached dependency: {}", &info.filename);
+                        println!("downloaded and cached dependency: {}", dependency.filename.display());
                         output.conclude(PartialConclusion::SUCCESS);
                     },
                     Err(_) => {
-                        println!("Failed to dwnload dependency: {}", &info.filename);
+                        println!("Failed to download dependency: {}", dependency.filename.display());
                         output.conclude(PartialConclusion::FAILED);
                     },
                 }

@@ -36,7 +36,7 @@ impl Kotlin {
                 kotlin_home.join("lib/kotlin-test-junit5.jar"),
                 kotlin_home.join("lib/kotlin-test.jar"),
             ],
-            client: Client::new(config),
+            client: Client::default(),
         };
 
         let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));

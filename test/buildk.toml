@@ -2,15 +2,6 @@
 main = "Main.kt"
 path = "/Users/robin/rust/buildk/test"
 
-[dependencies]
-org.apache.kafka.kafka-clients = "3.4.0"
-#io.ktor.ktor-server-core = "2.3.0"
-io.ktor.ktor-serialization-jackson = "2.3.0"
-#io.ktor.ktor-server-content-negotiation = "2.3.0"
-#io.ktor.ktor-server-netty = "2.3.0"
-#io.ktor.ktor-client-content-negotiation = "2.3.0"
-#io.ktor.ktor-server-metrics-micrometer = "2.3.0"
-
 [test-dependencies]
-io.ktor.ktor-client-core = "2.3.0"
+org.junit.platform.junit-platform-console-standalone = "1.9.3"
 

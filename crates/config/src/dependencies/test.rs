@@ -125,11 +125,12 @@ fn test_dependency_kind() {
     let dependencies = dependencies(&r#"
 [dependencies]
 awesome.lib = "3.0.0"
+
 [test-dependencies]
 splendid.test.lib = "3.2.1"
 "#.parse().unwrap());
 
     assert_eq!(dependencies.len(), 2);
-    assert_eq!(dependencies.kind_for("awesome.lib"), Some(&Kind::Production));
+    assert_eq!(dependencies.kind_for("awesome.lib"), Some(&Kind::Source));
     assert_eq!(dependencies.kind_for("splendid.test.lib"), Some(&Kind::Test));
 }

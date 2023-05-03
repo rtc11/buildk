@@ -1,5 +1,7 @@
 use config::config::Config;
+use config::dependencies::dependency::DependenciesKind;
 use util::buildk_output::BuildkOutput;
+use util::PartialConclusion;
 use util::process_builder::ProcessBuilder;
 
 use crate::Kotlin;
@@ -14,8 +16,19 @@ impl Kotlin {
         ];
 
         let mut java = ProcessBuilder::new("java");
+
+        let test_dependencies = config.manifest.dependencies.clone().for_test();
+        let junit = test_dependencies.iter()
+            .filter(|it| it.is_cached())
+            .find(|it|it.name.contains("junit-platform-console-standalone"));
+
+        if junit.is_none() {
+            output.conclude(PartialConclusion::FAILED);
+            return output
+        }
+
         java.cwd(&config.manifest.project.path)
-            .args(&["-jar", "libs/junit-platform-console-standalone-1.9.2.jar"])
+            .jar(&junit.unwrap().path)
             .classpaths(classpath)
             .args(&["--select-class", "PrefixTest"])
             // .args(&["--select-package", "no.tordly.test"])

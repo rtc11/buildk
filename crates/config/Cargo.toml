@@ -10,5 +10,6 @@ util.workspace = true
 
 anyhow.workspace = true
 home.workspace = true
+regex.workspace = true
 serde.workspace = true
 serde_derive.workspace = true

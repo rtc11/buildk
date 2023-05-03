@@ -62,6 +62,10 @@ impl ProcessBuilder {
         self.args(&[OsString::from("-cp"), path.as_ref().to_os_string()])
     }
 
+    pub fn jar<T: AsRef<OsStr>>(&mut self, jar_path: T) -> &mut ProcessBuilder {
+        self.args(&[OsString::from("-jar"), jar_path.as_ref().to_os_string()])
+    }
+
     pub fn classpaths(&mut self, paths: Vec<&PathBuf>) -> &mut ProcessBuilder {
         let classpath = paths.into_iter()
             .map(|path| path.as_os_str())
