@@ -14,3 +14,14 @@ io.ktor.ktor-client-core = "2.3.0"
 [test-dependencies]
 org.junit.platform.junit-platform-console-standalone = "1.9.3"
 ```
+
+# Commands
+> buildk clean
+
+> buildk build
+
+> buildk test
+
+> buildk run
+
+> buildk release
