@@ -14,6 +14,7 @@ impl Cmd {
     pub fn from(value: String) -> Vec<Cmd> {
         match value.as_str() {
             "clean" => vec![Cmd::Clean],
+            "fetch" => vec![Cmd::Fetch],
             "build" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::BuildTest],
             "test" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::BuildTest, Cmd::Test],
             "run" => vec![Cmd::Fetch, Cmd::BuildSrc, Cmd::Run],

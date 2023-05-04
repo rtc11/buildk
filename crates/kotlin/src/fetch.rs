@@ -11,7 +11,7 @@ impl Kotlin {
         config.manifest.dependencies.iter().for_each(|dependency| {
             match dependency.is_cached() {
                 true => {
-                    // println!("found dependency in cache: {}", dependency.filename.display());
+                    println!("found dependency in cache: {}", dependency.filename.display());
                     output.conclude(PartialConclusion::CACHED);
                 },
                 false => match self.client.download(dependency) {

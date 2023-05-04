@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
 
 use util::{BuildkResult, PartialConclusion, paths};
@@ -110,8 +110,16 @@ impl Drop for Cache {
     fn drop(&mut self) {
         if !self.dirty { return; }
 
+        if let Some(path) = &self.location.parent() {
+            if !path.exists() {
+                if let Err(msg) = create_dir_all(path) {
+                    println!("failed to create missing director(y/ies) {}. {msg}", path.display())
+                }
+            }
+        }
+
         match File::create(&self.location) {
-            Err(e) => println!("failed to create cache file: {e}"),
+            Err(e) => println!("failed to create cache file {}: {}", self.location.display(), e),
             Ok(file) => if let Err(e) = serde_json::to_writer_pretty(&file, &self.data) {
                 println!("failed to update kotlinc info cache: {e}")
             }
