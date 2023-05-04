@@ -2,9 +2,9 @@ use config::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 
-use crate::Kotlin;
+use crate::Command;
 
-impl Kotlin {
+impl Command {
     pub fn fetch(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
 

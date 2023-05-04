@@ -15,10 +15,9 @@ lto = true
 
 [workspace.dependencies]
 cache = { path = "crates/cache" }
-cli = { path = "crates/cli" }
+command = { path = "crates/command" }
 config = { path = "crates/config" }
 dependencies = { path = "crates/dependencies" }
-kotlin = { path = "crates/kotlin" }
 util = { path = "crates/util" }
 
 anyhow = "1.0"
@@ -36,7 +35,7 @@ toml_edit = "0.19.8"
 [dependencies]
 anyhow.workspace = true
 
+command.workspace = true
 config.workspace = true
 dependencies.workspace = true
-kotlin.workspace = true
 util.workspace = true

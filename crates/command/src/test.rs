@@ -4,9 +4,9 @@ use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 use util::process_builder::ProcessBuilder;
 
-use crate::Kotlin;
+use crate::Command;
 
-impl Kotlin {
+impl Command {
     pub fn run_tests(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
 

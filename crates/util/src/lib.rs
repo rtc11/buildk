@@ -5,7 +5,7 @@ pub mod process_error;
 pub mod hasher;
 pub mod paths;
 pub mod buildk_output;
-pub mod cmd;
+pub mod option;
 mod colorize;
 pub mod timer;
 

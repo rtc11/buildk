@@ -1,20 +1,20 @@
 use std::env::args;
-use config::config::Config;
 
-use kotlin::Kotlin;
+use command::Command;
+use config::config::Config;
 use util::buildk_output::BuildkOutput;
-use util::cmd::Cmd;
 use util::Conclusion;
+use util::option::Option;
 use util::timer::Timer;
 
 fn main() {
     let timer = Timer::start();
     let config = Config::default();
-    let mut kotlin = Kotlin::new(&config).expect("kotlin expected");
+    let mut command = Command::new(&config).expect("kotlin expected");
     let errors = args()
         .skip(1)
-        .flat_map(Cmd::from)
-        .map(|cmd| execute(&cmd, &config, &mut kotlin))
+        .flat_map(Option::from)
+        .map(|option| execute(&option, &config, &mut command))
         .filter_map(|output| output.get_stderr())
         .fold(String::new(), |errors, output| format!("{errors}\n{output}"));
 
@@ -26,23 +26,23 @@ fn main() {
         println!("{config}");
     }
 
-    fn execute(command: &Cmd, config: &Config, kotlinc: &mut Kotlin) -> BuildkOutput {
-        let output = match command {
-            Cmd::Clean => kotlinc.clean(config),
-            Cmd::Fetch => kotlinc.fetch(config),
-            Cmd::BuildSrc => kotlinc.build_src(config),
-            Cmd::BuildTest => kotlinc.build_test(config),
-            Cmd::Test => kotlinc.run_tests(config),
-            Cmd::Release => kotlinc.release(config),
-            Cmd::Run => {
-                let run = kotlinc.run(config);
+    fn execute(option: &Option, config: &Config, command: &mut Command) -> BuildkOutput {
+        let output = match option {
+            Option::Clean => command.clean(config),
+            Option::Fetch => command.fetch(config),
+            Option::BuildSrc => command.build_src(config),
+            Option::BuildTest => command.build_test(config),
+            Option::Test => command.run_tests(config),
+            Option::Release => command.release(config),
+            Option::Run => {
+                let run = command.run(config);
                 if let Some(stdout) = run.get_stdout() {
                     println!("{stdout}");
                 }
                 run
-            },
+            }
         };
-        println!("{:<6} {:<12} ▸ {}", output.conclusion(), command, output.elapsed());
+        println!("{:<6} {:<12} ▸ {}", output.conclusion(), option, output.elapsed());
         output
     }
 }

@@ -15,21 +15,21 @@ mod run;
 mod release;
 mod fetch;
 
-pub struct Kotlin {
+pub struct Command {
     pub version: String,
     cache: Mutex<Cache>,
     test_libs: Vec<PathBuf>,
     pub client: Client,
 }
 
-impl Kotlin {
+impl Command {
     pub fn new(
         config: &Config,
-    ) -> BuildkResult<Kotlin> {
+    ) -> BuildkResult<Command> {
         let kotlin_home = get_kotlin_home();
         let cache = Cache::load(&kotlin_home, &config.manifest.project.out.cache);
 
-        let mut kotlinc = Kotlin {
+        let mut kotlinc = Command {
             version: "unknown".to_string(),
             cache: Mutex::new(cache),
             test_libs: vec![

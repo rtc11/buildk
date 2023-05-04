@@ -2,9 +2,9 @@ use config::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 
-use crate::Kotlin;
+use crate::Command;
 
-impl Kotlin {
+impl Command {
     pub fn run(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut java = ProcessBuilder::new("java");

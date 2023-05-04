@@ -4,11 +4,11 @@ use config::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 
-use crate::Kotlin;
+use crate::Command;
 
 const OS_2_ERROR: &str = "No such file or directory (os error 2)";
 
-impl Kotlin {
+impl Command {
     pub fn clean(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
 

@@ -7,9 +7,9 @@ use util::{get_kotlinc, PartialConclusion};
 use util::paths::all_files_recursive;
 use util::process_builder::ProcessBuilder;
 
-use crate::Kotlin;
+use crate::Command;
 
-impl Kotlin {
+impl Command {
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
