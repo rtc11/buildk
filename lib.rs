@@ -11,6 +11,7 @@ fn main() {
     let timer = Timer::start();
     let config = Config::default();
     let mut command = Command::new(&config).expect("kotlin expected");
+    // TODO: should not be sorted. Create a monad
     let options = args().skip(1).flat_map(command::Option::from).collect::<HashSet<_>>();
     let errors = options.iter()
         .map(|option| execute(&option, &config, &mut command))
