@@ -18,6 +18,7 @@ mod fetch;
 mod list;
 mod help;
 
+#[derive(PartialEq, Eq, Hash)]
 pub enum Option {
     Clean,
     BuildTest,

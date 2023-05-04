@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env::args;
 
 use command::Command;
@@ -10,9 +11,8 @@ fn main() {
     let timer = Timer::start();
     let config = Config::default();
     let mut command = Command::new(&config).expect("kotlin expected");
-    let errors = args()
-        .skip(1)
-        .flat_map(command::Option::from)
+    let options = args().skip(1).flat_map(command::Option::from).collect::<HashSet<_>>();
+    let errors = options.iter()
         .map(|option| execute(&option, &config, &mut command))
         .filter_map(|output| output.get_stderr())
         .fold(String::new(), |errors, output| format!("{errors}\n{output}"));
