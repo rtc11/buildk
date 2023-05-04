@@ -23,7 +23,6 @@ impl Command {
         }).collect::<Vec<&PathBuf>>();
 
         kotlinc.cwd(&config.manifest.project.path)
-            // .sources(&config.manifest.project.src)
             .destination(&config.manifest.project.out.src);
 
         if files_to_build.is_empty() {
@@ -45,7 +44,7 @@ impl Command {
             .for_test()
             .into_iter()
             .filter(|dependency| dependency.is_cached())
-            .map(|dependency| dependency.path)
+            .map(|dependency| dependency.jar_path())
             .collect::<Vec<PathBuf>>();
 
         let mut classpath = vec![&config.manifest.project.out.src];

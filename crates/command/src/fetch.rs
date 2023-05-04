@@ -11,16 +11,16 @@ impl Command {
         config.manifest.dependencies.iter().for_each(|dependency| {
             match dependency.is_cached() {
                 true => {
-                    println!("found dependency in cache: {}", dependency.filename.display());
+                    // println!("found dependency in cache: {}:{}", dependency.name, dependency.version);
                     output.conclude(PartialConclusion::CACHED);
                 },
                 false => match self.client.download(dependency) {
                     Ok(_) => {
-                        println!("downloaded and cached dependency: {}", dependency.filename.display());
+                        // println!("downloaded and cached dependency: {}:{}", dependency.name, dependency.version);
                         output.conclude(PartialConclusion::SUCCESS);
                     },
                     Err(_) => {
-                        println!("Failed to download dependency: {}", dependency.filename.display());
+                        // println!("Failed to download dependency: {}:{}", dependency.name, dependency.version);
                         output.conclude(PartialConclusion::FAILED);
                     },
                 }

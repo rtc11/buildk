@@ -28,7 +28,7 @@ impl Command {
         }
 
         java.cwd(&config.manifest.project.path)
-            .jar(&junit.unwrap().path)
+            .jar(&junit.unwrap().jar_path())
             .classpaths(classpath)
             .args(&["--select-class", "PrefixTest"])
             // .args(&["--select-package", "no.tordly.test"])

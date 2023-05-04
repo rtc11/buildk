@@ -13,6 +13,8 @@ impl Command {
             .classpath(&config.manifest.project.out.src)
             .sources(&config.manifest.project.compiled_main_file());
 
-        self.execute(&mut output, &java, 0)
+        let output = self.execute(&mut output, &java, 0);
+        if let Some(stdout) = output.get_stdout() { println!("\nProgram:\n{stdout}"); }
+        output
     }
 }

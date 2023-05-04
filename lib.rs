@@ -4,7 +4,6 @@ use command::Command;
 use config::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::Conclusion;
-use util::option::Option;
 use util::timer::Timer;
 
 fn main() {
@@ -13,7 +12,7 @@ fn main() {
     let mut command = Command::new(&config).expect("kotlin expected");
     let errors = args()
         .skip(1)
-        .flat_map(Option::from)
+        .flat_map(command::Option::from)
         .map(|option| execute(&option, &config, &mut command))
         .filter_map(|output| output.get_stderr())
         .fold(String::new(), |errors, output| format!("{errors}\n{output}"));
@@ -26,23 +25,17 @@ fn main() {
         println!("{config}");
     }
 
-    fn execute(option: &Option, config: &Config, command: &mut Command) -> BuildkOutput {
+    fn execute(option: &command::Option, config: &Config, command: &mut Command) -> BuildkOutput {
         let output = match option {
-            Option::Clean => command.clean(config),
-            Option::Fetch => command.fetch(config),
-            Option::BuildSrc => command.build_src(config),
-            Option::BuildTest => command.build_test(config),
-            Option::Test => command.run_tests(config),
-            Option::Release => command.release(config),
-            Option::Run => {
-                let run = command.run(config);
-                if let Some(stdout) = run.get_stdout() {
-                    println!("{stdout}");
-                }
-                run
-            },
-            Option::List => command.list(config),
-            Option::Help => command.help(config),
+            command::Option::Clean => command.clean(config),
+            command::Option::Fetch => command.fetch(config),
+            command::Option::BuildSrc => command.build_src(config),
+            command::Option::BuildTest => command.build_test(config),
+            command::Option::Test => command.run_tests(config),
+            command::Option::Release => command.release(config),
+            command::Option::Run => command.run(config),
+            command::Option::List => command.list(config),
+            command::Option::Help => command.help(config),
         };
         println!("{:<6} {:<12} ▸ {}", output.conclusion(), option, output.elapsed());
         output

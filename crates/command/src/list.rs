@@ -11,8 +11,8 @@ impl Command {
 
         config.manifest.dependencies.iter().for_each(|dependency| {
             match dependency.is_cached() {
-                true => println!("{}", format!("{:<12}{}", "[cached]", dependency.filename.display()).as_gray()),
-                false => println!("{}", format!("{:<12}{}", "[fetched]", dependency.filename.display()).as_green()),
+                true => println!("{}", format!("{:<12}{}", "[cached]", dependency.name).as_gray()),
+                false => println!("{}", format!("{:<12}{}", "[fetched]", dependency.name).as_green()),
             };
         });
 

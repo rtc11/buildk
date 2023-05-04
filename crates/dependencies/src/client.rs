@@ -1,6 +1,7 @@
 use std::fs::{create_dir_all, File};
 use std::io;
-use anyhow::Context;
+use std::path::PathBuf;
+use anyhow::ensure;
 
 use config::dependencies::dependency::Dependency;
 
@@ -8,14 +9,23 @@ use config::dependencies::dependency::Dependency;
 pub struct Client;
 
 impl Client {
-    // todo: do I have to download all the contents, or only the one jar?
     pub fn download(&mut self, dep: &Dependency) -> anyhow::Result<()> {
-        let dir = dep.path.parent().context("parent directory not found.")?;
-        create_dir_all(dir)?;
-        let mut destination = File::create(&dep.path)?;
-        let mut response = reqwest::blocking::get(&dep.url)?;
-        assert!(response.status().is_success());
-        io::copy(&mut response, &mut destination)?;
+        create_dir_all(&dep.target_dir)?;
+
+        download_file(&dep.url, &dep.target_dir, &dep.jar)?;
+        download_file(&dep.url, &dep.target_dir, &dep.sources).ok();
+        download_file(&dep.url, &dep.target_dir, &dep.module).ok();
+        download_file(&dep.url, &dep.target_dir, &dep.pom)?;
+
         Ok(())
     }
+}
+
+fn download_file(url: &String, target_dir: &PathBuf, filename: &String) -> anyhow::Result<()> {
+    let mut destination = File::create(target_dir.join(filename))?;
+    let url = &format!("{url}{filename}");
+    let mut response = reqwest::blocking::get(url)?;
+    ensure!(response.status().is_success());
+    io::copy(&mut response, &mut destination)?;
+    Ok(())
 }
