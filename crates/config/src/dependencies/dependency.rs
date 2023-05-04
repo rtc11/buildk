@@ -82,6 +82,7 @@ fn dependency_info(name: &str, version: &str) -> anyhow::Result<DependencyInfo> 
 
                     Ok(DependencyInfo {
                         url: format!("https://repo1.maven.org/maven2/{dependency}/{version}/{jar}"),
+                        // url: format!("https://repo.maven.apache.org/maven2/{dependency}/{version}/{jar}"),
                         path: cache.join(relative_path).join(&jar),
                         filename: PathBuf::from(jar),
                     })

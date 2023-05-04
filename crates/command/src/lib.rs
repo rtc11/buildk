@@ -14,6 +14,8 @@ mod test;
 mod run;
 mod release;
 mod fetch;
+mod list;
+mod help;
 
 pub struct Command {
     pub version: String,

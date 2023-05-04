@@ -6,7 +6,7 @@ pub mod hasher;
 pub mod paths;
 pub mod buildk_output;
 pub mod option;
-mod colorize;
+pub mod colorize;
 pub mod timer;
 
 pub type BuildkResult<T> = anyhow::Result<T>;

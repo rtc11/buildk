@@ -8,6 +8,8 @@ pub enum Option {
     Test,
     Run,
     Release,
+    List,
+    Help,
 }
 
 impl Option {
@@ -19,6 +21,7 @@ impl Option {
             "test" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest, Option::Test],
             "run" => vec![Option::Fetch, Option::BuildSrc, Option::Run],
             "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
+            "list" => vec![Option::List],
             _ => vec![]
         }
     }
@@ -34,6 +37,9 @@ impl Display for Option {
             Option::Test => "test",
             Option::Run => "run",
             Option::Release => "release",
+            Option::List => "list",
+            Option::Help => "help",
+
         };
 
         write!(f, "{:<12}", display)

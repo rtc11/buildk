@@ -11,7 +11,7 @@ path = "lib.rs"
 members = ["crates/*"]
 
 [profile.release]
-lto = true
+#lto = true
 
 [workspace.dependencies]
 cache = { path = "crates/cache" }

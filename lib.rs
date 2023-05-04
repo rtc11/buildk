@@ -40,7 +40,9 @@ fn main() {
                     println!("{stdout}");
                 }
                 run
-            }
+            },
+            Option::List => command.list(config),
+            Option::Help => command.help(config),
         };
         println!("{:<6} {:<12} ▸ {}", output.conclusion(), option, output.elapsed());
         output

@@ -1,53 +1,63 @@
 use std::fmt;
-use std::fmt::Formatter;
+use std::fmt::{Display, Formatter};
 use crate::{Conclusion, PartialConclusion};
 
-impl fmt::Display for Conclusion {
+impl Display for Conclusion {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let colored_str = match self {
-            Conclusion::SUCCESS => "SUCCESS".to_green(),
-            Conclusion::FAILED => "FAILED".to_red(),
+            Conclusion::SUCCESS => "SUCCESS".as_green(),
+            Conclusion::FAILED => "FAILED".as_red(),
         };
 
         f.write_str(&colored_str)
     }
 }
 
-impl fmt::Display for PartialConclusion {
+impl Display for PartialConclusion {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let colored_str = match self {
-            PartialConclusion::INIT => format!(" {}", "∅".to_green()),
-            PartialConclusion::SUCCESS => format!(" {}", "✓".to_green()),
-            PartialConclusion::FAILED => format!(" {}", "✕".to_red()),
-            PartialConclusion::CACHED => format!(" {}", "❤".to_blue()),
+            PartialConclusion::INIT => format!(" {}", "∅".as_yellow()),
+            PartialConclusion::SUCCESS => format!(" {}", "✓".as_green()),
+            PartialConclusion::FAILED => format!(" {}", "✕".as_red()),
+            PartialConclusion::CACHED => format!(" {}", "❤".as_blue()),
         };
 
         f.write_str(&colored_str)
     }
 }
 
-trait Colorize {
-    fn to_black(&self) -> String;
-    fn to_red(&self) -> String;
-    fn to_green(&self) -> String;
-    fn to_yellow(&self) -> String;
-    fn to_blue(&self) -> String;
-    fn to_purple(&self) -> String;
-    fn to_turquoise(&self) -> String;
-    fn to_gray(&self) -> String;
-    fn to_white(&self) -> String;
+pub trait Colorize {
+    fn as_black(&self) -> String;
+    fn as_red(&self) -> String;
+    fn as_green(&self) -> String;
+    fn as_yellow(&self) -> String;
+    fn as_blue(&self) -> String;
+    fn as_purple(&self) -> String;
+    fn as_turquoise(&self) -> String;
+    fn as_gray(&self) -> String;
+    fn as_white(&self) -> String;
 }
 
 impl Colorize for &str {
-    fn to_black(&self) -> String { format!("\x1b[30m{self}\x1b[0m") }
-    fn to_red(&self) -> String { format!("\x1b[31m{self}\x1b[0m") }
-    fn to_green(&self) -> String { format!("\x1b[32m{self}\x1b[0m") }
-    fn to_yellow(&self) -> String { format!("\x1b[33m{self}\x1b[0m") }
-    fn to_blue(&self) -> String { format!("\x1b[34m{self}\x1b[0m") }
-    fn to_purple(&self) -> String { format!("\x1b[35m{self}\x1b[0m") }
-    fn to_turquoise(&self) -> String { format!("\x1b[36m{self}\x1b[0m") }
-    fn to_gray(&self) -> String { format!("\x1b[37m{self}\x1b[0m") }
-    fn to_white(&self) -> String { format!("\x1b[38m{self}\x1b[0m") }
+    fn as_black(&self) -> String { format!("\x1b[30m{self}\x1b[0m") }
+    fn as_red(&self) -> String { format!("\x1b[31m{self}\x1b[0m") }
+    fn as_green(&self) -> String { format!("\x1b[32m{self}\x1b[0m") }
+    fn as_yellow(&self) -> String { format!("\x1b[33m{self}\x1b[0m") }
+    fn as_blue(&self) -> String { format!("\x1b[34m{self}\x1b[0m") }
+    fn as_purple(&self) -> String { format!("\x1b[35m{self}\x1b[0m") }
+    fn as_turquoise(&self) -> String { format!("\x1b[36m{self}\x1b[0m") }
+    fn as_gray(&self) -> String { format!("\x1b[37m{self}\x1b[0m") }
+    fn as_white(&self) -> String { format!("\x1b[38m{self}\x1b[0m") }
 }
 
-
+impl Colorize for String {
+    fn as_black(&self) -> String { format!("\x1b[30m{self}\x1b[0m") }
+    fn as_red(&self) -> String { format!("\x1b[31m{self}\x1b[0m") }
+    fn as_green(&self) -> String { format!("\x1b[32m{self}\x1b[0m") }
+    fn as_yellow(&self) -> String { format!("\x1b[33m{self}\x1b[0m") }
+    fn as_blue(&self) -> String { format!("\x1b[34m{self}\x1b[0m") }
+    fn as_purple(&self) -> String { format!("\x1b[35m{self}\x1b[0m") }
+    fn as_turquoise(&self) -> String { format!("\x1b[36m{self}\x1b[0m") }
+    fn as_gray(&self) -> String { format!("\x1b[37m{self}\x1b[0m") }
+    fn as_white(&self) -> String { format!("\x1b[38m{self}\x1b[0m") }
+}
