@@ -18,16 +18,16 @@ mod fetch;
 mod list;
 mod help;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Option {
     Clean,
-    BuildTest,
-    BuildSrc,
+    List,
     Fetch,
+    BuildSrc,
+    BuildTest,
     Test,
     Run,
     Release,
-    List,
     Help,
 }
 

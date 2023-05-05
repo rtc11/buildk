@@ -23,6 +23,7 @@ util = { path = "crates/util" }
 anyhow = "1.0"
 filetime = "0.2.21"
 home = "0.5.4"
+itertools = "0.10.5"
 libc = "0.2.141" # get exit codes from OS (SIGKILL, SIGINT etc)
 regex = "1.8.1"
 reqwest = { version = "0.11.16", features = ["json", "blocking"]}
@@ -38,4 +39,5 @@ anyhow.workspace = true
 command.workspace = true
 config.workspace = true
 dependencies.workspace = true
+itertools.workspace = true
 util.workspace = true
