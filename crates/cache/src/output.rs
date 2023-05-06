@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 use anyhow::Context;
 use serde_derive::{Deserialize, Serialize};
 use util::process_builder::ProcessBuilder;
@@ -16,7 +16,7 @@ pub(crate) struct Output {
 }
 
 impl Output {
-    pub fn new(file: &PathBuf) -> Self {
+    pub fn new(file: &Path) -> Self {
         Self {
             action: file.to_string_lossy().to_string(),
             success: true,

@@ -16,10 +16,7 @@ impl Command {
 
         let src_files = all_files_recursive(vec![], config.manifest.project.src.clone());
         let files_to_build = src_files.iter().filter(|file| {
-            match self.cache.lock().unwrap().cache_file(file) {
-                Ok(PartialConclusion::SUCCESS) => true,
-                _ => false
-            }
+            matches!(self.cache.lock().unwrap().cache_file(file), Ok(PartialConclusion::SUCCESS))
         }).collect::<Vec<&PathBuf>>();
 
         kotlinc.cwd(&config.manifest.project.path)

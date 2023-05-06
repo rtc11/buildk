@@ -93,7 +93,7 @@ impl Cache {
         match self.data.contains_key(&key) {
             true => Ok(PartialConclusion::CACHED),
             false => {
-                let output = Output::new(&file);
+                let output = Output::new(file);
                 self.data.insert(key, output);
                 self.dirty = true;
                 Ok(PartialConclusion::SUCCESS)

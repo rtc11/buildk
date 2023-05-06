@@ -15,11 +15,11 @@ impl Command {
                 false => println!("{}", format!("{:<14}{}", "[fetched]", dependency.name).as_green()),
             };
 
-            let mut colors = ColorRoulette::new();
+            let mut colors = ColorRoulette::default();
 
             dependency.transitives().iter().for_each(|transitive| {
                 let display = format!("{:<14}{}", "[transitive]", transitive.name);
-                println!("{}", display.colorize(&colors.next()))
+                println!("{}", display.colorize(&colors.next_color()))
             });
         });
 

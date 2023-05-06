@@ -57,15 +57,22 @@ pub struct ColorRoulette {
     colors: Vec<OrderedColor>,
 }
 
+
+impl Default for ColorRoulette {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ColorRoulette {
-    pub fn new() -> ColorRoulette {
+    fn new() -> ColorRoulette {
         Self {
             current: None,
             colors: OrderedColor::all(),
         }
     }
 
-    pub fn next(&mut self) -> OrderedColor {
+    pub fn next_color(&mut self) -> OrderedColor {
         match self.current {
             None => {
                 self.current = Some(OrderedColor::Yellow);

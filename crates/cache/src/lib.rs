@@ -40,6 +40,6 @@ fn kt_fingerprint(path: &PathBuf) -> anyhow::Result<u64> {
     let mut hasher = StableHasher::default();
     ensure!(path.is_file());
     path.hash(&mut hasher);
-    modification_time(&path)?.hash(&mut hasher);
+    modification_time(path)?.hash(&mut hasher);
     Ok(hasher.finish())
 }

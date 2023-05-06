@@ -1,6 +1,6 @@
 use std::fs::{create_dir_all, File};
 use std::io;
-use std::path::PathBuf;
+use std::path::Path;
 use anyhow::ensure;
 
 use config::dependencies::dependency::Dependency;
@@ -21,7 +21,7 @@ impl Client {
     }
 }
 
-fn download_file(url: &String, target_dir: &PathBuf, filename: &String) -> anyhow::Result<()> {
+fn download_file(url: &String, target_dir: &Path, filename: &String) -> anyhow::Result<()> {
     let mut destination = File::create(target_dir.join(filename))?;
     let url = &format!("{url}{filename}");
     let mut response = reqwest::blocking::get(url)?;
