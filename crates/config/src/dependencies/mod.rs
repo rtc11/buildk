@@ -36,7 +36,7 @@ fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
         map = decend(map.clone(), vec![key], value);
     });
     map.into_iter()
-        .filter_map(|(key, value)| Dependency::from_toml(&kind, &key, value).ok())
+        .filter_map(|(key, value)| Dependency::from_toml(&kind, &key, value))
         .collect()
 }
 

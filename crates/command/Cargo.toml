@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 cache.workspace = true
 config.workspace = true
-dependencies.workspace = true
+http.workspace = true
 util.workspace = true
 
 anyhow.workspace = true

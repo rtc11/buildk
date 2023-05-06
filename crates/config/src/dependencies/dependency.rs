@@ -1,8 +1,11 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::io::BufReader;
 use std::path::PathBuf;
 
 use anyhow::bail;
 use regex::Regex;
+use xml::EventReader;
+use xml::reader::XmlEvent;
 
 use crate::buildk;
 use crate::dependencies::kind::Kind;
@@ -12,11 +15,17 @@ pub struct Dependency {
     pub name: String,
     pub version: String,
     pub kind: Kind,
+    /// Directory
     pub target_dir: PathBuf,
+    /// url to the artifact directory that contains all the files.
     pub url: String,
+    /// Filename
     pub jar: String,
+    /// Filename
     pub sources: String,
+    /// Filename
     pub pom: String,
+    /// Filename
     pub module: String,
 }
 
@@ -45,15 +54,14 @@ impl DependenciesKind for Vec<Dependency> {
 }
 
 impl Dependency {
-    pub fn jar_path(&self) -> PathBuf { self.target_dir.join(&self.jar)}
+    pub fn jar_path(&self) -> PathBuf { self.target_dir.join(&self.jar) }
     pub fn is_cached(&self) -> bool {
         self.target_dir.join(&self.jar).is_file()
     }
 
-    pub fn from_toml(kind: &Kind, name: &str, item: &toml_edit::Value) -> anyhow::Result<Dependency> {
-        if let Some(version) = item.as_str() {
-            let info = dependency_info(name, version).unwrap();
-            Ok(Self {
+    pub fn new(kind: &Kind, name: &str, version: &str) -> Option<Dependency> {
+        dependency_info(name, version).map(|info| {
+            Self {
                 name: name.into(),
                 version: version.into(),
                 kind: kind.clone(),
@@ -62,12 +70,97 @@ impl Dependency {
                 jar: format!("{}.jar", info.file_suffix),
                 sources: format!("{}-sources.jar", info.file_suffix),
                 pom: format!("{}.pom", info.file_suffix),
-                module: format!("{}.module", info.file_suffix)
-            })
+                module: format!("{}.module", info.file_suffix),
+            }
+        }).ok()
+    }
+
+    pub fn from_toml(kind: &Kind, name: &str, item: &toml_edit::Value) -> Option<Dependency> {
+        if let Some(version) = item.as_str() {
+            Self::new(kind, name, version)
         } else {
-            bail!("Unresolved dependency, kind: {:?}, name: {name}, version: {item}", kind)
+            None
+        }
+        // if let Some(version) = item.as_str() {
+        //     Ok(Self::new(kind, name, version))
+        // } else {
+        //     bail!("Unresolved dependency, kind: {:?}, name: {name}, version: {item}", kind)
+        // }
+    }
+
+    pub fn transitives(&self) -> Vec<Dependency> {
+        self.target_dir.join(&self.pom).to_dependencies(&self.kind)
+    }
+}
+
+impl Pom for PathBuf {
+    fn to_dependencies(&self, kind: &Kind) -> Vec<Dependency> {
+        if let Ok(file) = std::fs::File::open(self) {
+            let file = BufReader::new(file); // increases performance
+            let reader = EventReader::new(file);
+            let mut group = String::new();
+            let mut artifact = String::new();
+            let mut version = String::new();
+            let mut dependencies: Vec<Dependency> = Vec::new();
+            let mut is_dependency = false;
+            let mut is_group_id = false;
+            let mut is_artifact_id = false;
+            let mut is_version = false;
+
+            reader.into_iter().for_each(|element| {
+                match &element {
+                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("dependency") => {
+                        group.clear();
+                        artifact.clear();
+                        version.clear();
+                        is_dependency = true;
+                    }
+                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("dependency") => {
+                        let name = format!("{}.{}", &group, artifact);
+                        if let Some(dependency) = Dependency::new(kind, name.as_str(), version.as_str()) {
+                            dependencies.push(dependency);
+                        }
+                        is_dependency = false;
+                    }
+                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("groupId") => {
+                        if is_dependency { is_group_id = true }
+                    }
+                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("groupId") => {
+                        is_group_id = false;
+                    }
+                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("artifactId") => {
+                        if is_dependency { is_artifact_id = true }
+                    }
+                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("artifactId") => {
+                        is_artifact_id = false;
+                    }
+                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("version") => {
+                        if is_dependency { is_version = true }
+                    }
+                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("version") => {
+                        is_version = false;
+                    }
+                    Ok(XmlEvent::Characters(content)) => {
+                        if is_group_id { group = content.clone() }
+                        if is_artifact_id { artifact = content.clone() }
+                        if is_version { version = content.clone() }
+                    }
+                    Err(_) => {}
+                    _ => {}
+                };
+            });
+
+            // println!("dependencies: {}", dependencies);
+
+            dependencies
+        } else {
+            vec![]
         }
     }
+}
+
+trait Pom {
+    fn to_dependencies(&self, kind: &Kind) -> Vec<Dependency>;
 }
 
 /// [name] "org.apache.kafka.kafka-clients" [version] "3.4.0"
@@ -88,14 +181,7 @@ fn dependency_info(name: &str, version: &str) -> anyhow::Result<DependencyInfo> 
                     Ok(DependencyInfo {
                         url: format!("https://repo1.maven.org/maven2/{dependency}/{version}/"),
                         file_suffix: format!("{}-{version}", artifact_name.as_str()),
-                        // jar_file: format!("{file_suffix}.jar"),
-                        // sources_file: format!("{file_suffix}-sources.jar"),
-                        // module_file: format!("{file_suffix}.module"),
-                        // pom_file: format!("{file_suffix}.pom"),
                         target_dir: cache.join(relative_path),
-                        // path: cache.join(relative_path).join(&jar_file),
-                        // filename: PathBuf::from(jar),
-                        // name: format!("{}-{version}", artifact_name.as_str()),
                     })
                 }
             }
@@ -106,16 +192,5 @@ fn dependency_info(name: &str, version: &str) -> anyhow::Result<DependencyInfo> 
 struct DependencyInfo {
     pub url: String,
     pub file_suffix: String,
-    // pub jar_file: String,
-    // pub sources_file: String,
-    // pub module_file: String,
-    // pub pom_file: String,
     pub target_dir: PathBuf,
-    // pub name: String,
-    // pub path: PathBuf,
-    // pub filename: PathBuf,
-    // pub jar_url: String,
-    // pub sources_url: String,
-    // pub module_url: String,
-    // pub pom_url: String,
 }

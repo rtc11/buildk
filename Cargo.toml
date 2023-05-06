@@ -17,7 +17,7 @@ members = ["crates/*"]
 cache = { path = "crates/cache" }
 command = { path = "crates/command" }
 config = { path = "crates/config" }
-dependencies = { path = "crates/dependencies" }
+http = { path = "crates/http" }
 util = { path = "crates/util" }
 
 anyhow = "1.0"
@@ -32,12 +32,12 @@ serde_derive = "1.0.160"
 serde_json = "1.0.96"
 toml = "0.7.3"
 toml_edit = "0.19.8"
+xml-rs = "0.8.4"
 
 [dependencies]
 anyhow.workspace = true
 
 command.workspace = true
 config.workspace = true
-dependencies.workspace = true
 itertools.workspace = true
 util.workspace = true

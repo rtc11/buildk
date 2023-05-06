@@ -11,9 +11,12 @@ impl Command {
 
         config.manifest.dependencies.iter().for_each(|dependency| {
             match dependency.is_cached() {
-                true => println!("{}", format!("{:<12}{}", "[cached]", dependency.name).as_gray()),
-                false => println!("{}", format!("{:<12}{}", "[fetched]", dependency.name).as_green()),
+                true => println!("{}", format!("{:<14}{}", "[cached]", dependency.name).as_yellow()),
+                false => println!("{}", format!("{:<14}{}", "[fetched]", dependency.name).as_green()),
             };
+            dependency.transitives().iter().for_each(|transitive| {
+                println!("{}", format!("{:<14}{}", "[transitive]", transitive.name).as_gray())
+            });
         });
 
         output.conclude(PartialConclusion::SUCCESS);

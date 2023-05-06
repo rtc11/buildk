@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use cache::cache::Cache;
 use config::config::Config;
-use dependencies::client::Client;
+use http::client::Client;
 use util::{BuildkResult, get_kotlin_home, PartialConclusion};
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
