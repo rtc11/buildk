@@ -1,5 +1,6 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
+
 use crate::{Conclusion, PartialConclusion};
 
 impl Display for Conclusion {
@@ -36,6 +37,96 @@ pub trait Colorize {
     fn as_turquoise(&self) -> String;
     fn as_gray(&self) -> String;
     fn as_white(&self) -> String;
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum OrderedColor {
+    Yellow,
+    Gray,
+    White,
+    Blue,
+    Purple,
+    Turquoise,
+    Red,
+    Green,
+    Black,
+}
+
+pub struct ColorRoulette {
+    current: Option<OrderedColor>,
+    colors: Vec<OrderedColor>,
+}
+
+impl ColorRoulette {
+    pub fn new() -> ColorRoulette {
+        Self {
+            current: None,
+            colors: OrderedColor::all(),
+        }
+    }
+
+    pub fn next(&mut self) -> OrderedColor {
+        match self.current {
+            None => {
+                self.current = Some(OrderedColor::Yellow);
+                self.current.clone().unwrap()
+            },
+            Some(OrderedColor::Black) => {
+                self.current = Some(OrderedColor::White);
+                self.current.clone().unwrap()
+            }
+            _ => {
+                let (index, _) = self.colors.iter().enumerate().find(|(_, it)| {
+                    it == &&self.current.clone().unwrap()
+                }).unwrap();
+                let color = self.colors.get(index + 1).unwrap().clone();
+                self.current = Some(color.clone());
+                color
+            }
+        }
+    }
+}
+
+impl OrderedColor {
+    pub fn all() -> Vec<OrderedColor> {
+        vec![
+            OrderedColor::Yellow,
+            OrderedColor::Gray,
+            OrderedColor::White,
+            OrderedColor::Blue,
+            OrderedColor::Purple,
+            OrderedColor::Turquoise,
+            OrderedColor::Red,
+            OrderedColor::Green,
+            OrderedColor::Black,
+        ]
+    }
+}
+
+impl Colors for String {
+    fn colorize(&self, color: &OrderedColor) -> String {
+        self.as_str().colorize(color)
+    }
+}
+
+impl Colors for &str {
+    fn colorize(&self, color: &OrderedColor) -> String {
+        match color {
+            OrderedColor::Yellow => self.as_yellow(),
+            OrderedColor::Gray => self.as_gray(),
+            OrderedColor::White => self.as_white(),
+            OrderedColor::Blue => self.as_blue(),
+            OrderedColor::Purple => self.as_purple(),
+            OrderedColor::Turquoise => self.as_turquoise(),
+            OrderedColor::Red => self.as_red(),
+            OrderedColor::Green => self.as_green(),
+            OrderedColor::Black => self.as_black(),
+        }
+    }
+}
+
+pub trait Colors {
+    fn colorize(&self, color: &OrderedColor) -> String;
 }
 
 impl Colorize for &str {

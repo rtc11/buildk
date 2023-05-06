@@ -1,6 +1,6 @@
 use config::config::Config;
 use util::buildk_output::BuildkOutput;
-use util::colorize::Colorize;
+use util::colorize::{Colorize, ColorRoulette, Colors};
 use util::PartialConclusion;
 
 use crate::Command;
@@ -14,8 +14,12 @@ impl Command {
                 true => println!("{}", format!("{:<14}{}", "[cached]", dependency.name).as_yellow()),
                 false => println!("{}", format!("{:<14}{}", "[fetched]", dependency.name).as_green()),
             };
+
+            let mut colors = ColorRoulette::new();
+
             dependency.transitives().iter().for_each(|transitive| {
-                println!("{}", format!("{:<14}{}", "[transitive]", transitive.name).as_gray())
+                let display = format!("{:<14}{}", "[transitive]", transitive.name);
+                println!("{}", display.colorize(&colors.next()))
             });
         });
 
