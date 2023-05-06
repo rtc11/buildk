@@ -35,11 +35,11 @@ impl Option {
     pub fn from(value: String) -> Vec<Option> {
         match value.as_str() {
             "clean" => vec![Option::Clean],
-            "fetch" => vec![Option::List, Option::Fetch],
-            "build" => vec![Option::List, Option::Fetch, Option::BuildSrc, Option::BuildTest],
-            "test" => vec![Option::List, Option::Fetch, Option::BuildSrc, Option::BuildTest, Option::Test],
-            "run" => vec![Option::List, Option::Fetch, Option::BuildSrc, Option::Run],
-            "release" => vec![Option::List, Option::Fetch, Option::BuildSrc, Option::Release],
+            "fetch" => vec![Option::Fetch],
+            "build" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest],
+            "test" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest, Option::Test],
+            "run" => vec![Option::Fetch, Option::BuildSrc, Option::Run],
+            "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
             "list" => vec![Option::List],
             "help" => vec![Option::Help],
             _ => vec![]
