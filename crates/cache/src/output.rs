@@ -1,11 +1,10 @@
-use std::path::Path;
 use anyhow::Context;
 use serde_derive::{Deserialize, Serialize};
 use util::process_builder::ProcessBuilder;
 
 use util::process_error::exit_status_to_string;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub(crate) struct Output {
     pub action: String,
     pub success: bool,
@@ -16,16 +15,14 @@ pub(crate) struct Output {
 }
 
 impl Output {
-    pub fn new(file: &Path) -> Self {
-        Self {
-            action: file.to_string_lossy().to_string(),
-            success: true,
-            status: String::default(),
-            code: None,
-            stdout: String::default(),
-            stderr: String::default(),
-        }
+    pub fn set_action(&mut self, action: String) {
+        self.action = action
     }
+
+    pub fn set_stdout(&mut self, stdout: String) {
+        self.stdout = stdout
+    }
+
     pub fn try_from(
         cmd: &ProcessBuilder,
         output: std::process::Output,

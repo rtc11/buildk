@@ -10,6 +10,7 @@ use util::process_builder::ProcessBuilder;
 use crate::Command;
 
 impl Command {
+    // todo: add classpath
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
@@ -41,7 +42,7 @@ impl Command {
             .for_test()
             .into_iter()
             .filter(|dependency| dependency.is_cached())
-            .map(|dependency| dependency.jar_path())
+            .map(|dependency| dependency.jar_absolute_path())
             .collect::<Vec<PathBuf>>();
 
         let mut classpath = vec![&config.manifest.project.out.src];

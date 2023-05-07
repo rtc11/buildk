@@ -1,11 +1,12 @@
 use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
+use config::dependencies::dependency::Dependency;
 
 use util::{BuildkResult, PartialConclusion, paths};
 use util::process_builder::ProcessBuilder;
 use util::process_error::ProcessError;
 
-use crate::{kotlinc_fingerprint, kt_fingerprint, process_fingerprint};
+use crate::{dependency_fingerprint, kotlinc_fingerprint, kt_fingerprint, process_fingerprint};
 use crate::data::CacheData;
 use crate::output::Output;
 
@@ -93,9 +94,27 @@ impl Cache {
         match self.data.contains_key(&key) {
             true => Ok(PartialConclusion::CACHED),
             false => {
-                let output = Output::new(file);
+                let mut output = Output::default();
+                output.set_action(file.to_string_lossy().to_string());
                 self.data.insert(key, output);
                 self.dirty = true;
+                Ok(PartialConclusion::SUCCESS)
+            }
+        }
+    }
+
+    pub fn cache_dependency(
+        &mut self,
+        dep: &Dependency,
+    ) -> BuildkResult<PartialConclusion> {
+        let key = dependency_fingerprint(dep)?;
+        match self.data.contains_key(&key) {
+            true => Ok(PartialConclusion::CACHED),
+            false => {
+                let mut output = Output::default();
+                output.set_action(dep.target_dir.to_string_lossy().to_string());
+                output.set_stdout(dep.classpath());
+                self.data.insert(key, output);
                 Ok(PartialConclusion::SUCCESS)
             }
         }

@@ -5,7 +5,7 @@ use anyhow::ensure;
 
 use config::dependencies::dependency::Dependency;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Client;
 
 impl Client {

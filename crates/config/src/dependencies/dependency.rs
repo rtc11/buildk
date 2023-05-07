@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -27,6 +28,13 @@ pub struct Dependency {
     pub pom: String,
     /// Filename
     pub module: String,
+
+    /// Every transitive dependency
+    classpath: HashSet<Dependency>,
+
+    #[allow(dead_code)]
+    /// Dependencies used by this dependency
+    dependencies: Vec<Dependency>,
 }
 
 impl Display for Dependency {
@@ -54,7 +62,15 @@ impl DependenciesKind for Vec<Dependency> {
 }
 
 impl Dependency {
-    pub fn jar_path(&self) -> PathBuf { self.target_dir.join(&self.jar) }
+    pub fn classpath(&self) -> String {
+        self.classpath.clone().into_iter()
+            .map(|dep| dep.jar_absolute_path())
+            .map(|path| path.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .as_slice()
+            .join(":")
+    }
+    pub fn jar_absolute_path(&self) -> PathBuf { self.target_dir.join(&self.jar) }
     pub fn is_cached(&self) -> bool {
         self.target_dir.join(&self.jar).is_file()
     }
@@ -71,21 +87,14 @@ impl Dependency {
                 sources: format!("{}-sources.jar", info.file_suffix),
                 pom: format!("{}.pom", info.file_suffix),
                 module: format!("{}.module", info.file_suffix),
+                classpath: HashSet::default(),
+                dependencies: Vec::default(),
             }
         }).ok()
     }
 
     pub fn from_toml(kind: &Kind, name: &str, item: &toml_edit::Value) -> Option<Dependency> {
-        if let Some(version) = item.as_str() {
-            Self::new(kind, name, version)
-        } else {
-            None
-        }
-        // if let Some(version) = item.as_str() {
-        //     Ok(Self::new(kind, name, version))
-        // } else {
-        //     bail!("Unresolved dependency, kind: {:?}, name: {name}, version: {item}", kind)
-        // }
+        item.as_str().and_then(|version| Self::new(kind, name, version))
     }
 
     pub fn transitives(&self) -> Vec<Dependency> {
@@ -150,8 +159,6 @@ impl Pom for PathBuf {
                 };
             });
 
-            // println!("dependencies: {}", dependencies);
-
             dependencies
         } else {
             vec![]
@@ -181,7 +188,7 @@ fn dependency_info(name: &str, version: &str) -> anyhow::Result<DependencyInfo> 
                     Ok(DependencyInfo {
                         url: format!("https://repo1.maven.org/maven2/{dependency}/{version}/"),
                         file_suffix: format!("{}-{version}", artifact_name.as_str()),
-                        target_dir: cache.join(relative_path),
+                        target_dir: cache.join(relative_path).join(version),
                     })
                 }
             }

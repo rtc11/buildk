@@ -2,14 +2,15 @@ use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
 use crate::buildk;
+use crate::classpath::Classpath;
 use crate::manifest::Manifest;
 
 pub struct Config {
-    /// buildk home dir `$HOME/.buildk`
+    /// `$HOME/.buildk`
     pub home: PathBuf,
-
-    /// project manifest `buildk.toml`
+    /// `buildk.toml`
     pub manifest: Manifest,
+    pub classpath: Classpath,
 }
 
 impl Default for Config {
@@ -19,7 +20,8 @@ impl Default for Config {
             home: match buildk::home_dir() {
                 Ok(home_dir) => home_dir,
                 Err(e) => panic!("Failed to construct config.home: {}", e)
-            }
+            },
+            classpath: Classpath::default()
         }
     }
 }

@@ -67,7 +67,7 @@ impl Display for Option {
 
 pub struct Command {
     pub version: String,
-    cache: Mutex<Cache>,
+    pub cache: Mutex<Cache>,
     test_libs: Vec<PathBuf>,
     pub client: Client,
 }

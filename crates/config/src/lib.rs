@@ -11,6 +11,7 @@ pub mod project;
 pub mod dependencies;
 pub mod modules;
 pub(crate) mod section;
+pub mod classpath;
 
 pub fn read_file(file: &Path) -> anyhow::Result<String> {
     fs::read_to_string(file).context(format!("File not found: {}", file.display()))

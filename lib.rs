@@ -11,13 +11,12 @@ fn main() {
     let timer = Timer::start();
     let config = Config::default();
     let mut command = Command::new(&config).expect("kotlin expected");
-    let options = args().skip(1)
+
+    let errors = args()
+        .skip(1)
         .flat_map(command::Option::from)
         .unique()
-        .collect::<Vec<_>>();
-
-    let errors = options.iter()
-        .map(|option| execute(option, &config, &mut command))
+        .map(|option| execute(&option, &config, &mut command))
         .filter_map(|output| output.get_stderr())
         .fold(String::new(), |errors, output| format!("{errors}\n{output}"));
 

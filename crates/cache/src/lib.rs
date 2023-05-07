@@ -2,6 +2,7 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 use anyhow::ensure;
+use config::dependencies::dependency::Dependency;
 
 use paths::{modification_time, resolve_executable};
 use util::{BuildkResult, get_kotlinc, paths};
@@ -41,5 +42,13 @@ fn kt_fingerprint(path: &PathBuf) -> anyhow::Result<u64> {
     ensure!(path.is_file());
     path.hash(&mut hasher);
     modification_time(path)?.hash(&mut hasher);
+    Ok(hasher.finish())
+}
+
+pub fn dependency_fingerprint(dependency: &Dependency) -> anyhow::Result<u64> {
+    let mut hasher = StableHasher::default();
+    ensure!(dependency.target_dir.is_dir());
+    dependency.target_dir.hash(&mut hasher);
+    modification_time(&dependency.target_dir)?.hash(&mut hasher);
     Ok(hasher.finish())
 }
