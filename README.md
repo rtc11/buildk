@@ -28,6 +28,7 @@ org.junit.platform.junit-platform-console-standalone = "1.9.3"
 # 🚧 TODO
 * Add libs to src code classpath
 * Resolve conflicting dependency versions
+* Cache classpath (complete dependency graph per used dependency)
 * Support multi module
 * Create a project graph for enabling parallel compilation
 * IDE support
