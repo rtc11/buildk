@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 
 use config::config::Config;
@@ -5,42 +6,23 @@ use config::dependencies::dependency::Dependency;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Colors, OrderedColor};
-use util::PartialConclusion;
+use util::PartialConclusion::{CACHED, FAILED, SUCCESS};
 
 use crate::Command;
 
 impl Command {
     pub fn fetch(&mut self, config: &Config) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
-
-        config.manifest.dependencies.iter().for_each(|dep| {
-            match dep.is_cached() {
-                true => {
-                    print_status(dep, "[cached]", OrderedColor::Gray, 0);
-                    output.conclude(PartialConclusion::CACHED);
-                }
-                false => match self.client.download(dep) {
-                    Ok(_) => {
-                        print_status(dep, "[fetched]", OrderedColor::Blue, 0);
-                        output.conclude(PartialConclusion::SUCCESS);
-                    }
-                    Err(_) => {
-                        print_status(dep, "[failed]", OrderedColor::Red, 0);
-                        output.conclude(PartialConclusion::FAILED);
-                    }
-                }
-            }
-        });
-
+        let output = Arc::new(Mutex::new(BuildkOutput::default()));
         let mut handlers = vec![];
 
         config.manifest.dependencies.iter().for_each(|dep| {
             handlers.push(
                 spawn({
-                    let client = self.client.clone();
+                    let mut client = self.client.clone();
                     let dep = dep.clone();
+                    let output = output.clone();
                     move || {
-                        download_missing_transitive_dependencies(client, dep.transitives(), 1);
+                        client.download_transitive(output, &dep, 0);
                     }
                 })
             );
@@ -50,22 +32,51 @@ impl Command {
             let _ = handler.join();
         }
 
+        let output = output.lock().unwrap().clone();
         output
     }
 }
 
-fn download_missing_transitive_dependencies(mut client: Client, transitives: Vec<Dependency>, depth: usize) {
-    transitives.iter().for_each(|dep| {
+trait DownloadTransitive {
+    fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize);
+}
+
+impl DownloadTransitive for Client {
+    fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize) {
         if !dep.is_cached() {
-            match client.download(dep) {
-                Ok(_) => print_status(dep, "[fetched]", OrderedColor::Blue, depth),
-                Err(_) => print_status(dep, "[failed]", OrderedColor::Red, depth),
+            match self.download(dep) {
+                Ok(_) => {
+                    output.lock().unwrap().conclude(SUCCESS);
+                    print_status(dep, "[fetched]", OrderedColor::Blue, depth);
+                }
+                Err(e) => {
+                    output.lock().unwrap().conclude(FAILED);
+                    output.lock().unwrap().stderr(e.to_string());
+                    print_status(dep, "[failed]", OrderedColor::Red, depth);
+                }
             }
-            download_missing_transitive_dependencies(client.clone(), dep.transitives(), depth + 1);
+
+            let mut handlers = vec![];
+            dep.transitives().iter().for_each(|dep| {
+                handlers.push(
+                    spawn({
+                        let mut client = self.clone();
+                        let dep = dep.clone();
+                        let output = output.clone();
+                        move || {
+                            client.download_transitive(output, &dep, depth + 1);
+                        }
+                    })
+                );
+            });
+            for handler in handlers {
+                let _ = handler.join();
+            }
         } else {
+            output.lock().unwrap().conclude(CACHED);
             print_status(dep, "[cached]", OrderedColor::Gray, depth);
         }
-    });
+    }
 }
 
 fn print_status(dep: &Dependency, status: &str, color: OrderedColor, depth: usize) {

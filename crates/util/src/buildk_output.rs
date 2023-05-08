@@ -24,7 +24,9 @@ impl Default for BuildkOutput {
 
 impl BuildkOutput {
     pub fn conclude(&mut self, status: PartialConclusion) -> &mut Self {
-        self.status = status;
+        if self.status == PartialConclusion::INIT {
+            self.status = status;
+        }
         self
     }
     pub fn cache_hit(&mut self) -> &mut Self {
