@@ -1,5 +1,4 @@
 use std::sync::{Arc, Mutex};
-use std::thread::spawn;
 
 use config::config::Config;
 use config::dependencies::dependency::Dependency;
@@ -13,35 +12,18 @@ use crate::Command;
 impl Command {
     pub fn fetch(&mut self, config: &Config) -> BuildkOutput {
         let output = Arc::new(Mutex::new(BuildkOutput::default()));
-        let mut handlers = vec![];
 
-        config.manifest.dependencies.iter().for_each(|dep| {
-            handlers.push(
-                spawn({
-                    let mut client = self.client.clone();
-                    let dep = dep.clone();
-                    let output = output.clone();
-                    move || {
-                        client.download_transitive(output, &dep, 0);
-                    }
-                })
-            );
-        });
-
-        for handler in handlers {
-            let _ = handler.join();
-        }
+        parallel_fetch(&self.client, &output, &config.manifest.dependencies, 0);
 
         let output = output.lock().unwrap().clone();
         output
     }
 }
 
-trait DownloadTransitive {
+trait Transitives {
     fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize);
 }
-
-impl DownloadTransitive for Client {
+impl Transitives for Client {
     fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize) {
         if !dep.is_cached() {
             match self.download(dep) {
@@ -56,26 +38,32 @@ impl DownloadTransitive for Client {
                 }
             }
 
-            let mut handlers = vec![];
-            dep.transitives().iter().for_each(|dep| {
-                handlers.push(
-                    spawn({
-                        let mut client = self.clone();
-                        let dep = dep.clone();
-                        let output = output.clone();
-                        move || {
-                            client.download_transitive(output, &dep, depth + 1);
-                        }
-                    })
-                );
-            });
-            for handler in handlers {
-                let _ = handler.join();
-            }
+            let dependencies = dep.transitives();
+            parallel_fetch(self, &output, &dependencies, depth + 1);
         } else {
             output.lock().unwrap().conclude(CACHED);
             print_status(dep, "[cached]", OrderedColor::Gray, depth);
         }
+    }
+}
+
+fn parallel_fetch(client: &Client, output: &Arc<Mutex<BuildkOutput>>, dependencies: &[Dependency], depth: usize) {
+    let mut threads = vec![];
+    dependencies.iter().for_each(|dep| {
+        threads.push(
+            std::thread::spawn({
+                let mut client = client.clone();
+                let dep = dep.clone();
+                let output = output.clone();
+                move || {
+                    client.download_transitive(output, &dep, depth);
+                }
+            })
+        );
+    });
+
+    for thread in threads {
+        let _ = thread.join();
     }
 }
 
