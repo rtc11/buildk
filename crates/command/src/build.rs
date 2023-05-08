@@ -10,7 +10,6 @@ use util::process_builder::ProcessBuilder;
 use crate::Command;
 
 impl Command {
-    // todo: add classpath
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());

@@ -39,10 +39,10 @@ pub trait Colorize {
     fn as_white(&self) -> String;
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum OrderedColor {
-    Yellow,
+#[derive(PartialEq, Clone)]
+pub enum Color {
     Gray,
+    Yellow,
     White,
     Blue,
     Purple,
@@ -52,88 +52,52 @@ pub enum OrderedColor {
     Black,
 }
 
-pub struct ColorRoulette {
-    current: Option<OrderedColor>,
-    colors: Vec<OrderedColor>,
-}
-
-
-impl Default for ColorRoulette {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ColorRoulette {
-    fn new() -> ColorRoulette {
-        Self {
-            current: None,
-            colors: OrderedColor::all(),
-        }
+impl Color {
+    pub fn get_index(i: usize) -> Color {
+        let colors = Color::all();
+        let index = i % colors.len();
+        colors.get(index).unwrap().clone()
     }
 
-    pub fn next_color(&mut self) -> OrderedColor {
-        match self.current {
-            None => {
-                self.current = Some(OrderedColor::Yellow);
-                self.current.clone().unwrap()
-            },
-            Some(OrderedColor::Black) => {
-                self.current = Some(OrderedColor::White);
-                self.current.clone().unwrap()
-            }
-            _ => {
-                let (index, _) = self.colors.iter().enumerate().find(|(_, it)| {
-                    it == &&self.current.clone().unwrap()
-                }).unwrap();
-                let color = self.colors.get(index + 1).unwrap().clone();
-                self.current = Some(color.clone());
-                color
-            }
-        }
-    }
-}
-
-impl OrderedColor {
-    pub fn all() -> Vec<OrderedColor> {
+    fn all() -> Vec<Color> {
         vec![
-            OrderedColor::Yellow,
-            OrderedColor::Gray,
-            OrderedColor::White,
-            OrderedColor::Blue,
-            OrderedColor::Purple,
-            OrderedColor::Turquoise,
-            OrderedColor::Red,
-            OrderedColor::Green,
-            OrderedColor::Black,
+            Color::Gray,
+            Color::Yellow,
+            Color::White,
+            Color::Blue,
+            Color::Purple,
+            Color::Turquoise,
+            Color::Red,
+            Color::Green,
+            Color::Black,
         ]
     }
 }
 
 impl Colors for String {
-    fn colorize(&self, color: &OrderedColor) -> String {
+    fn colorize(&self, color: &Color) -> String {
         self.as_str().colorize(color)
     }
 }
 
 impl Colors for &str {
-    fn colorize(&self, color: &OrderedColor) -> String {
+    fn colorize(&self, color: &Color) -> String {
         match color {
-            OrderedColor::Yellow => self.as_yellow(),
-            OrderedColor::Gray => self.as_gray(),
-            OrderedColor::White => self.as_white(),
-            OrderedColor::Blue => self.as_blue(),
-            OrderedColor::Purple => self.as_purple(),
-            OrderedColor::Turquoise => self.as_turquoise(),
-            OrderedColor::Red => self.as_red(),
-            OrderedColor::Green => self.as_green(),
-            OrderedColor::Black => self.as_black(),
+            Color::Gray => self.as_gray(),
+            Color::Yellow => self.as_yellow(),
+            Color::White => self.as_white(),
+            Color::Blue => self.as_blue(),
+            Color::Purple => self.as_purple(),
+            Color::Turquoise => self.as_turquoise(),
+            Color::Red => self.as_red(),
+            Color::Green => self.as_green(),
+            Color::Black => self.as_black(),
         }
     }
 }
 
 pub trait Colors {
-    fn colorize(&self, color: &OrderedColor) -> String;
+    fn colorize(&self, color: &Color) -> String;
 }
 
 impl Colorize for &str {

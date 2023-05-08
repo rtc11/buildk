@@ -1,7 +1,7 @@
 use config::config::Config;
 use config::dependencies::dependency::Dependency;
 use util::buildk_output::BuildkOutput;
-use util::colorize::{Colorize, ColorRoulette, Colors};
+use util::colorize::{Color, Colorize, Colors};
 use util::PartialConclusion;
 
 use crate::Command;
@@ -16,19 +16,26 @@ impl Command {
                 false => println!("{}", format!("{:<14}{}", "[fetched]", dependency.name).as_green()),
             };
 
-            let colors = ColorRoulette::default();
-            Self::decend(dependency, colors, 2);
+            Self::decend(dependency, 1);
         });
 
         output.conclude(PartialConclusion::SUCCESS);
         output
     }
 
-    fn decend(dependency: &Dependency, mut colors: ColorRoulette, depth: usize) {
-        let color = colors.next_color();
+    fn decend(dependency: &Dependency, depth: usize) {
+        let color = Color::get_index(depth);
         dependency.transitives().iter().for_each(|transitive| {
-            let display = format!("{:>depth$}{:<14}{}", "", "[transitive]", transitive.name, depth=depth);
-            println!("{}", display.colorize(&color))
+            let display = format!(
+                "{:>depth$}{:<14}{}:{}",
+                "",
+                "[transitive]",
+                transitive.name,
+                transitive.version,
+                depth=depth*2,
+            );
+            println!("{}", display.colorize(&color));
+            Self::decend(transitive, depth + 1)
         });
     }
 }

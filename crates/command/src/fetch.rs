@@ -4,7 +4,7 @@ use config::config::Config;
 use config::dependencies::dependency::Dependency;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
-use util::colorize::{Colors, OrderedColor};
+use util::colorize::{Colors, Color};
 use util::PartialConclusion::{CACHED, FAILED, SUCCESS};
 
 use crate::Command;
@@ -29,12 +29,12 @@ impl Transitives for Client {
             match self.download(dep) {
                 Ok(_) => {
                     output.lock().unwrap().conclude(SUCCESS);
-                    print_status(dep, "[fetched]", OrderedColor::Blue, depth);
+                    print_status(dep, "[fetched]", Color::Blue, depth);
                 }
                 Err(e) => {
                     output.lock().unwrap().conclude(FAILED);
                     output.lock().unwrap().stderr(e.to_string());
-                    print_status(dep, "[failed]", OrderedColor::Red, depth);
+                    print_status(dep, "[failed]", Color::Red, depth);
                 }
             }
 
@@ -42,7 +42,7 @@ impl Transitives for Client {
             parallel_fetch(self, &output, &dependencies, depth + 1);
         } else {
             output.lock().unwrap().conclude(CACHED);
-            print_status(dep, "[cached]", OrderedColor::Gray, depth);
+            print_status(dep, "[cached]", Color::Gray, depth);
         }
     }
 }
@@ -67,7 +67,14 @@ fn parallel_fetch(client: &Client, output: &Arc<Mutex<BuildkOutput>>, dependenci
     }
 }
 
-fn print_status(dep: &Dependency, status: &str, color: OrderedColor, depth: usize) {
-    let display = format!("{:>depth$}{:<14}{}", "", status, dep.name, depth = (depth * 2));
+fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
+    let display = format!(
+        "{:>depth$}{:<14}{}:{}",
+        "",
+        status,
+        dep.name,
+        dep.version,
+        depth = (depth * 2),
+    );
     println!("{}", display.colorize(&color))
 }
