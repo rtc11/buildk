@@ -6,7 +6,7 @@ Cargo.lock
 *.pdb
 
 # KOTLIN
-test/out
+example/out
 kotlinc
 
 # IDEA

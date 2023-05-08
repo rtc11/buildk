@@ -37,7 +37,7 @@ impl Display for Manifest {
 }
 
 #[cfg(debug_assertions)]
-fn manifest_path() -> &'static Path { Path::new("test/buildk.toml") }
+fn manifest_path() -> &'static Path { Path::new("example/buildk.toml") }
 
 #[cfg(not(debug_assertions))]
 fn manifest_path() -> &'static Path { Path::new("buildk.toml") }

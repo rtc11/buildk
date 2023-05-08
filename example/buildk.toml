@@ -1,6 +1,6 @@
 [project]
 main = "Main.kt"
-path = "/Users/robin/rust/buildk/test"
+path = "/Users/robin/rust/buildk/example"
 
 [dependencies]
 io.ktor.ktor-server-core = "2.3.0"
