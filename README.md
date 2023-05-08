@@ -1,7 +1,7 @@
 # BuildK
 Kotlin package manager and build tool.
 
-# Manifest
+# 📜 Manifest
 Create a `buildk.toml` in your project root.
 
 ```toml
@@ -15,13 +15,19 @@ io.ktor.ktor-client-core = "2.3.0"
 org.junit.platform.junit-platform-console-standalone = "1.9.3"
 ```
 
-# Commands
-> buildk clean
+# 🪄 Commands
+* build
+* clean
+* fetch
+* help
+* list
+* release
+* run
+* test
 
-> buildk build
-
-> buildk test
-
-> buildk run
-
-> buildk release
+# 🚧 TODO
+* Add libs to src code classpath
+* Resolve conflicting dependency versions
+* Support multi module
+* Create a project graph for enabling parallel compilation
+* IDE support
