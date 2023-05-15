@@ -11,6 +11,9 @@ use xml::reader::XmlEvent;
 use crate::buildk;
 use crate::dependencies::kind::Kind;
 
+// https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
+// https://docs.gradle.org/current/userguide/dependency_management.html
+
 #[derive(Clone, Debug)]
 pub struct Dependency {
     pub name: String,

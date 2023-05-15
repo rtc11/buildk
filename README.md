@@ -32,3 +32,9 @@ org.junit.platform.junit-platform-console-standalone = "1.9.3"
 * Support multi module
 * Create a project graph for enabling parallel compilation
 * IDE support
+  * IntelliJ IDEA
+* Early cut off
+  * Checking timestamp on files is not always sufficient. E.g. adding a comment.
+  * After compilation of a file, check if the result is identical to the previous result. Stop compiling dependent files if no changes detected.
+* Shared cache 
+  * Build once on one machine, share the result in the cloud

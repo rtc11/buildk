@@ -20,9 +20,12 @@ impl Command {
     }
 }
 
+// TODO: find repeated dependencies
+// TODO: add configuration option to set (override) version
 trait Transitives {
     fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize);
 }
+
 impl Transitives for Client {
     fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize) {
         if !dep.is_cached() {
