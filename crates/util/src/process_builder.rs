@@ -86,6 +86,7 @@ impl ProcessBuilder {
         self
     }
 
+    // kotlinc have -d, junit uses -d as test directory
     pub fn destination<T: AsRef<OsStr>>(&mut self, destination: T) -> &mut ProcessBuilder {
         self.args(&[OsString::from("-d"), destination.as_ref().to_os_string()])
     }

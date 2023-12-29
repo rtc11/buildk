@@ -44,7 +44,8 @@ impl Display for Dependency {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self.kind {
             Kind::Source => writeln!(f, "{:<26}{}:{}", "dependency", self.name, self.version),
-            Kind::Test => writeln!(f, "{:<26}{}:{}", "test-dependency", self.name, self.version)
+            Kind::Test => writeln!(f, "{:<26}{}:{}", "test-dependency", self.name, self.version),
+            Kind::Platform => writeln!(f, "{:<26}{}:{}", "platform-dependency", self.name, self.version),
         }
     }
 }
@@ -52,6 +53,7 @@ impl Display for Dependency {
 pub trait DependenciesKind {
     fn for_test(self) -> Vec<Dependency>;
     fn for_src(self) -> Vec<Dependency>;
+    fn for_platform(self) -> Vec<Dependency>;
 }
 
 impl DependenciesKind for Vec<Dependency> {
@@ -61,6 +63,10 @@ impl DependenciesKind for Vec<Dependency> {
 
     fn for_src(self) -> Vec<Dependency> {
         self.into_iter().filter(|dep| dep.kind == Kind::Source).collect()
+    }
+
+    fn for_platform(self) -> Vec<Dependency> {
+        self.into_iter().filter(|dep| dep.kind == Kind::Platform).collect()
     }
 }
 

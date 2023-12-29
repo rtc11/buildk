@@ -12,8 +12,8 @@ mod test;
 pub mod dependency;
 mod kind;
 
-pub(crate) fn dependencies(data: &Document) -> Vec<Dependency> {
-    data.as_table().into_iter().flat_map(|(key, value)| {
+pub(crate) fn dependencies(manifest: &Document) -> Vec<Dependency> {
+    let manifested_deps = manifest.as_table().into_iter().flat_map(|(key, value)| {
         match Section::from_str(key) {
             Ok(Section::Dependencies) =>
                 match value.as_table() {
@@ -27,7 +27,17 @@ pub(crate) fn dependencies(data: &Document) -> Vec<Dependency> {
                 }
             _ => vec![]
         }
-    }).collect::<Vec<Dependency>>()
+    }).collect::<Vec<Dependency>>();
+
+    let platform_deps = platform_deps();
+
+    manifested_deps.iter().chain(platform_deps.iter()).cloned().collect()
+}
+
+pub(crate) fn platform_deps() -> Vec<Dependency> {
+    vec![
+        Dependency::new( &Kind::Platform, "org.junit.platform.junit-platform-console-standalone", "1.10.1").unwrap(),
+    ]
 }
 
 fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
@@ -40,8 +50,9 @@ fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
         .collect()
 }
 
-/// In TOML syntax a dot (.) represents an inline table and not part of the field name.
-/// This is a workaround to get a list of all keys until the value field (that should be the version).
+/// In TOML syntax a dot (.) represents an inline table and not 
+/// part of the field name. This is a workaround to get a list 
+/// of all keys until the value field (that should be the version).
 fn decend<'a>(
     mut map: BTreeMap<String, &'a Value>,
     keys: Vec<&'a str>,

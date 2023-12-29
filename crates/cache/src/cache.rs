@@ -6,7 +6,7 @@ use util::{BuildkResult, PartialConclusion, paths};
 use util::process_builder::ProcessBuilder;
 use util::process_error::ProcessError;
 
-use crate::{dependency_fingerprint, kotlinc_fingerprint, kt_fingerprint, process_fingerprint};
+use crate::{dependency_fingerprint, kotlinc_fingerprint, file_fingerprint, process_fingerprint};
 use crate::data::CacheData;
 use crate::output::Output;
 
@@ -90,7 +90,7 @@ impl Cache {
         &mut self,
         file: &PathBuf,
     ) -> BuildkResult<PartialConclusion> {
-        let key = kt_fingerprint(file)?;
+        let key = file_fingerprint(file)?;
         match self.data.contains_key(&key) {
             true => Ok(PartialConclusion::CACHED),
             false => {

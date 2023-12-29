@@ -8,5 +8,5 @@ cache.workspace = true
 config.workspace = true
 http.workspace = true
 util.workspace = true
-
+gryf.workspace = true
 anyhow.workspace = true

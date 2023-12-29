@@ -4,10 +4,12 @@ use config::config::Config;
 use config::dependencies::dependency::Dependency;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
-use util::colorize::{Colors, Color};
+use util::colorize::{Color, Colors};
 use util::PartialConclusion::{CACHED, FAILED, SUCCESS};
 
 use crate::Command;
+
+const DEBUG: bool = false;
 
 impl Command {
     pub fn fetch(&mut self, config: &Config) -> BuildkOutput {
@@ -23,11 +25,21 @@ impl Command {
 // TODO: find repeated dependencies
 // TODO: add configuration option to set (override) version
 trait Transitives {
-    fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize);
+    fn download_transitive(
+        &mut self,
+        output: Arc<Mutex<BuildkOutput>>,
+        dep: &Dependency,
+        depth: usize,
+    );
 }
 
 impl Transitives for Client {
-    fn download_transitive(&mut self, output: Arc<Mutex<BuildkOutput>>, dep: &Dependency, depth: usize) {
+    fn download_transitive(
+        &mut self,
+        output: Arc<Mutex<BuildkOutput>>,
+        dep: &Dependency,
+        depth: usize,
+    ) {
         if !dep.is_cached() {
             match self.download(dep) {
                 Ok(_) => {
@@ -50,19 +62,20 @@ impl Transitives for Client {
     }
 }
 
-fn parallel_fetch(client: &Client, output: &Arc<Mutex<BuildkOutput>>, dependencies: &[Dependency], depth: usize) {
+fn parallel_fetch(
+    client: &Client,
+    output: &Arc<Mutex<BuildkOutput>>,
+    dependencies: &[Dependency],
+    depth: usize,
+) {
     let mut threads = vec![];
     dependencies.iter().for_each(|dep| {
-        threads.push(
-            std::thread::spawn({
-                let mut client = client.clone();
-                let dep = dep.clone();
-                let output = output.clone();
-                move || {
-                    client.download_transitive(output, &dep, depth);
-                }
-            })
-        );
+        threads.push(std::thread::spawn({
+            let mut client = client.clone();
+            let dep = dep.clone();
+            let output = output.clone();
+            move || client.download_transitive(output, &dep, depth)
+        }));
     });
 
     for thread in threads {
@@ -71,13 +84,16 @@ fn parallel_fetch(client: &Client, output: &Arc<Mutex<BuildkOutput>>, dependenci
 }
 
 fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
-    let display = format!(
-        "{:>depth$}{:<14}{}:{}",
-        "",
-        status,
-        dep.name,
-        dep.version,
-        depth = (depth * 2),
-    );
-    println!("{}", display.colorize(&color))
+    if DEBUG {
+        let display = format!(
+            "{:>depth$}{:<14}{}:{}",
+            "",
+            status,
+            dep.name,
+            dep.version,
+            depth = (depth * 2),
+        );
+        println!("{}", display.colorize(&color))
+    }
 }
+

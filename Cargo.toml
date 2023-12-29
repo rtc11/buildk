@@ -34,6 +34,8 @@ toml = "0.7.3"
 toml_edit = "0.19.8"
 xml-rs = "0.8.4"
 
+gryf = { git = "https://github.com/pnevyk/gryf.git" }
+
 [dependencies]
 anyhow.workspace = true
 

@@ -37,8 +37,9 @@ fn main() {
             command::Option::Test => command.run_tests(config),
             command::Option::Release => command.release(config),
             command::Option::Run => command.run(config),
-            command::Option::List => command.list(config),
+            command::Option::Deps => command.deps(config),
             command::Option::Help => command.help(config),
+            command::Option::Ksp => command.ksp(config),
         };
         println!("{:<6} {:<12} ▸ {}", output.conclusion(), option, output.elapsed());
         output

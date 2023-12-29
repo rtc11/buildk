@@ -1,5 +1,4 @@
 use config::config::Config;
-use config::dependencies::dependency::DependenciesKind;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 use util::process_builder::ProcessBuilder;
@@ -17,21 +16,26 @@ impl Command {
 
         let mut java = ProcessBuilder::new("java");
 
-        let test_dependencies = config.manifest.dependencies.clone().for_test();
-        let junit = test_dependencies.iter()
+        let dependencies = config.manifest.dependencies.clone();
+        
+        let console_launcher = dependencies
+            .iter()
             .filter(|it| it.is_cached())
-            .find(|it|it.name.contains("junit-platform-console-standalone"));
+            .find(|it| it.name.contains("junit-platform-console-standalone"));
 
-        if junit.is_none() {
+        if console_launcher.is_none() {
             output.conclude(PartialConclusion::FAILED);
             return output
         }
 
+        let test_dir = &config.manifest.project.test.as_path().display().to_string();
+
         java.cwd(&config.manifest.project.path)
-            .jar(&junit.unwrap().jar_absolute_path())
+            .jar(&console_launcher.unwrap().jar_absolute_path())
             .classpaths(classpath)
-            .args(&["--select-class", "PrefixTest"])
-            // .args(&["--select-package", "no.tordly.test"])
+            .args(&["--select-directory", test_dir])
+            //.args(&["--select-class", "PrefixTest"])
+            .args(&["--select-package", "lifecycle"])
             .args(&["--details", "none"])
             .test_report(&config.manifest.project.out.test_report);
 

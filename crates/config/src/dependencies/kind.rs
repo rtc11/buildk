@@ -2,4 +2,5 @@
 pub enum Kind {
     Source,
     Test,
+    Platform,
 }

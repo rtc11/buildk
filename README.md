@@ -12,7 +12,7 @@ main = "Main.kt" # default
 io.ktor.ktor-client-core = "2.3.0"
 
 [test-dependencies]
-org.junit.platform.junit-platform-console-standalone = "1.9.3"
+org.junit.jupiter.junit-jupiter-api= "5.10.1"
 ```
 
 # 🪄 Commands
@@ -20,7 +20,7 @@ org.junit.platform.junit-platform-console-standalone = "1.9.3"
 * clean
 * fetch
 * help
-* list
+* deps
 * release
 * run
 * test

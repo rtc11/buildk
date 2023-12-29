@@ -37,7 +37,7 @@ fn process_fingerprint(cmd: &ProcessBuilder, extra_fingerprint: u64) -> u64 {
     hasher.finish()
 }
 
-fn kt_fingerprint(path: &PathBuf) -> anyhow::Result<u64> {
+pub fn file_fingerprint(path: &PathBuf) -> anyhow::Result<u64> {
     let mut hasher = StableHasher::default();
     ensure!(path.is_file());
     path.hash(&mut hasher);

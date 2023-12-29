@@ -15,13 +15,14 @@ mod test;
 mod run;
 mod release;
 mod fetch;
-mod list;
+mod deps;
 mod help;
+mod ksp;
 
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Option {
     Clean,
-    List,
+    Deps,
     Fetch,
     BuildSrc,
     BuildTest,
@@ -29,6 +30,7 @@ pub enum Option {
     Run,
     Release,
     Help,
+    Ksp,
 }
 
 impl Option {
@@ -40,8 +42,9 @@ impl Option {
             "test" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest, Option::Test],
             "run" => vec![Option::Fetch, Option::BuildSrc, Option::Run],
             "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
-            "list" => vec![Option::List],
+            "deps" => vec![Option::Deps],
             "help" => vec![Option::Help],
+            "ksp" => vec![Option::Ksp],
             _ => vec![]
         }
     }
@@ -57,8 +60,9 @@ impl Display for Option {
             Option::Test => "test",
             Option::Run => "run",
             Option::Release => "release",
-            Option::List => "list",
+            Option::Deps => "deps",
             Option::Help => "help",
+            Option::Ksp => "ksp",
         };
 
         write!(f, "{:<12}", display)
@@ -83,8 +87,8 @@ impl Command {
             version: "unknown".to_string(),
             cache: Mutex::new(cache),
             test_libs: vec![
-                kotlin_home.join("lib/kotlin-test-junit5.jar"),
-                kotlin_home.join("lib/kotlin-test.jar"),
+                kotlin_home.join("libexec/lib/kotlin-test-junit5.jar"),
+                kotlin_home.join("libexec/lib/kotlin-test.jar"),
             ],
             client: Client::default(),
         };
