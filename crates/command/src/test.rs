@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use config::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
@@ -9,7 +11,7 @@ impl Command {
     pub fn run_tests(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
 
-        let classpath = vec![
+        let mut classpath = vec![
             &config.manifest.project.out.src,
             &config.manifest.project.out.test,
         ];
@@ -18,6 +20,13 @@ impl Command {
 
         let dependencies = config.manifest.dependencies.clone();
         
+        let dep_jars = dependencies
+            .iter()
+            .map(|it| it.jar_absolute_path())
+            .collect::<Vec<PathBuf>>();
+
+        classpath.extend(&dep_jars);
+
         let console_launcher = dependencies
             .iter()
             .filter(|it| it.is_cached())
@@ -35,7 +44,7 @@ impl Command {
             .classpaths(classpath)
             .args(&["--select-directory", test_dir])
             //.args(&["--select-class", "PrefixTest"])
-            .args(&["--select-package", "lifecycle"])
+            .args(&["--select-package", "params"])
             .args(&["--details", "none"])
             .test_report(&config.manifest.project.out.test_report);
 

@@ -37,6 +37,7 @@ pub(crate) fn dependencies(manifest: &Document) -> Vec<Dependency> {
 pub(crate) fn platform_deps() -> Vec<Dependency> {
     vec![
         Dependency::new( &Kind::Platform, "org.junit.platform.junit-platform-console-standalone", "1.10.1").unwrap(),
+        Dependency::new( &Kind::Platform, "org.jetbrains.kotlin.kotlin-stdlib", "1.9.22").unwrap(),
     ]
 }
 
