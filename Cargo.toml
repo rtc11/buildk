@@ -34,8 +34,6 @@ toml = "0.7.3"
 toml_edit = "0.19.8"
 xml-rs = "0.8.4"
 
-# cross platform terminal lib
-#crossterm = "0.27.0"
 terminal-spinners = "0.3.2"
 
 # graph lib
@@ -44,7 +42,6 @@ gryf = { git = "https://github.com/pnevyk/gryf.git" }
 [dependencies]
 terminal-spinners.workspace = true
 anyhow.workspace = true
-#crossterm.workspace = true
 command.workspace = true
 config.workspace = true
 itertools.workspace = true
