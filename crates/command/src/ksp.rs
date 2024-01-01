@@ -53,7 +53,7 @@ pub fn sort_by_imports(config: &Config) -> anyhow::Result<Vec<PathBuf>> {
 #[derive(Clone, Default, Debug)]
 pub struct HeaderKt {
     pub file: PathBuf,
-    package: String,
+    pub package: String,
     imports: Vec<String>,
 }
 

@@ -1,10 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use config::config::Config;
 use util::buildk_output::BuildkOutput;
-use util::PartialConclusion;
 use util::process_builder::ProcessBuilder;
+use util::PartialConclusion;
 
+use crate::ksp::HeaderKt;
 use crate::Command;
 
 impl Command {
@@ -19,6 +20,11 @@ impl Command {
             .filter(|it| it.is_cached())
             .find(|it| it.name.contains("junit-platform-console-standalone"));
 
+        if console_launcher.is_none() {
+            output.conclude(PartialConclusion::FAILED);
+            println!("missing console logger")
+        }
+
         let dep_jars = dependencies
             .iter()
             .filter(|it| !it.name.contains("junit-platform-console-standalone"))
@@ -32,21 +38,24 @@ impl Command {
 
         classpath.extend(&dep_jars);
 
-        if console_launcher.is_none() {
-            output.conclude(PartialConclusion::FAILED);
-            println!("missing consol logger")
-        }
-
-        let test_dir = &config.manifest.project.test.as_path().display().to_string();
-
         java.cwd(&config.manifest.project.path)
             .jar(&console_launcher.unwrap().jar_absolute_path())
             .classpaths(classpath)
-            .args(&["--select-directory", test_dir])
-            //.args(&["--select-class", "PrefixTest"])
-            .args(&["--select-package", "params"])
-            .args(&["--details", "none"])
+            .args(&["--details", "none"]) //none,flat,tree,verbose
             .test_report(&config.manifest.project.out.test_report);
+
+        let test_files = util::paths::all_files_recursive(vec![], config.manifest.project.test.clone());
+
+        let test_packages = test_files
+            .iter()
+            .map(Path::new)
+            .filter_map(|path| HeaderKt::parse(path).ok())
+            .map(|it| it.package)
+            .collect::<Vec<String>>();
+
+        for pkg in test_packages.iter() {
+            java.args(&["--select-package", &pkg]);
+        }
 
         self.execute(&mut output, &java, 0)
     }
