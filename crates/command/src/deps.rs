@@ -13,9 +13,7 @@ impl Command {
         list_dependencies(&config.manifest.dependencies, vec![], 0);
         println!("deps: {:?}", config.manifest.dependencies.len());
 
-        output
-            .conclude(PartialConclusion::SUCCESS)
-            .to_owned()
+        output.conclude(PartialConclusion::SUCCESS).to_owned()
     }
 }
 
@@ -27,7 +25,7 @@ fn list_dependencies<'a>(
     let color = Color::get_index(depth);
 
     dependencies.iter().for_each(|dep| {
-        traversed.push(&dep.url.as_str());
+        traversed.push(dep.url.as_str());
 
         let status = match dep.is_cached() {
             true => "[cached]",
