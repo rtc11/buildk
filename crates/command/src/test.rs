@@ -5,7 +5,7 @@ use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 use util::PartialConclusion;
 
-use crate::ksp::HeaderKt;
+use crate::build_tree::HeaderKt;
 use crate::Command;
 
 impl Command {

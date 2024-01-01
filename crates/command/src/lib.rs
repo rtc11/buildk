@@ -14,7 +14,7 @@ mod clean;
 mod deps;
 mod fetch;
 mod help;
-mod ksp;
+mod build_tree;
 mod release;
 mod run;
 mod test;
@@ -30,7 +30,7 @@ pub enum Option {
     Run,
     Release,
     Help,
-    Ksp,
+    BuildTree,
 }
 
 impl Option {
@@ -49,7 +49,7 @@ impl Option {
             "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
             "deps" => vec![Option::Deps],
             "help" => vec![Option::Help],
-            "ksp" => vec![Option::Ksp],
+            "tree" => vec![Option::BuildTree],
             _ => vec![],
         }
     }
@@ -67,7 +67,7 @@ impl Display for Option {
             Option::Release => "release",
             Option::Deps => "deps",
             Option::Help => "help",
-            Option::Ksp => "ksp",
+            Option::BuildTree => "tree",
         };
 
         write!(f, "{:<12}", display)

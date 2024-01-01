@@ -6,7 +6,7 @@ use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 use util::{get_kotlinc, PartialConclusion};
 
-use crate::{ksp, Command};
+use crate::{build_tree, Command};
 
 impl Command {
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
@@ -17,7 +17,7 @@ impl Command {
             .cwd(&config.manifest.project.path)
             .destination(&config.manifest.project.out.src);
 
-        match ksp::sort_by_imports(config) {
+        match build_tree::sort_by_imports(config) {
             Ok(sorted_src) => {
                 let sorted_src = sorted_src
                     .iter()

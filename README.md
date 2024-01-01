@@ -1,40 +1,48 @@
 # BuildK
-Kotlin package manager and build tool.
+Small build tool for Kotlin.
 
-# 📜 Manifest
+# 📜 Howto
 Create a `buildk.toml` in your project root.
 
 ```toml
 [project]
-main = "Main.kt" # default
+main = "Main.kt"
 
 [dependencies]
-io.ktor.ktor-client-core = "2.3.0"
 
 [test-dependencies]
-org.junit.jupiter.junit-jupiter-api= "5.10.1"
+org.junit.jupiter.junit-jupiter-api = "5.10.1"
 ```
 
+#### Defaults:
+
+
 # 🪄 Commands
-* build
-* clean
-* fetch
-* help
-* deps
-* release
-* run
-* test
+
+| cmd | desc |
+| --- | ---- |
+| clean | clean the project |
+| build | build the project |
+| test | test the project |
+| run | run the project |
+| release | release the project |
+| fetch | fetch the project |
+| tree | list the build tree |
+| deps | print the dependencies |
+| help | print this help |
 
 # 🚧 TODO
-* Add libs to src code classpath
-* Resolve conflicting dependency versions
-* Cache classpath (complete dependency graph per used dependency)
-* Support multi module
-* Create a project graph for enabling parallel compilation
-* IDE support
-  * IntelliJ IDEA
-* Early cut off
-  * Checking timestamp on files is not always sufficient. E.g. adding a comment.
-  * After compilation of a file, check if the result is identical to the previous result. Stop compiling dependent files if no changes detected.
-* Shared cache 
+- [ ] Resolve conflicting dependency versions
+- [x] Resolve cyclic transitive dependencies
+- [ ] Cache classpath (complete dependency graph per used dependency)
+- [ ] Support multi module
+- [ ] Create a project graph for enabling parallel compilation
+- [ ] Early cut off improvements
+  * Checking timestamp on files is not always sufficient. E.g. when adding a comment.
+- [ ] Shared cache 
   * Build once on one machine, share the result in the cloud
+- [ ] Platform libs must be configurable (e.g. junit or kotlin-std:1.9.22)
+- [x] Tests are automatically found
+- [x] Manually create build-tree based on project package/imports
+- [ ] Resolve cyclic project package structure
+- [ ] KSP (kotlin compiler plugin) must be implemented in kotlin. Used for generating smarter build-trees.

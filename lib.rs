@@ -50,7 +50,7 @@ fn main() {
             command::Option::Run => command.run(config),
             command::Option::Deps => command.deps(config),
             command::Option::Help => command.help(config),
-            command::Option::Ksp => command.ksp(config),
+            command::Option::BuildTree => command.build_tree(config),
         };
 
         handle.stop_and_clear();
