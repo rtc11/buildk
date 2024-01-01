@@ -16,6 +16,12 @@ pub struct Cache {
     data: CacheData,
 }
 
+pub struct CacheResult {
+    pub conclusion: PartialConclusion,
+    pub stdout: Option<String>,
+    pub stderr: Option<String>,
+    pub status: i32,
+}
 impl Cache {
     pub fn load(kotlin_home: &Path, cache_location: &Path) -> Cache {
         let kotlin_bin = kotlin_home.join("bin");
@@ -60,7 +66,7 @@ impl Cache {
         &mut self,
         cmd: &ProcessBuilder,
         extra_fingerprint: u64,
-    ) -> BuildkResult<(String, String, PartialConclusion)> {
+    ) -> BuildkResult<CacheResult> {
         let key = process_fingerprint(cmd, extra_fingerprint);
         let partial_conclusion = match self.data.contains_key(&key) {
             true => PartialConclusion::CACHED,
@@ -75,7 +81,14 @@ impl Cache {
         let output = self.data.get(&key);
 
         match output.success {
-            true => Ok((output.stdout.clone(), output.stderr.clone(), partial_conclusion)),
+            true => {
+                Ok(CacheResult {
+                    conclusion: partial_conclusion,
+                    stdout: Some(output.stdout.clone()),
+                    stderr: Some(output.stderr.clone()),
+                    status: output.code.unwrap_or(0)
+                })
+            },
             false => Err(ProcessError::new_with_raw_output(
                 &format!("process didn't exit successfully (cache): {cmd}"),
                 output.code,
@@ -96,6 +109,7 @@ impl Cache {
             false => {
                 let mut output = Output::default();
                 output.set_action(file.to_string_lossy().to_string());
+                output.set_success();
                 self.data.insert(key, output);
                 self.dirty = true;
                 Ok(PartialConclusion::SUCCESS)

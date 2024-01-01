@@ -5,19 +5,19 @@ use std::sync::Mutex;
 use cache::cache::Cache;
 use config::config::Config;
 use http::client::Client;
-use util::{BuildkResult, get_kotlin_home, PartialConclusion};
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
+use util::{get_kotlin_home, BuildkResult, PartialConclusion};
 
-mod clean;
 mod build;
-mod test;
-mod run;
-mod release;
-mod fetch;
+mod clean;
 mod deps;
+mod fetch;
 mod help;
 mod ksp;
+mod release;
+mod run;
+mod test;
 
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Option {
@@ -39,13 +39,18 @@ impl Option {
             "clean" => vec![Option::Clean],
             "fetch" => vec![Option::Fetch],
             "build" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest],
-            "test" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest, Option::Test],
+            "test" => vec![
+                Option::Fetch,
+                Option::BuildSrc,
+                Option::BuildTest,
+                Option::Test,
+            ],
             "run" => vec![Option::Fetch, Option::BuildSrc, Option::Run],
             "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
             "deps" => vec![Option::Deps],
             "help" => vec![Option::Help],
             "ksp" => vec![Option::Ksp],
-            _ => vec![]
+            _ => vec![],
         }
     }
 }
@@ -77,9 +82,7 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn new(
-        config: &Config,
-    ) -> BuildkResult<Command> {
+    pub fn new(config: &Config) -> BuildkResult<Command> {
         let kotlin_home = get_kotlin_home();
         let cache = Cache::load(&kotlin_home, &config.manifest.project.out.cache);
 
@@ -90,18 +93,22 @@ impl Command {
                 kotlin_home.join("libexec/lib/kotlin-test-junit5.jar"),
                 kotlin_home.join("libexec/lib/kotlin-test.jar"),
             ],
-            client: Client::default(),
+            client: Client
         };
 
         let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
         runner.cwd(&config.manifest.project.path).arg("-version");
 
-        let (verbose_version, _, _) = kotlinc.cache.lock().unwrap().cache_command(&runner, 0)?;
-
-        let version = verbose_version.lines()
+        let cache_res = kotlinc.cache.lock().unwrap().cache_command(&runner, 0)?;
+        let version = cache_res
+            .stdout
+            .expect("kotlinc -version gave no stdout")
+            .lines()
             .find(|l| l.starts_with("Kotlin version "))
             .map(|l| l.replace("Kotlin version ", ""))
-            .ok_or_else(|| anyhow::format_err!("`kotlinc -version` didnt have a line for `Kotlin version `, got:\n{}", verbose_version))?;
+            .ok_or_else(|| {
+                anyhow::format_err!("`kotlinc -version` didnt have a line for `Kotlin version")
+            })?;
 
         kotlinc.version = version;
 
@@ -114,17 +121,28 @@ impl Command {
         cmd: &ProcessBuilder,
         extra_fingerprint: u64,
     ) -> BuildkOutput {
-        let result = self.cache.lock().unwrap().cache_command(cmd, extra_fingerprint);
-        match result {
-            Ok((stdout, stderr, conclusion)) => output
-                .conclude(conclusion)
-                .stdout(stdout)
-                .stderr(stderr)
-                .clone(),
+        match self
+            .cache
+            .lock()
+            .unwrap()
+            .cache_command(cmd, extra_fingerprint)
+        {
+            Ok(cache_res) => {
+                output
+                    .conclude(cache_res.conclusion)
+                    .status(cache_res.status);
+                if let Some(stdout) = cache_res.stdout {
+                    output.stdout(stdout);
+                }
+                if let Some(stderr) = cache_res.stderr {
+                    output.stderr(stderr);
+                }
+                output.clone()
+            }
             Err(err) => output
                 .conclude(PartialConclusion::FAILED)
                 .stderr(err.to_string())
-                .clone()
+                .clone(),
         }
     }
 

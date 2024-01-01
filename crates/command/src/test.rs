@@ -10,31 +10,31 @@ use crate::Command;
 impl Command {
     pub fn run_tests(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-
-        let mut classpath = vec![
-            &config.manifest.project.out.src,
-            &config.manifest.project.out.test,
-        ];
-
         let mut java = ProcessBuilder::new("java");
 
         let dependencies = config.manifest.dependencies.clone();
-        
-        let dep_jars = dependencies
-            .iter()
-            .map(|it| it.jar_absolute_path())
-            .collect::<Vec<PathBuf>>();
-
-        classpath.extend(&dep_jars);
 
         let console_launcher = dependencies
             .iter()
             .filter(|it| it.is_cached())
             .find(|it| it.name.contains("junit-platform-console-standalone"));
 
+        let dep_jars = dependencies
+            .iter()
+            .filter(|it| !it.name.contains("junit-platform-console-standalone"))
+            .map(|it| it.jar_absolute_path())
+            .collect::<Vec<PathBuf>>();
+
+        let mut classpath = vec![
+            &config.manifest.project.out.src,
+            &config.manifest.project.out.test,
+        ];
+
+        classpath.extend(&dep_jars);
+
         if console_launcher.is_none() {
             output.conclude(PartialConclusion::FAILED);
-            return output
+            println!("missing consol logger")
         }
 
         let test_dir = &config.manifest.project.test.as_path().display().to_string();

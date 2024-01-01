@@ -23,6 +23,10 @@ impl Output {
         self.stdout = stdout
     }
 
+    pub fn set_success(&mut self) {
+        self.success = true
+    }
+
     pub fn try_from(
         cmd: &ProcessBuilder,
         output: std::process::Output,

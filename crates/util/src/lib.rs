@@ -15,7 +15,7 @@ pub enum Conclusion {
     FAILED,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum PartialConclusion {
     INIT,
     CACHED,

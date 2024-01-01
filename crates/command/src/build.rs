@@ -3,54 +3,45 @@ use std::path::PathBuf;
 use config::config::Config;
 use config::dependencies::dependency::DependenciesKind;
 use util::buildk_output::BuildkOutput;
-use util::paths::all_files_recursive;
 use util::process_builder::ProcessBuilder;
 use util::{get_kotlinc, PartialConclusion};
 
-use crate::{Command, ksp};
+use crate::{ksp, Command};
 
 impl Command {
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
 
-        let src_files = all_files_recursive(vec![], config.manifest.project.src.clone());
-
-        let files_to_build = src_files
-            .iter()
-            .filter(|file| {
-                matches!(
-                    self.cache.lock().unwrap().cache_file(file),
-                    Ok(PartialConclusion::SUCCESS)
-                )
-            })
-            .collect::<Vec<&PathBuf>>();
-
         kotlinc
             .cwd(&config.manifest.project.path)
-            //.classpaths(vec![&config.manifest.project.out.src])
             .destination(&config.manifest.project.out.src);
 
-        if files_to_build.is_empty() {
-            output.conclude(PartialConclusion::CACHED);
-            return output;
-        }
+        match ksp::sort_by_imports(config) {
+            Ok(sorted_src) => {
+                let sorted_src = sorted_src
+                    .iter()
+                    .filter(|file| {
+                        let is_cached = self.cache.lock().unwrap().cache_file(file);
+                        //println!("file: {:?}: cached=cached, success=new cache: {:?}", file, is_cached);
+                        !matches!(is_cached, Ok(PartialConclusion::CACHED))
+                    })
+                    .collect::<Vec<&PathBuf>>();
 
-        let sorted = ksp::ksp(config);
-
-        match sorted {
-            Ok(sorted) => {
-                files_to_build.iter().for_each(|file| {
-                    kotlinc.sources(file);
-                });
-
-                output.stdout(format!("{sorted:?}"));
-                output.conclude(PartialConclusion::SUCCESS);
+                if sorted_src.is_empty() {
+                    output.conclude(PartialConclusion::CACHED);
+                    return output
+                } else {
+                    sorted_src.iter().for_each(|src| {
+                        kotlinc.sources(src);
+                    });
+                }
             }
             Err(e) => {
-                output.stdout("cyclic dependency detected".to_owned());
+                output.stdout("possible cyclic DAG detected, see stderr".to_owned());
                 output.stderr(e.to_string());
                 output.conclude(PartialConclusion::FAILED);
+                return output;
             }
         }
 

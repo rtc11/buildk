@@ -1,11 +1,13 @@
+
 use crate::PartialConclusion;
 use crate::timer::Timer;
 
 #[derive(Clone)]
 pub struct BuildkOutput {
-    status: PartialConclusion,
+    conclusion: PartialConclusion,
     stdout: Option<String>,
     stderr: Option<String>,
+    status: i32,
     cache_hit: bool,
     timed: Timer,
 }
@@ -13,9 +15,10 @@ pub struct BuildkOutput {
 impl Default for BuildkOutput {
     fn default() -> Self {
         BuildkOutput {
-            status: PartialConclusion::INIT,
+            conclusion: PartialConclusion::INIT,
             stdout: None,
             stderr: None,
+            status: 0,
             cache_hit: false,
             timed: Timer::start(),
         }
@@ -24,8 +27,8 @@ impl Default for BuildkOutput {
 
 impl BuildkOutput {
     pub fn conclude(&mut self, status: PartialConclusion) -> &mut Self {
-        if self.status == PartialConclusion::INIT {
-            self.status = status;
+        if self.conclusion == PartialConclusion::INIT {
+            self.conclusion = status;
         }
         self
     }
@@ -45,15 +48,22 @@ impl BuildkOutput {
         }
         self
     }
+    pub fn status(&mut self, status: i32) -> &mut Self {
+        self.status = status;
+        self
+    }
     pub fn cache_miss(&mut self) -> &mut Self {
         self.cache_hit = false;
         self
+    }
+    pub fn get_status(&self) -> i32 {
+        self.status
     }
     pub fn elapsed(&self) -> String {
         self.timed.elapsed()
     }
     pub fn conclusion(&self) -> PartialConclusion {
-        self.status.clone()
+        self.conclusion.clone()
     }
     pub fn get_stderr(&self) -> Option<String> {
         self.stderr.clone()
