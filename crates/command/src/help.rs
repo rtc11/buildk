@@ -15,6 +15,7 @@ impl Command {
         println!("{:<11}│ fetch the project", "fetch");
         println!("{:<11}│ list the build tree", "tree");
         println!("{:<11}│ print the dependencies", "deps");
+        println!("{:<11}│ show the config", "config");
         println!("{:<11}│ print this help", "help");
         println!("───────────┴─────────────────────");
         output.conclude(PartialConclusion::SUCCESS);

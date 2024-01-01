@@ -49,8 +49,9 @@ fn main() {
             command::Option::Release => command.release(config),
             command::Option::Run => command.run(config),
             command::Option::Deps => command.deps(config),
-            command::Option::Help => command.help(config),
             command::Option::BuildTree => command.build_tree(config),
+            command::Option::Config => command.config(config),
+            command::Option::Help => command.help(config),
         };
 
         handle.stop_and_clear();

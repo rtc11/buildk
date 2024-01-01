@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use cache::cache::Cache;
-use config::config::Config;
+use ::config::config::Config;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
@@ -11,6 +11,7 @@ use util::{get_kotlin_home, BuildkResult, PartialConclusion};
 
 mod build;
 mod clean;
+mod config;
 mod deps;
 mod fetch;
 mod help;
@@ -29,8 +30,9 @@ pub enum Option {
     Test,
     Run,
     Release,
-    Help,
     BuildTree,
+    Config,
+    Help,
 }
 
 impl Option {
@@ -48,8 +50,9 @@ impl Option {
             "run" => vec![Option::Fetch, Option::BuildSrc, Option::Run],
             "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
             "deps" => vec![Option::Deps],
-            "help" => vec![Option::Help],
             "tree" => vec![Option::BuildTree],
+            "config" => vec![Option::Config],
+            "help" => vec![Option::Help],
             _ => vec![],
         }
     }
@@ -66,8 +69,9 @@ impl Display for Option {
             Option::Run => "run",
             Option::Release => "release",
             Option::Deps => "deps",
-            Option::Help => "help",
             Option::BuildTree => "tree",
+            Option::Config => "config",
+            Option::Help => "help",
         };
 
         write!(f, "{:<12}", display)
