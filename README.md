@@ -15,21 +15,30 @@ org.junit.jupiter.junit-jupiter-api = "5.10.1"
 ```
 
 #### Defaults:
+buildk.home = $HOME/.buildk
 
+project structure:
+```
+buildk.toml
+src/
+    Main.kt
+test/
+out/
+```
 
 # 🪄 Commands
 
 | cmd | desc |
 | --- | ---- |
-| clean | clean the project |
-| build | build the project |
-| test | test the project |
-| run | run the project |
-| release | release the project |
-| fetch | fetch the project |
-| tree | list the build tree |
-| deps | print the dependencies |
-| help | print this help |
+| clean   | clean the project      |
+| build   | build the project      |
+| test    | test the project       |
+| run     | run the project        |
+| release | release the project    |
+| fetch   | fetch the project      |
+| tree    | list the build tree    |
+| deps    | print the dependencies |
+| help    | print this help        |
 
 # 🚧 TODO
 - [ ] Resolve conflicting dependency versions
