@@ -15,7 +15,7 @@ impl Command {
 
         let output = self.execute(&mut output, &java, 0);
         if let Some(stdout) = output.get_stdout() {
-            println!("\nProgram:\n{stdout}");
+            println!("\r\n{stdout}");
         }
         output
     }
