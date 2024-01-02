@@ -2,17 +2,7 @@
 Small build tool for Kotlin.
 
 # 📜 Howto
-Create a `buildk.toml` in your project root.
-
-```toml
-[project]
-main = "Main.kt"
-
-[dependencies]
-
-[test-dependencies]
-org.junit.jupiter.junit-jupiter-api = "5.10.1"
-```
+Create `buildk.toml` in your current work directory (cwd).
 
 #### Defaults:
 buildk home dir: $HOME/.buildk
@@ -25,20 +15,36 @@ path = "<cwd>"
 src = "<cwd>/src"
 test = "<cwd>/test"
 out = "<cwd>/out"
-
-[dependencies]
-
-[test-dependencies]
-
 ```
-[project]
-project structure:
+... which gives the following project structure:
+
 ```
 buildk.toml
 src/
     Main.kt
 test/
 out/
+```
+
+###### Dependencies
+By default, maven repository is used to search for dependencies.
+
+Dependencies are cached in $HOME/.buildk/cache/
+
+The following format is used in toml: 
+
+> <groupid>.<artifactid> = "<version>"
+
+Add JUnit to your manifest for running tests:
+```toml
+[test-dependencies]
+org.junit.jupiter.junit-jupiter-api = "5.10.1"
+```
+
+Add a dependency:
+```toml
+[dependencies]
+com.google.code.gson.gson = "2.10.1"
 ```
 
 # 🪄 Commands
