@@ -1,13 +1,11 @@
 # BuildK
-Small build tool for Kotlin.
+Simple build tool for Kotlin.
 
-# 📜 Howto
-Create `buildk.toml` in your current work directory (cwd).
+## 📜 How
+- Create an empty `buildk.toml` file in your project root (cwd).
+- Cofigure your project if it differs from the defaults.
 
-#### Defaults:
-buildk home dir: $HOME/.buildk
-
-##### Manifest
+##### Manifest defaults
 ```toml
 [project]
 main = "Main.kt"
@@ -15,6 +13,10 @@ path = "<cwd>"
 src = "<cwd>/src"
 test = "<cwd>/test"
 out = "<cwd>/out"
+
+[dependencies]
+
+[test-dependencies]
 ```
 ... which gives the following project structure:
 
@@ -33,7 +35,7 @@ Dependencies are cached in $HOME/.buildk/cache/
 
 The following format is used in toml: 
 
-> <groupid>.<artifactid> = "<version>"
+`<groupid>.<artifactid> = "<version>"`
 
 Add JUnit to your manifest for running tests:
 ```toml
