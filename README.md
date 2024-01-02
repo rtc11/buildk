@@ -15,8 +15,23 @@ org.junit.jupiter.junit-jupiter-api = "5.10.1"
 ```
 
 #### Defaults:
-buildk.home = $HOME/.buildk
+buildk home dir: $HOME/.buildk
 
+##### Manifest
+```toml
+[project]
+main = "Main.kt"
+path = "<cwd>"
+src = "<cwd>/src"
+test = "<cwd>/test"
+out = "<cwd>/out"
+
+[dependencies]
+
+[test-dependencies]
+
+```
+[project]
 project structure:
 ```
 buildk.toml
