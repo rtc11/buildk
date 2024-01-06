@@ -77,4 +77,7 @@ com.google.code.gson.gson = "2.10.1"
 - [x] Tests are automatically found
 - [x] Manually create build-tree based on project package/imports
 - [ ] Resolve cyclic project package structure
-- [ ] KSP (kotlin compiler plugin) must be implemented in kotlin. Used for generating smarter build-trees.
+- [ ] KSP (kotlin compiler plugin) must be implemented in kotlin. Used for generating smarter build-trees
+- [x] Support repositories
+- [ ] Add init command for setting up basic project
+- [ ] Kotlinc must be first looked up in manifest before trying to look for env-vars and default locations

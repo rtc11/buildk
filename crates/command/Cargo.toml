@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 cache.workspace = true
-config.workspace = true
+manifest.workspace = true
 http.workspace = true
 util.workspace = true
 gryf.workspace = true

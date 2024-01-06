@@ -1,4 +1,4 @@
-use config::config::Config;
+use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::get_kotlinc;
 use util::process_builder::ProcessBuilder;
@@ -8,13 +8,13 @@ use crate::Command;
 impl Command {
     pub fn release(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-        let mut java = ProcessBuilder::new(get_kotlinc());
+        let mut kotlinc = ProcessBuilder::new(get_kotlinc());
 
-        java.cwd(&config.manifest.project.path)
-            .sources(&config.manifest.project.src)
+        kotlinc.cwd(&config.manifest.project.path)
             .include_runtime()
-            .destination(&config.manifest.project.out.jar);
+            .destination(&config.manifest.project.out.jar)
+            .sources(&config.manifest.project.src);
 
-        self.execute(&mut output, &java, 0)
+        self.execute(&mut output, &kotlinc, 0)
     }
 }

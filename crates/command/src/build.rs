@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use config::config::Config;
-use config::dependencies::dependency::DependenciesKind;
+use manifest::config::Config;
+use manifest::dependencies::DependenciesKind;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 use util::{get_kotlinc, PartialConclusion};
@@ -24,6 +24,7 @@ impl Command {
                     .filter(|file| {
                         let is_cached = self.cache.lock().unwrap().cache_file(file);
                         //println!("file: {:?}: cached=cached, success=new cache: {:?}", file, is_cached);
+                        // cached means it was already cached
                         !matches!(is_cached, Ok(PartialConclusion::CACHED))
                     })
                     .collect::<Vec<&PathBuf>>();
@@ -32,6 +33,7 @@ impl Command {
                     output.conclude(PartialConclusion::CACHED);
                     return output
                 } else {
+                    output.conclude(PartialConclusion::SUCCESS);
                     sorted_src.iter().for_each(|src| {
                         kotlinc.sources(src);
                     });
@@ -50,6 +52,9 @@ impl Command {
 
     pub fn build_test(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
+        if !config.manifest.project.test.is_dir() {
+            return output
+        }
 
         let project_test_libs = config
             .manifest

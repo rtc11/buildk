@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use cache::cache::Cache;
-use ::config::config::Config;
+use ::manifest::config::Config;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;

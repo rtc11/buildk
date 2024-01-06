@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use config::config::Config;
+use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 use util::PartialConclusion;
@@ -41,7 +41,9 @@ impl Command {
         java.cwd(&config.manifest.project.path)
             .jar(&console_launcher.unwrap().jar_absolute_path())
             .classpaths(classpath)
-            .args(&["--details", "none"]) //none,flat,tree,verbose
+            .args(&["--details", "tree"]) //none,flat,tree,verbose
+            .args(&["--exclude-engine", "junit-vintage"]) //engine:junit-platform-suite
+            .args(&["--exclude-engine", "junit-platform-suite"]) //engine:junit-platform-suite
             .test_report(&config.manifest.project.out.test_report);
 
         let test_files = util::paths::all_files_recursive(vec![], config.manifest.project.test.clone());
@@ -57,6 +59,13 @@ impl Command {
             java.args(&["--select-package", &pkg]);
         }
 
-        self.execute(&mut output, &java, 0)
+        let output = self.execute(&mut output, &java, 0);
+
+        if let Some(stdout) = output.get_stdout() {
+            println!("\r\n{stdout}");
+        }    
+
+        output
+
     }
 }

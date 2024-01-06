@@ -2,7 +2,7 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 use anyhow::ensure;
-use config::dependencies::dependency::Dependency;
+use manifest::dependencies::Dependency;
 
 use paths::{modification_time, resolve_executable};
 use util::{BuildkResult, get_kotlinc, paths};

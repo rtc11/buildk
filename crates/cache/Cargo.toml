@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-config.workspace = true
+manifest.workspace = true
 util.workspace = true
 
 anyhow.workspace = true

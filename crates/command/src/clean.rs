@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use config::config::Config;
+use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 

@@ -1,5 +1,5 @@
-use config::config::Config;
-use config::dependencies::dependency::Dependency;
+use manifest::config::Config;
+use manifest::dependencies::Dependency;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 use util::PartialConclusion;
@@ -25,7 +25,7 @@ fn list_dependencies<'a>(
     let color = Color::get_index(depth);
 
     dependencies.iter().for_each(|dep| {
-        traversed.push(dep.url.as_str());
+        traversed.push(dep.path.as_str());
 
         let status = match dep.is_cached() {
             true => "[cached]",
@@ -46,7 +46,7 @@ fn list_dependencies<'a>(
         let transitives = &dep
             .transitives()
             .into_iter()
-            .filter(|dep| !traversed.contains(&dep.url.as_str()))
+            .filter(|dep| !traversed.contains(&dep.path.as_str()))
             .collect::<Vec<_>>();
 
         list_dependencies(transitives, traversed.clone(), depth + 1)

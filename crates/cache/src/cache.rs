@@ -1,6 +1,6 @@
 use std::fs::{create_dir_all, File};
 use std::path::{Path, PathBuf};
-use config::dependencies::dependency::Dependency;
+use manifest::dependencies::Dependency;
 
 use util::{BuildkResult, PartialConclusion, paths};
 use util::process_builder::ProcessBuilder;

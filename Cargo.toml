@@ -16,7 +16,7 @@ members = ["crates/*"]
 [workspace.dependencies]
 cache = { path = "crates/cache" }
 command = { path = "crates/command" }
-config = { path = "crates/config" }
+manifest = { path = "crates/manifest" }
 http = { path = "crates/http" }
 util = { path = "crates/util" }
 
@@ -43,6 +43,6 @@ gryf = { git = "https://github.com/pnevyk/gryf.git" }
 terminal-spinners.workspace = true
 anyhow.workspace = true
 command.workspace = true
-config.workspace = true
+manifest.workspace = true
 itertools.workspace = true
 util.workspace = true

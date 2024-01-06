@@ -4,7 +4,7 @@ use std::env::args;
 use terminal_spinners::{SpinnerBuilder, DOTS};
 
 use command::Command;
-use config::config::Config;
+use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::timer::Timer;
 use util::Conclusion;

@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-config.workspace = true
-#util.workspace = true
+manifest.workspace = true
 
 anyhow.workspace = true
 reqwest.workspace = true
