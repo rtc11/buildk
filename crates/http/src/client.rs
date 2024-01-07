@@ -1,9 +1,10 @@
-use futures::io;
-use futures::StreamExt;
+//use futures::io;
+//use futures::StreamExt;
 use manifest::config::Config;
 use manifest::dependencies::Dependency;
+//use core::io;
 use std::fs::{create_dir_all, File};
-use std::io::Write;
+//use std::io::Write;
 use std::path::Path;
 
 #[derive(Default, Clone)]
@@ -89,13 +90,11 @@ fn delete_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<()
     Ok(())
 }
 
-/*
 fn download_target_file(mut file: &File, url: &String) -> anyhow::Result<()> {
     let mut response = reqwest::blocking::get(url)?;
-    io::copy(&mut response, &mut file)?;
+    std::io::copy(&mut response, &mut file)?;
     Ok(())
 }
-*/
 
 fn download_file(url: &String, target_dir: &Path, filename: &String) -> DownloadResult {
     let target_file = match create_target_file(target_dir, filename) {
@@ -113,6 +112,7 @@ fn download_file(url: &String, target_dir: &Path, filename: &String) -> Download
     }
 }
 
+/*
 async fn download_target_file(mut file: &File, url: &String) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let res = client.get(url).send().await?;
@@ -149,3 +149,4 @@ async fn download_target_file(mut file: &File, url: &String) -> anyhow::Result<(
     print!("\r");
     Ok(())
 }
+*/

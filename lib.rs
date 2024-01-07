@@ -9,8 +9,9 @@ use util::buildk_output::BuildkOutput;
 use util::timer::Timer;
 use util::Conclusion;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+//#[tokio::main]
+//fn main() -> Result<()> {
+fn main() {
     let timer = Timer::start();
     let config = Config::default();
     let mut command = Command::new(&config).expect("kotlin expected");
@@ -68,5 +69,5 @@ async fn main() -> Result<()> {
         output
     }
 
-    Ok(())
+    //Ok(())
 }
