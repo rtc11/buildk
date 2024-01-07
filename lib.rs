@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use std::env::args;
 
-use terminal_spinners::{SpinnerBuilder, DOTS};
+use terminal_spinners::{SpinnerBuilder, DOTS7};
 
 use command::Command;
 use manifest::config::Config;
@@ -9,7 +9,8 @@ use util::buildk_output::BuildkOutput;
 use util::timer::Timer;
 use util::Conclusion;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let timer = Timer::start();
     let config = Config::default();
     let mut command = Command::new(&config).expect("kotlin expected");
@@ -31,11 +32,12 @@ fn main() {
         println!("{} in {}", Conclusion::FAILED, timer.elapsed());
         println!("{errors}");
         println!("{config}");
+        println!("");
     }
 
     fn execute(option: &command::Option, config: &Config, command: &mut Command) -> BuildkOutput {
         let handle = SpinnerBuilder::new()
-            .spinner(&DOTS)
+            .spinner(&DOTS7)
             .prefix(" ")
             .text(format!(" {option}"))
             .start();
@@ -65,4 +67,6 @@ fn main() {
 
         output
     }
+
+    Ok(())
 }

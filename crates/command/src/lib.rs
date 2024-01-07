@@ -6,6 +6,7 @@ use cache::cache::Cache;
 use ::manifest::config::Config;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
+use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
 use util::{get_kotlin_home, BuildkResult, PartialConclusion};
 
@@ -41,12 +42,7 @@ impl Option {
             "clean" => vec![Option::Clean],
             "fetch" => vec![Option::Fetch],
             "build" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest],
-            "test" => vec![
-                Option::Fetch,
-                Option::BuildSrc,
-                Option::BuildTest,
-                Option::Test,
-            ],
+            "test" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest, Option::Test],
             "run" => vec![Option::Fetch, Option::BuildSrc, Option::Run],
             "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
             "deps" => vec![Option::Deps],
@@ -132,21 +128,34 @@ impl Command {
             .cache_command(cmd, extra_fingerprint)
         {
             Ok(cache_res) => {
+                println!("{:?}", cache_res);
+
                 output
                     .conclude(cache_res.conclusion)
+                    .stdout(cache_res.stdout.unwrap_or("".to_owned()))
                     .status(cache_res.status);
-                if let Some(stdout) = cache_res.stdout {
-                    output.stdout(stdout);
-                }
+
                 if let Some(stderr) = cache_res.stderr {
-                    output.stderr(stderr);
+                    output
+                        .conclude(PartialConclusion::FAILED)
+                        .stderr(stderr);
                 }
-                output.clone()
+
+                output.to_owned()
+
             }
-            Err(err) => output
-                .conclude(PartialConclusion::FAILED)
-                .stderr(err.to_string())
-                .clone(),
+
+            Err(err) => {
+
+                let err = err.to_string().as_red();
+        
+                println!("\r{err:#}");
+
+                output
+                    .conclude(PartialConclusion::FAILED)
+                    .stderr(err.to_string())
+                    .to_owned()
+            },
         }
     }
 

@@ -16,12 +16,14 @@ pub struct Cache {
     data: CacheData,
 }
 
+#[derive(Debug)]
 pub struct CacheResult {
     pub conclusion: PartialConclusion,
     pub stdout: Option<String>,
     pub stderr: Option<String>,
     pub status: i32,
 }
+
 impl Cache {
     pub fn load(kotlin_home: &Path, cache_location: &Path) -> Cache {
         let kotlin_bin = kotlin_home.join("bin");

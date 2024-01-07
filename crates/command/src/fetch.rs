@@ -1,94 +1,72 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Mutex, Arc};
+use std::thread;
 
-use http::client::Client;
+use http::client::{Client, DownloadResult};
 use manifest::config::Config;
 use manifest::dependencies::Dependency;
-use manifest::repositories::Repository;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
-use util::PartialConclusion::{CACHED, FAILED, SUCCESS};
 
 use crate::Command;
 
 const DEBUG: bool = true;
-
+ 
 impl Command {
     pub fn fetch(&mut self, config: &Config) -> BuildkOutput {
-        let output = Arc::new(Mutex::new(BuildkOutput::default()));
+        let output = BuildkOutput::default();
+        let deps = config.manifest.dependencies.clone();
+        let config = Arc::new(Mutex::new(config.clone()));
 
-        parallel_fetch(
-            &self.client,
-            &output,
-            config.manifest.repositories.clone(),
-            &config.manifest.dependencies,
-            0,
-        );
+        let mut threads = vec![];
+    
+        for dep in deps {
+            let config = config.clone();
+            let client = self.client.clone();
+            threads.push(thread::spawn({
+                move || download_trans(
+                    &client,
+                    config,
+                    dep.clone(),
+                    0
+                )
+            }));
+        }
 
-        let output = output.lock().unwrap().clone();
+        for thread in threads {
+            let _ = thread.join();
+        }
+
         output
     }
 }
 
 // TODO: find repeated dependencies
 // TODO: add configuration option to set (override) version
-trait Transitives {
-    fn download_transitive(
-        &mut self,
-        repos: &[Repository],
-        output: Arc<Mutex<BuildkOutput>>,
-        dep: &Dependency,
-        depth: usize,
-    );
-}
-
-impl Transitives for Client {
-    fn download_transitive(
-        &mut self,
-        repos: &[Repository],
-        output: Arc<Mutex<BuildkOutput>>,
-        dep: &Dependency,
-        depth: usize,
-    ) {
-        if !dep.is_cached() {
-            match self.download(dep, repos) {
-                Ok(_) => {
-                    output.lock().unwrap().conclude(SUCCESS);
-                    print_status(dep, "[fetched]", Color::Blue, depth);
-                }
-                Err(e) => {
-                    output.lock().unwrap().conclude(FAILED);
-                    output.lock().unwrap().stderr(e.to_string());
-                    print_status(dep, "[failed]", Color::Red, depth);
-                }
-            }
-
-            let dependencies = dep.transitives();
-            parallel_fetch(self, &output, repos.to_vec(), &dependencies, depth + 1);
-        } else {
-            output.lock().unwrap().conclude(CACHED);
-            print_status(dep, "[cached]", Color::Gray, depth);
-        }
-    }
-}
-
-fn parallel_fetch(
-    client: &Client,
-    output: &Arc<Mutex<BuildkOutput>>,
-    repositories: Vec<Repository>,
-    dependencies: &[Dependency],
-    depth: usize,
+fn download_trans(
+    client: &Client, 
+    config: Arc<Mutex<Config>>,
+    dep: Dependency,
+    depth: usize
 ) {
+    match client.download(&dep, &config.clone().lock().unwrap()) { 
+        DownloadResult::Downloaded => print_status(&dep, "[downloaded]", Color::Green, depth),
+        DownloadResult::Exist => print_status(&dep, "[cached]", Color::Gray, depth),
+        DownloadResult::Failed(_err) => print_status(&dep, "[failed]", Color::Red, depth),
+    }
     let mut threads = vec![];
-    
-    dependencies.iter().for_each(|dep| {
-        threads.push(std::thread::spawn({
-            let mut client = client.clone();
-            let dep = dep.clone();
-            let output = output.clone();
-            let repositories = repositories.clone();
-            move || client.download_transitive(&repositories, output, &dep, depth)
+    let transitive_deps = dep.transitives();
+    for dep in transitive_deps {
+        let config = config.clone();
+        let client = client.clone();
+        threads.push(thread::spawn({
+            move || download_trans(
+                &client, 
+                config,
+                dep,
+                depth+1
+            )
         }));
-    });
+    }
 
     for thread in threads {
         let _ = thread.join();
@@ -108,3 +86,4 @@ fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
         println!("\r{}", display.colorize(&color))
     }
 }
+

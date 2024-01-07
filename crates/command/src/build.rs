@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use manifest::config::Config;
-use manifest::dependencies::DependenciesKind;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 use util::{get_kotlinc, PartialConclusion};
@@ -52,6 +51,8 @@ impl Command {
 
     pub fn build_test(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
+
+        // return if no tests are configured
         if !config.manifest.project.test.is_dir() {
             return output
         }
@@ -60,7 +61,6 @@ impl Command {
             .manifest
             .dependencies
             .clone()
-            .for_test()
             .into_iter()
             .filter(|dependency| dependency.is_cached())
             .map(|dependency| dependency.jar_absolute_path())
