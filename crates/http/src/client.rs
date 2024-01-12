@@ -54,15 +54,32 @@ impl Client {
 
         let downloads = futures::future::join_all(handles).await;
 
-        downloads.iter().fold(
-            DownloadResult::Failed("Failed to download file".to_string()),
-            |acc, d| match d {
-                Ok(DownloadResult::Downloaded) => DownloadResult::Downloaded,
-                Ok(DownloadResult::Exist) => DownloadResult::Exist,
-                Ok(DownloadResult::Failed(_)) => acc,
-                Err(_) => acc,
-            },
-        )
+        let download_result = downloads
+            .iter()
+            .fold(DownloadResult::Failed("".to_string()), |acc, d| 
+                match d {
+                    Ok(DownloadResult::Downloaded) => DownloadResult::Downloaded,
+                    Ok(DownloadResult::Exist) => DownloadResult::Exist,
+                    Ok(DownloadResult::Failed(err)) => {
+                        match acc {
+                            DownloadResult::Failed(acc_err) => DownloadResult::Failed(format!("{}:::{}", acc_err, err)),
+                            _ => DownloadResult::Failed(err.to_string()),
+                        }
+
+                    },
+                    Err(err) => DownloadResult::Failed(err.to_string()), 
+                    /*
+                    Err(err) => {
+                        match acc {
+                            DownloadResult::Failed(acc_err) => DownloadResult::Failed(format!("error joining threads: {}\n{}", acc_err, err)),
+                            _ => DownloadResult::Failed(err.to_string()),
+                        }
+                    }
+                    */
+                },
+            );
+
+        download_result
     }
 }
 
@@ -98,6 +115,9 @@ fn delete_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<()
 }
 
 async fn download_file(url: &String, target_dir: &Path, filename: &String) -> DownloadResult {
+    if check_target_file(target_dir, filename) {
+        return DownloadResult::Exist;
+    }
     let target_file = match create_target_file(target_dir, filename) {
         Ok(file) => file,
         Err(e) => return DownloadResult::Failed(format!("Failed to create target file: {}", e)),

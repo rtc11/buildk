@@ -16,23 +16,36 @@ impl Command {
         let config = Arc::new(Mutex::new(config.clone()));
         let client = Arc::new(Mutex::new(self.client.clone()));
 
-        for dep in deps {
-            let config = config.clone();
-            let client = client.clone();
-            let dep = dep.clone();
+        let deps = deps
+            .iter()
+            .filter(|dep| !dep.is_cached())
+            .collect::<Vec<_>>();
 
-            tokio::spawn(async move { 
-                download_transitive(
-                    client,
-                    config, 
-                    &dep, 
-                    0
-                ).await 
-            });
+
+        // TODO: some error with transitive depenencies. This statement is not always true if transitive
+        // dependencies are missing. 
+        if deps.len() == 0 {
+            output.conclude(util::PartialConclusion::CACHED);
+        } else {
+            for dep in deps {
+                let config = config.clone();
+                let client = client.clone();
+                let dep = dep.clone();
+
+                tokio::spawn(async move { 
+                    download_transitive(
+                        client,
+                        config, 
+                        &dep, 
+                        0
+                    ).await 
+                });
+            }
+
+            // todo: add state to output
+            output.conclude(util::PartialConclusion::SUCCESS);
         }
 
-        // todo: add state to output
-        output.conclude(util::PartialConclusion::SUCCESS);
         output
     }
 }
@@ -53,7 +66,12 @@ async fn download(
         match downloaded {
             DownloadResult::Downloaded => print_status(&dep, "[downloaded]", Color::Green, depth).await, 
             DownloadResult::Exist => print_status(&dep, "[cached]", Color::Gray, depth).await,
-            DownloadResult::Failed(_err) => print_status(&dep, "[failed]", Color::Red, depth).await,
+            DownloadResult::Failed(_err) => {
+                print_status(&dep, "[failed]", Color::Red, depth).await;
+                if DEBUG {
+                    println!("{_err}");
+                }
+            },
         }
     });
 }
