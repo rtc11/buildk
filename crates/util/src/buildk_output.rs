@@ -2,7 +2,7 @@
 use crate::PartialConclusion;
 use crate::timer::Timer;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BuildkOutput {
     conclusion: PartialConclusion,
     stdout: Option<String>,

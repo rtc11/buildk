@@ -82,3 +82,5 @@ com.google.code.gson.gson = "2.10.1"
 - [ ] Add init command for setting up basic project
 - [ ] Kotlinc must be first looked up in manifest before trying to look for env-vars and default locations
 - [ ] When downloading deps and transitive deps fails, the imported dependency is cached and no transitive will be wodnloaded again
+- [ ] Check out crossbeam
+- [ ] Check out ripgrep

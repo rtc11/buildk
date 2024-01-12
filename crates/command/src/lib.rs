@@ -128,7 +128,7 @@ impl Command {
             .cache_command(cmd, extra_fingerprint)
         {
             Ok(cache_res) => {
-                println!("{:?}", cache_res);
+                //println!("{:?}", cache_res);
 
                 output
                     .conclude(cache_res.conclusion)

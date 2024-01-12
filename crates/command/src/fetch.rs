@@ -1,79 +1,99 @@
-use std::sync::{Mutex, Arc};
-use std::thread;
-
+use std::sync::Arc;
+use futures::{future::BoxFuture, FutureExt, lock::Mutex};
 use http::client::{Client, DownloadResult};
-use manifest::config::Config;
-use manifest::dependencies::Dependency;
+use manifest::{dependencies::Dependency, config::Config};
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 
 use crate::Command;
 
 const DEBUG: bool = true;
- 
+
 impl Command {
-    pub fn fetch(&mut self, config: &Config) -> BuildkOutput {
-        let output = BuildkOutput::default();
+    pub async fn fetch(&mut self, config: &Config) -> BuildkOutput {
+        let mut output = BuildkOutput::default();
         let deps = config.manifest.dependencies.clone();
         let config = Arc::new(Mutex::new(config.clone()));
+        let client = Arc::new(Mutex::new(self.client.clone()));
 
-        let mut threads = vec![];
-    
         for dep in deps {
             let config = config.clone();
-            let client = self.client.clone();
-            threads.push(thread::spawn({
-                move || download_trans(
-                    &client,
-                    config,
-                    dep.clone(),
+            let client = client.clone();
+            let dep = dep.clone();
+
+            tokio::spawn(async move { 
+                download_transitive(
+                    client,
+                    config, 
+                    &dep, 
                     0
-                )
-            }));
+                ).await 
+            });
         }
 
-        for thread in threads {
-            let _ = thread.join();
-        }
-
+        // todo: add state to output
+        output.conclude(util::PartialConclusion::SUCCESS);
         output
     }
 }
 
-// TODO: find repeated dependencies
-// TODO: add configuration option to set (override) version
-fn download_trans(
-    client: &Client, 
+async fn download(
+    client: Arc<Mutex<Client>>,
     config: Arc<Mutex<Config>>,
-    dep: Dependency,
-    depth: usize
+    dep: &Dependency,
+    depth: usize,
 ) {
-    match client.download(&dep, &config.clone().lock().unwrap()) { 
-        DownloadResult::Downloaded => print_status(&dep, "[downloaded]", Color::Green, depth),
-        DownloadResult::Exist => print_status(&dep, "[cached]", Color::Gray, depth),
-        DownloadResult::Failed(_err) => print_status(&dep, "[failed]", Color::Red, depth),
-    }
-    let mut threads = vec![];
-    let transitive_deps = dep.transitives();
-    for dep in transitive_deps {
-        let config = config.clone();
-        let client = client.clone();
-        threads.push(thread::spawn({
-            move || download_trans(
-                &client, 
-                config,
-                dep,
-                depth+1
-            )
-        }));
-    }
+    let config = config.clone();
+    let dep = dep.clone();
 
-    for thread in threads {
-        let _ = thread.join();
-    }
+    tokio::spawn(async move {
+        let client = client.lock().await;
+        let downloaded = client.download(dep.clone(), config).await;
+
+        match downloaded {
+            DownloadResult::Downloaded => print_status(&dep, "[downloaded]", Color::Green, depth).await, 
+            DownloadResult::Exist => print_status(&dep, "[cached]", Color::Gray, depth).await,
+            DownloadResult::Failed(_err) => print_status(&dep, "[failed]", Color::Red, depth).await,
+        }
+    });
 }
 
-fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
+pub fn download_transitive<'a>(
+    client: Arc<Mutex<Client>>,
+    config: Arc<Mutex<Config>>,
+    dep: &'a Dependency,
+    depth: usize,
+) -> BoxFuture<'a, anyhow::Result<()>> {
+    async move {
+
+        download(
+            client.clone(),
+            config.clone(),
+            dep,
+            depth
+        ).await;
+
+        let dependencies = dep.transitives().clone();
+        dependencies.iter().for_each(|dep| {
+            let client = client.clone();
+            let config = config.clone();
+            let dep = dep.clone();
+            tokio::spawn(async move { 
+                download_transitive(
+                    client,
+                    config,
+                    &dep, 
+                    depth + 1
+                ).await
+            });
+        });
+
+        Ok(())
+
+    }.boxed()
+}
+
+async fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
     if DEBUG {
         let display = format!(
             "{:>depth$}{:<14}{}:{}",

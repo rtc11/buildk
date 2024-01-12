@@ -6,13 +6,14 @@ use util::PartialConclusion;
 
 use crate::Command;
 
+const LIST_TRANSITIVE: bool = true;
+
 impl Command {
     pub fn deps(&self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
 
-        list_dependencies(&config.manifest.dependencies, vec![], 0);
-        println!("deps: {:?}", config.manifest.dependencies.len());
-
+        let stdout = list_dependencies(&config.manifest.dependencies, vec![], 0);
+        output.stdout(format!("{stdout}"));
         output.conclude(PartialConclusion::SUCCESS).to_owned()
     }
 }
@@ -21,10 +22,10 @@ fn list_dependencies<'a>(
     dependencies: &'a [Dependency],
     mut traversed: Vec<&'a str>,
     depth: usize,
-) {
+) -> String {
     let color = Color::get_index(depth);
 
-    dependencies.iter().for_each(|dep| {
+    let stdout = dependencies.iter().map(|dep| {
         traversed.push(dep.path.as_str());
 
         let status = match dep.is_cached() {
@@ -41,7 +42,7 @@ fn list_dependencies<'a>(
             depth = depth * 2,
         );
 
-        println!("{}", display.colorize(&color));
+        let stdout = format!("{}", display.colorize(&color));
 
         let transitives = &dep
             .transitives()
@@ -49,6 +50,14 @@ fn list_dependencies<'a>(
             .filter(|dep| !traversed.contains(&dep.path.as_str()))
             .collect::<Vec<_>>();
 
-        list_dependencies(transitives, traversed.clone(), depth + 1)
-    })
+        let next = list_dependencies(transitives, traversed.clone(), depth + 1);
+
+        if LIST_TRANSITIVE {
+            format!("{}\n{}", stdout, next)
+        } else {
+            stdout
+        }
+    }).fold(String::new(), |acc, next| format!("{}{}", acc, next));
+
+    stdout
 }

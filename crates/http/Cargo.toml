@@ -6,8 +6,7 @@ edition = "2021"
 [dependencies]
 manifest.workspace = true
 
-#tokio.workspace = true
-#futures.workspace = true
-
+tokio.workspace = true
+futures.workspace = true
 anyhow.workspace = true
 reqwest.workspace = true

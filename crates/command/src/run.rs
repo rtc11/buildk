@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use manifest::config::Config;
 use manifest::dependencies::Kind;
 use util::buildk_output::BuildkOutput;
-use util::colorize::Colorize;
+//use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
 
 use crate::Command;
@@ -35,6 +35,7 @@ impl Command {
 
         let output = self.execute(&mut output, &java, 0);
 
+        /*
         if let Some(stdout) = output.get_stdout() {
             println!("\r\n{stdout}");
         }
@@ -43,6 +44,7 @@ impl Command {
             let stderr = stderr.as_red();
             eprintln!("\r\n{stderr}");
         }
+        */
 
         output
     }
