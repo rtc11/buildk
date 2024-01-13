@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use std::{io::BufReader, path::PathBuf};
@@ -13,7 +13,7 @@ use toml_edit::{Document, Item, Table, Value};
 
 // https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Dependency {
     pub name: String,
     pub version: String,
@@ -24,10 +24,9 @@ pub struct Dependency {
     pub sources: String, // Filename
     pub pom: String,     // Filename
     pub module: String,  // Filename
-    classpath: HashSet<Dependency>, // Every transitive dependency
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Kind {
     Source,
     Test,
@@ -50,7 +49,7 @@ impl Display for Dependency {
 
 impl Dependency {
     pub fn classpath(&self) -> String {
-        self.classpath
+        self.transitives()
             .clone()
             .into_iter()
             .map(|dep| dep.jar_absolute_path())
@@ -68,7 +67,7 @@ impl Dependency {
     // todo: if cache failed, go through every transitive dep (before downloading, check file on
     // disk)
     pub fn is_cached(&self) -> bool {
-        self.target_dir.join(&self.jar).is_file()
+        self.target_dir.join(&self.jar).is_file() && self.target_dir.join(&self.pom).metadata().unwrap().len() > 0
     }
 
     pub fn new(kind: &Kind, name: &str, version: &str) -> Option<Dependency> {
@@ -83,7 +82,6 @@ impl Dependency {
                 sources: format!("{}-sources.jar", info.file_suffix),
                 pom: format!("{}.pom", info.file_suffix),
                 module: format!("{}.module", info.file_suffix),
-                classpath: HashSet::default(),
             })
             .ok()
     }

@@ -6,6 +6,7 @@ use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
+use std::thread;
 
 const ENABLE_PROGRESSBAR: bool = false;
 
@@ -20,6 +21,36 @@ pub enum DownloadResult {
 }
 
 impl Client {
+    pub fn download_blocking(
+        &self,
+        dep: &Dependency,
+        config: &Config,
+    ) -> DownloadResult {
+        if let Err(err) = create_dir_all(&dep.target_dir) {
+            return DownloadResult::Failed(err.to_string());
+        }
+
+        let repo = &config.manifest.repositories[0]; // todo: support multiple repos
+        let files = [&dep.jar, &dep.pom, &dep.sources, &dep.module];
+        let downloads = files.into_iter().map(|file| {
+            let repo = repo.clone();
+            let file = file.clone();
+            let dep = dep.clone();
+            thread::spawn(move || {
+                download_file_blocking(
+                    &format!("{}/{}", &repo.url, &dep.path),
+                    &dep.target_dir,
+                    &file,
+                )
+            })
+        }).collect::<Vec<_>>();
+        for d in downloads {
+            d.join().unwrap();
+        }
+        return DownloadResult::Downloaded;
+    }
+
+    #[allow(dead_code)]
     pub async fn download(
         &self, 
         dep: Dependency, 
@@ -40,7 +71,7 @@ impl Client {
                     let repo = repo.clone();
                     let file = file.clone();
                     let dep = dep.clone();
-
+                    
                     tokio::spawn(async move {
                         download_file(
                             &format!("{}/{}", &repo.url, &dep.path),
@@ -104,7 +135,7 @@ fn check_target_file(target_dir: &Path, filename: &String) -> bool {
 
 fn create_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<File> {
     let file_path = target_dir.join(filename);
-    let file = File::create(&file_path)?;
+    let file = File::create(file_path)?;
     Ok(file)
 }
 
@@ -112,6 +143,25 @@ fn delete_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<()
     let file_path = target_dir.join(filename);
     std::fs::remove_file(file_path)?;
     Ok(())
+}
+
+fn download_file_blocking(url: &String, target_dir: &Path, filename: &String) -> DownloadResult {
+    if check_target_file(target_dir, filename) {
+        return DownloadResult::Exist;
+    }
+    let target_file = match create_target_file(target_dir, filename) {
+        Ok(file) => file,
+        Err(e) => return DownloadResult::Failed(format!("Failed to create target file: {}", e)),
+    };
+
+    let url = format!("{url}{filename}");
+    match download_target_file_blocking(&target_file, &url) {
+        Ok(_) => DownloadResult::Downloaded,
+        Err(e) => {
+            delete_target_file(target_dir, filename).unwrap();
+            DownloadResult::Failed(format!("Failed to download file: {}", e))
+        }
+    }
 }
 
 async fn download_file(url: &String, target_dir: &Path, filename: &String) -> DownloadResult {
@@ -131,6 +181,12 @@ async fn download_file(url: &String, target_dir: &Path, filename: &String) -> Do
             DownloadResult::Failed(format!("Failed to download file: {}", e))
         }
     }
+}
+
+fn download_target_file_blocking(mut file: &File, url: &str) -> anyhow::Result<()> {
+    let mut response = reqwest::blocking::get(url)?;
+    std::io::copy(&mut response, &mut file)?;
+    Ok(())
 }
 
 async fn download_target_file(mut file: &File, url: &String) -> anyhow::Result<()> {

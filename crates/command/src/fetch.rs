@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 use futures::{future::BoxFuture, FutureExt, lock::Mutex};
 use http::client::{Client, DownloadResult};
@@ -10,6 +11,7 @@ use crate::Command;
 const DEBUG: bool = true;
 
 impl Command {
+    /*
     pub async fn fetch(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let deps = config.manifest.dependencies.clone();
@@ -29,7 +31,7 @@ impl Command {
         } else {
             for dep in deps {
                 let config = config.clone();
-                let client = client.clone();
+                let client = clietlone();
                 let dep = dep.clone();
 
                 tokio::spawn(async move { 
@@ -48,6 +50,55 @@ impl Command {
 
         output
     }
+    */
+    pub async fn fetch(&mut self, config: &Config) -> BuildkOutput {
+        let deps = &config.manifest.dependencies;
+
+        deps.iter().for_each(|dep| {
+            self.client.download_blocking(dep, config);
+        });
+
+        deps.iter().for_each(|dep| {
+            print_status_blocking(&dep, "[directly]", Color::Gray, 0);
+        });
+
+        let mut all_deps: HashSet<Dependency> = HashSet::new();
+        for dep in deps {
+            let dep_with_transitives = get_all_deps(config, dep);
+            all_deps.extend(dep_with_transitives);
+        }
+        all_deps.iter().for_each(|dep| {
+            print_status_blocking(&dep, "[list]", Color::Gray, 0);
+        });
+        BuildkOutput::default()
+    }
+}
+
+fn get_all_deps<'a>(
+    config: &'a Config,
+    dep: &'a Dependency,
+) -> HashSet<Dependency> {
+    let mut result = HashSet::new();
+    if result.insert(dep) {
+        let transitives = dep
+            .transitives()
+            .iter()
+            .fold(Vec::new(), |mut acc, dep| {
+                let transitives = get_all_deps(
+                    &config,
+                    &dep,
+                );
+                acc.extend(transitives);
+                acc
+            });
+
+
+        let mut res = result.into_iter().cloned().collect::<HashSet<_>>();
+        res.extend(transitives);
+        return res
+    }
+
+    result.into_iter().cloned().collect()
 }
 
 async fn download(
@@ -111,6 +162,19 @@ pub fn download_transitive<'a>(
     }.boxed()
 }
 
+fn print_status_blocking(dep: &Dependency, status: &str, color: Color, depth: usize) {
+    if DEBUG {
+        let display = format!(
+            "{:>depth$}{:<14}{}:{}",
+            "",
+            status,
+            dep.name,
+            dep.version,
+            depth = (depth * 2),
+        );
+        println!("\r{}", display.colorize(&color))
+    }
+}
 async fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
     if DEBUG {
         let display = format!(
