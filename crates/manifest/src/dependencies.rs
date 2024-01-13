@@ -38,13 +38,31 @@ impl Display for Dependency {
         match self.kind {
             Kind::Source => writeln!(f, "{:<26}{}:{}", "dependency", self.name, self.version),
             Kind::Test => writeln!(f, "{:<26}{}:{}", "test-dependency", self.name, self.version),
-            Kind::Platform => writeln!(
-                f,
-                "{:<26}{}:{}",
-                "platform-dependency", self.name, self.version
-            ),
+            Kind::Platform => writeln!(f, "{:<26}{}:{}", "platform-dependency", self.name, self.version),
         }
     }
+}
+
+pub(crate) fn platform_deps() -> Vec<Dependency> {
+    vec![
+        Dependency::new(
+            &Kind::Platform,
+            "org.junit.platform.junit-platform-console-standalone",
+            "1.10.1",
+        )
+        .unwrap(),
+        Dependency::new(
+            &Kind::Platform,
+            "org.jetbrains.kotlin.kotlin-stdlib",
+            "1.9.22",
+        )
+        .unwrap(),
+        Dependency::new(
+            &Kind::Platform,
+            "org.junit.jupiter.junit-jupiter-api",
+            "5.5.2",
+        ).unwrap(),
+    ]
 }
 
 impl Dependency {
@@ -132,12 +150,32 @@ struct DependencyInfo {
 }
 
 pub trait DependenciesKind {
+    fn for_test_ref(&self) -> Vec<&Dependency>;
+    fn for_src_ref(&self) -> Vec<&Dependency>;
+    fn for_platform_ref(&self) -> Vec<&Dependency>;
     fn for_test(self) -> Vec<Dependency>;
     fn for_src(self) -> Vec<Dependency>;
     fn for_platform(self) -> Vec<Dependency>;
 }
 
 impl DependenciesKind for Vec<Dependency> {
+    fn for_test_ref(&self) -> Vec<&Dependency> {
+        self.into_iter()
+            .filter(|dep| dep.kind == Kind::Test)
+            .collect()
+    }
+
+    fn for_src_ref(&self) -> Vec<&Dependency> {
+        self.into_iter()
+            .filter(|dep| dep.kind == Kind::Source)
+            .collect()
+    }
+
+    fn for_platform_ref(&self) -> Vec<&Dependency> {
+        self.into_iter()
+            .filter(|dep| dep.kind == Kind::Platform)
+            .collect()
+    }
     fn for_test(self) -> Vec<Dependency> {
         self.into_iter()
             .filter(|dep| dep.kind == Kind::Test)
@@ -181,23 +219,6 @@ pub(crate) fn dependencies(manifest: &Document) -> Vec<Dependency> {
         .chain(platform_deps.iter())
         .cloned()
         .collect()
-}
-
-pub(crate) fn platform_deps() -> Vec<Dependency> {
-    vec![
-        Dependency::new(
-            &Kind::Platform,
-            "org.junit.platform.junit-platform-console-standalone",
-            "1.10.1",
-        )
-        .unwrap(),
-        Dependency::new(
-            &Kind::Platform,
-            "org.jetbrains.kotlin.kotlin-stdlib",
-            "1.9.22",
-        )
-        .unwrap(),
-    ]
 }
 
 fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {

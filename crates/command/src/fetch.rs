@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use futures::{future::BoxFuture, FutureExt, lock::Mutex};
 use http::client::{Client, DownloadResult};
+use manifest::dependencies::{Kind, DependenciesKind};
 use manifest::{dependencies::Dependency, config::Config};
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
@@ -52,25 +53,70 @@ impl Command {
     }
     */
     pub async fn fetch(&mut self, config: &Config) -> BuildkOutput {
+        let mut output = BuildkOutput::default();
         let deps = &config.manifest.dependencies;
 
-        deps.iter().for_each(|dep| {
-            self.client.download_blocking(dep, config);
-        });
+        deps.for_platform_ref()
+            .iter()
+            .for_each(|dep| {
+                match self.client.download_blocking(dep, config) {
+                    DownloadResult::Downloaded => print_status_blocking(&dep, "[downloaded]", Color::Gray, 0),
+                    DownloadResult::Exist => print_status_blocking(&dep, "[cached]", Color::Yellow, 0),
+                    DownloadResult::Failed(err) => {
+                        output.conclude(util::PartialConclusion::FAILED).stderr(err.to_string());
+                        print_status_blocking(&dep, "[failed]", Color::Red, 0);
+                    },
+                }
+            });
 
-        deps.iter().for_each(|dep| {
-            print_status_blocking(&dep, "[directly]", Color::Gray, 0);
-        });
+        deps.for_src_ref()
+            .iter()
+            .for_each(|dep| {
+                match self.client.download_blocking(dep, config) {
+                    DownloadResult::Downloaded => print_status_blocking(&dep, "[downloaded]", Color::Gray, 0),
+                    DownloadResult::Exist => print_status_blocking(&dep, "[cached]", Color::Yellow, 0),
+                    DownloadResult::Failed(err) => {
+                        output.conclude(util::PartialConclusion::FAILED).stderr(err.to_string());
+                        print_status_blocking(&dep, "[failed]", Color::Red, 0);
+                    },
+                }
+            });
 
-        let mut all_deps: HashSet<Dependency> = HashSet::new();
-        for dep in deps {
+        deps.for_test_ref()
+            .iter()
+            .for_each(|dep| {
+                match self.client.download_blocking(dep, config) {
+                    DownloadResult::Downloaded => print_status_blocking(&dep, "[downloaded]", Color::Gray, 0),
+                    DownloadResult::Exist => print_status_blocking(&dep, "[cached]", Color::Yellow, 0),
+                    DownloadResult::Failed(err) => {
+                        output.conclude(util::PartialConclusion::FAILED).stderr(err.to_string());
+                        print_status_blocking(&dep, "[failed]", Color::Red, 0);
+                    },
+                }
+            });
+
+        let user_deps = deps
+            .iter()
+            .filter(|dep|dep.kind != Kind::Platform)
+            .collect::<Vec<_>>();
+
+        let all_deps = user_deps
+            .iter()
+            .flat_map(|dep| get_all_deps(config, dep))
+            .collect::<HashSet<_>>();  
+
+        /*
+        for dep in user_deps {
             let dep_with_transitives = get_all_deps(config, dep);
             all_deps.extend(dep_with_transitives);
         }
+        */
+        // DEBUG
         all_deps.iter().for_each(|dep| {
-            print_status_blocking(&dep, "[list]", Color::Gray, 0);
+            print_status_blocking(&dep, "[transitive]", Color::Gray, 0);
         });
-        BuildkOutput::default()
+
+        output
     }
 }
 
@@ -101,6 +147,7 @@ fn get_all_deps<'a>(
     result.into_iter().cloned().collect()
 }
 
+#[allow(dead_code)]
 async fn download(
     client: Arc<Mutex<Client>>,
     config: Arc<Mutex<Config>>,
@@ -127,6 +174,7 @@ async fn download(
     });
 }
 
+#[allow(dead_code)]
 pub fn download_transitive<'a>(
     client: Arc<Mutex<Client>>,
     config: Arc<Mutex<Config>>,
@@ -175,6 +223,7 @@ fn print_status_blocking(dep: &Dependency, status: &str, color: Color, depth: us
         println!("\r{}", display.colorize(&color))
     }
 }
+
 async fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
     if DEBUG {
         let display = format!(

@@ -26,12 +26,16 @@ impl Client {
         dep: &Dependency,
         config: &Config,
     ) -> DownloadResult {
+        if check_target_file(&dep.target_dir, &dep.jar) {
+            return DownloadResult::Exist;
+        }
+
         if let Err(err) = create_dir_all(&dep.target_dir) {
             return DownloadResult::Failed(err.to_string());
         }
 
         let repo = &config.manifest.repositories[0]; // todo: support multiple repos
-        let files = [&dep.jar, &dep.pom, &dep.sources, &dep.module];
+        let files = [&dep.jar, &dep.pom]; // TODO: add optional files when found &dep.sources, &dep.module]
         let downloads = files.into_iter().map(|file| {
             let repo = repo.clone();
             let file = file.clone();
@@ -44,10 +48,30 @@ impl Client {
                 )
             })
         }).collect::<Vec<_>>();
-        for d in downloads {
-            d.join().unwrap();
+
+        let joined = downloads.into_iter().map(|d| d.join().unwrap()).collect::<Vec<_>>();
+
+        if joined.iter().any(|d| d.is_failed()) {
+            let accumulated_errors = joined
+                .iter()
+                .filter(|d| d.is_failed())
+                .fold(String::new(), |mut acc, d| {
+                    let err = match d {
+                        DownloadResult::Failed(err) => err.to_owned(),
+                        _ => "".to_string(),
+                    };
+                    acc.push_str(&format!("{}\n", err));
+                    acc
+                });
+
+            return DownloadResult::Failed(accumulated_errors);
         }
-        return DownloadResult::Downloaded;
+
+        if joined.iter().any(|d| d.is_downloaded()) {
+            return DownloadResult::Downloaded;
+        }
+
+        return DownloadResult::Exist;
     }
 
     #[allow(dead_code)]
