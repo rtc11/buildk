@@ -9,49 +9,9 @@ use util::colorize::{Color, Colors};
 
 use crate::Command;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 impl Command {
-    /*
-    pub async fn fetch(&mut self, config: &Config) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
-        let deps = config.manifest.dependencies.clone();
-        let config = Arc::new(Mutex::new(config.clone()));
-        let client = Arc::new(Mutex::new(self.client.clone()));
-
-        let deps = deps
-            .iter()
-            .filter(|dep| !dep.is_cached())
-            .collect::<Vec<_>>();
-
-
-        // TODO: some error with transitive depenencies. This statement is not always true if transitive
-        // dependencies are missing. 
-        if deps.len() == 0 {
-            output.conclude(util::PartialConclusion::CACHED);
-        } else {
-            for dep in deps {
-                let config = config.clone();
-                let client = clietlone();
-                let dep = dep.clone();
-
-                tokio::spawn(async move { 
-                    download_transitive(
-                        client,
-                        config, 
-                        &dep, 
-                        0
-                    ).await 
-                });
-            }
-
-            // todo: add state to output
-            output.conclude(util::PartialConclusion::SUCCESS);
-        }
-
-        output
-    }
-    */
     pub async fn fetch(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let deps = &config.manifest.dependencies;

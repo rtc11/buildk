@@ -34,12 +34,18 @@ impl Project {
         src: Option<&str>,
         test: Option<&str>,
     ) -> anyhow::Result<Self> {
-        let src = current_dir().join(src.map(PathBuf::from).unwrap_or(PathBuf::from("src")));
-        ensure!(src.is_dir(), format!("{:?} must be a directory.", src));
+        let src = match src {
+            None => current_dir().join(PathBuf::from("src")),
+            Some(src) => current_dir().join(PathBuf::from(src)) 
+        };
+        //ensure!(src.is_dir(), format!("{:?} must be a directory.", src));
         ensure!(src.is_absolute(), "configured project.src must be an absolute path");
 
-        let test = current_dir().join(test.map(PathBuf::from).unwrap_or(PathBuf::from("test")));
-        ensure!(test.is_dir(), format!("{:?} must be a directory.", test));
+        let test = match test {
+            None => current_dir().join(PathBuf::from("test")),
+            Some(test) => current_dir().join(PathBuf::from(test)) 
+        };
+        //ensure!(test.is_dir(), format!("{:?} must be a directory.", test));
         ensure!(test.is_absolute(), "configured project.test must be an absolute path");
 
         Ok(Self {

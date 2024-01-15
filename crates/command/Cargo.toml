@@ -8,6 +8,7 @@ cache.workspace = true
 manifest.workspace = true
 tokio.workspace = true
 futures.workspace = true
+home.workspace = true
 http.workspace = true
 util.workspace = true
 gryf.workspace = true

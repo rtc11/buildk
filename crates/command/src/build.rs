@@ -7,7 +7,10 @@ use util::{get_kotlinc, PartialConclusion};
 
 use crate::{build_tree, Command};
 
+const DEBUG: bool = false;
+
 impl Command {
+
     pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
@@ -16,15 +19,22 @@ impl Command {
             .cwd(&config.manifest.project.path)
             .destination(&config.manifest.project.out.src);
 
-        match build_tree::sort_by_imports(config) {
+        let extra_fingerprints = match build_tree::sort_by_imports(config) {
             Ok(sorted_src) => {
                 let sorted_src = sorted_src
                     .iter()
                     .filter(|file| {
-                        let is_cached = self.cache.lock().unwrap().cache_file(file);
-                        //println!("file: {:?}: cached=cached, success=new cache: {:?}", file, is_cached);
-                        // cached means it was already cached
-                        !matches!(is_cached, Ok(PartialConclusion::CACHED))
+                        let has_changes = match self.cache.lock().unwrap().cache_file(file) {
+                            Ok(PartialConclusion::CACHED) => false,
+                            _ => true,
+                        };
+
+                        if DEBUG {
+                            println!("\r {} {}", if has_changes { "compile" } else { "cached" }, file.display())
+                        }
+
+                        has_changes
+
                     })
                     .collect::<Vec<&PathBuf>>();
 
@@ -33,9 +43,21 @@ impl Command {
                     return output
                 } else {
                     output.conclude(PartialConclusion::SUCCESS);
-                    sorted_src.iter().for_each(|src| {
-                        kotlinc.sources(src);
-                    });
+                    sorted_src
+                        .iter()
+                        .map(|src| {
+                            // extra fingerprints is used to check if the kotlinc command should be
+                            // rerun (its files have been modified)
+                            let fingerprint = cache::file_fingerprint(src).expect("failed to fingerprint file");
+
+                            kotlinc.sources(src);
+
+                            if DEBUG {
+                                println!("compiling {}", src.display());
+                            }
+
+                            fingerprint
+                        }).collect::<Vec<_>>()
                 }
             }
             Err(e) => {
@@ -44,9 +66,11 @@ impl Command {
                 output.conclude(PartialConclusion::FAILED);
                 return output;
             }
-        }
+        };
 
-        self.execute(&mut output, &kotlinc, 0)
+        let extra = extra_fingerprints.into_iter().reduce(|a, b| (a + b)).expect("failed to reduce fingerprints");
+
+        self.execute(&mut output, &kotlinc, extra)
     }
 
     pub fn build_test(&self, config: &Config) -> BuildkOutput {
