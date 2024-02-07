@@ -1,32 +1,5 @@
-use std::fmt;
-use std::fmt::{Display, Formatter};
 
-use crate::{Conclusion, PartialConclusion};
-
-impl Display for Conclusion {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let colored_str = match self {
-            Conclusion::SUCCESS => "SUCCESS".as_green(),
-            Conclusion::FAILED => "FAILED".as_red(),
-        };
-
-        f.write_str(&colored_str)
-    }
-}
-
-impl Display for PartialConclusion {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let colored_str = match self {
-            PartialConclusion::INIT => format!(" {}", "∅".as_yellow()),
-            PartialConclusion::SUCCESS => format!(" {}", "✓".as_green()),
-            PartialConclusion::FAILED => format!(" {}", "✕".as_red()),
-            PartialConclusion::CACHED => format!(" {}", "❤".as_blue()),
-        };
-
-        f.write_str(&colored_str)
-    }
-}
-
+// TODO: use crossterm styles instead
 pub trait Colorize {
     fn as_black(&self) -> String;
     fn as_red(&self) -> String;

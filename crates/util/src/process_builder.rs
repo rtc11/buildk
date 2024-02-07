@@ -1,13 +1,14 @@
-use core::fmt;
-use std::{env, io};
-use std::collections::BTreeMap;
-use std::ffi::{OsStr, OsString};
-use std::fmt::Formatter;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
-
 use anyhow::{Context, Result};
+use core::fmt;
+use std::{
+    collections::BTreeMap,
+    env,
+    ffi::{OsStr, OsString},
+    fmt::Formatter,
+    io::{self, Write},
+    path::{Path, PathBuf},
+    process::{Command, Output, Stdio},
+};
 
 use crate::process_error::ProcessError;
 
@@ -67,7 +68,8 @@ impl ProcessBuilder {
     }
 
     pub fn classpaths(&mut self, paths: Vec<&PathBuf>) -> &mut ProcessBuilder {
-        let classpath = paths.into_iter()
+        let classpath = paths
+            .into_iter()
             .map(|path| path.as_os_str())
             .collect::<Vec<&OsStr>>()
             .as_slice()
@@ -86,17 +88,20 @@ impl ProcessBuilder {
         self
     }
 
-    // kotlinc have -d, junit uses -d as test directory
     pub fn destination<T: AsRef<OsStr>>(&mut self, destination: T) -> &mut ProcessBuilder {
         self.args(&[OsString::from("-d"), destination.as_ref().to_os_string()])
     }
 
     pub fn test_report<T: AsRef<OsStr>>(&mut self, report_dir: T) -> &mut ProcessBuilder {
-        self.args(&[OsString::from("--reports-dir"), report_dir.as_ref().to_os_string()])
+        self.args(&[
+            OsString::from("--reports-dir"),
+            report_dir.as_ref().to_os_string(),
+        ])
     }
 
     pub fn args<T: AsRef<OsStr>>(&mut self, args: &[T]) -> &mut ProcessBuilder {
-        self.args.extend(args.iter().map(|a| a.as_ref().to_os_string()));
+        self.args
+            .extend(args.iter().map(|a| a.as_ref().to_os_string()));
         self
     }
 
@@ -106,17 +111,28 @@ impl ProcessBuilder {
     }
 
     pub fn env<T: AsRef<OsStr>>(&mut self, key: &str, val: T) -> &mut ProcessBuilder {
-        self.env.insert(key.to_string(), Some(val.as_ref().to_os_string()));
+        self.env
+            .insert(key.to_string(), Some(val.as_ref().to_os_string()));
         self
     }
 
-    pub fn get_program(&self) -> &OsString { &self.program }
-    pub fn get_args(&self) -> impl Iterator<Item=&OsString> { self.args.iter() }
-    pub fn get_cwd(&self) -> Option<&Path> { self.cwd.as_ref().map(Path::new) }
-    pub fn get_envs(&self) -> &BTreeMap<String, Option<OsString>> { &self.env }
+    pub fn get_program(&self) -> &OsString {
+        &self.program
+    }
+    pub fn get_args(&self) -> impl Iterator<Item = &OsString> {
+        self.args.iter()
+    }
+    pub fn get_cwd(&self) -> Option<&Path> {
+        self.cwd.as_ref().map(Path::new)
+    }
+    pub fn get_envs(&self) -> &BTreeMap<String, Option<OsString>> {
+        &self.env
+    }
 
     pub fn get_env(&self, var: &str) -> Option<OsString> {
-        self.env.get(var).cloned()
+        self.env
+            .get(var)
+            .cloned()
             .or_else(|| Some(env::var_os(var)))
             .and_then(|s| s) // flatmap
     }
@@ -144,7 +160,8 @@ impl ProcessBuilder {
     }
 
     pub fn output(&self) -> Result<Output> {
-        self._output().with_context(|| ProcessError::could_not_execute(self))
+        self._output()
+            .with_context(|| ProcessError::could_not_execute(self))
     }
 
     fn _output(&self) -> io::Result<Output> {
@@ -160,5 +177,9 @@ impl ProcessBuilder {
 fn piped(cmd: &mut Command, pipe_stdin: bool) -> &mut Command {
     cmd.stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .stdin(if pipe_stdin { Stdio::piped() } else { Stdio::null() })
+        .stdin(if pipe_stdin {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
 }

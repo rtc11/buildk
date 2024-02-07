@@ -6,7 +6,9 @@ edition = "2021"
 [dependencies]
 manifest.workspace = true
 
-tokio.workspace = true
-futures.workspace = true
+surf.workspace = true
+async-std.workspace = true
 anyhow.workspace = true
-reqwest.workspace = true
+#crossbeam.workspace = true
+
+#reqwest.workspace = true

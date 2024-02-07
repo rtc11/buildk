@@ -5,8 +5,19 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
+retry.workspace = true
+
 filetime.workspace = true
 libc.workspace = true
+
+async-std.workspace = true
+async-recursion.workspace = true
+
 serde.workspace = true
 serde_derive.workspace = true
 serde_json.workspace = true
+
+#multi-spinner.workspace = true
+spinners.workspace = true
+#crossterm.workspace = true
+

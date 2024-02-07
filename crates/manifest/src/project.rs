@@ -1,6 +1,6 @@
 use crate::Section;
-use anyhow::ensure;
-use std::fmt::{Display, Formatter};
+use anyhow::{ensure, Result};
+use util::terminal::Printable;
 use std::path::PathBuf;
 use std::str::FromStr;
 use toml_edit::Document;
@@ -33,7 +33,7 @@ impl Project {
         main: Option<&str>,
         src: Option<&str>,
         test: Option<&str>,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self> {
         let src = match src {
             None => current_dir().join(PathBuf::from("src")),
             Some(src) => current_dir().join(PathBuf::from(src)) 
@@ -61,13 +61,13 @@ impl Project {
     }
 }
 
-impl Display for Project {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:<26}{}", "project.path", self.path.display())?;
-        writeln!(f, "{:<26}{}", "project.src", self.src.display())?;
-        writeln!(f, "{:<26}{}", "project.test", self.test.display())?;
-        writeln!(f, "{:<26}{}", "project.main", self.main)?;
-        write!(f, "{}", self.out)
+impl Printable for Project {
+    fn print(&self, terminal: &mut util::terminal::Terminal) {
+        terminal.print(&format!("{:<26}{}", "project.path", self.path.display()));
+        terminal.print(&format!("{:<26}{}", "project.src", self.src.display()));
+        terminal.print(&format!("{:<26}{}", "project.test", self.test.display()));
+        terminal.print(&format!("{:<26}{}", "project.main", self.main));
+        self.out.print(terminal);
     }
 }
 
@@ -94,23 +94,19 @@ impl ProjectOutput {
     }
 }
 
-impl Display for ProjectOutput {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:<26}{}", "project.out.path", self.path.display())?;
-        writeln!(f, "{:<26}{}", "project.out.cache", self.cache.display())?;
-        writeln!(f, "{:<26}{}", "project.out.src", self.src.display())?;
-        writeln!(f, "{:<26}{}", "project.out.test", self.test.display())?;
-        writeln!(
-            f,
-            "{:<26}{}",
-            "project.out.test-report",
-            self.test_report.display()
-        )?;
-        writeln!(f, "{:<26}{}", "project.out.jar", self.jar.display())
+impl Printable for ProjectOutput {
+    fn print(&self, terminal: &mut util::terminal::Terminal) {
+        terminal.print(&format!("{:<26}{}", "project.out.path", self.path.display()));
+        terminal.print(&format!("{:<26}{}", "project.out.cache", self.cache.display()));
+        terminal.print(&format!("{:<26}{}", "project.out.src", self.src.display()));
+        terminal.print(&format!("{:<26}{}", "project.out.test", self.test.display()));
+        terminal.print(&format!("{:<26}{}", "project.out.test-report", self.test_report.display()));
+        terminal.print(&format!("{:<26}{}", "project.out.jar", self.jar.display()));
     }
 }
+
 fn current_dir() -> PathBuf {
-    std::env::current_dir().expect("could not find the current directory")
+    std::env::current_dir().expect("current path not found")
 }
 
 pub(crate) fn project(data: &Document) -> Option<Project> {
@@ -153,8 +149,9 @@ pub(crate) fn project(data: &Document) -> Option<Project> {
 
 #[cfg(test)]
 mod tests {
-    use crate::project::project;
     use std::path::PathBuf;
+
+    use crate::project::project;
 
     #[test]
     fn main() {
@@ -197,7 +194,7 @@ path = "/Users"
 
     #[test]
     fn relative_path() {
-        let current_path = std::env::current_dir().unwrap();
+        let current_path: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(
             &r#"
 [project]
@@ -213,42 +210,42 @@ relative-path = "src"
 
     #[test]
     fn default_src() {
-        let current_path = std::env::current_dir().unwrap();
+        let current_path: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(project.src, current_path.join("src"))
     }
 
     #[test]
     fn default_test() {
-        let current_path = std::env::current_dir().unwrap();
+        let current_path: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(project.test, current_path.join("test"))
     }
 
     #[test]
     fn default_out_path() {
-        let default_out = std::env::current_dir().unwrap();
+        let default_out: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(project.out.path, default_out.join("out"));
     }
 
     #[test]
     fn default_out_src() {
-        let default_out = std::env::current_dir().unwrap();
+        let default_out: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(project.out.src, default_out.join("out").join("src"));
     }
 
     #[test]
     fn default_out_test() {
-        let default_out = std::env::current_dir().unwrap();
+        let default_out: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(project.out.test, default_out.join("out").join("test"));
     }
 
     #[test]
     fn default_out_test_report() {
-        let default_out = std::env::current_dir().unwrap();
+        let default_out: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(
             project.out.test_report,
@@ -258,7 +255,7 @@ relative-path = "src"
 
     #[test]
     fn default_out_cache() {
-        let default_out = std::env::current_dir().unwrap();
+        let default_out: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(
             project.out.cache,
@@ -268,7 +265,7 @@ relative-path = "src"
 
     #[test]
     fn default_out_jar() {
-        let default_out = std::env::current_dir().unwrap();
+        let default_out: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(project.out.jar, default_out.join("out").join("app.jar"));
     }

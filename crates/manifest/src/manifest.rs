@@ -1,7 +1,7 @@
-use std::fmt::{Display, Formatter};
 use std::path::Path;
 
 use util::get_kotlin_home;
+use util::terminal::Printable;
 
 use crate::dependencies::{dependencies, Dependency};
 use crate::modules::Module;
@@ -33,12 +33,11 @@ impl Default for Manifest {
     }
 }
 
-impl Display for Manifest {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.project)?;
-        writeln!(f, "{:<26}{}", "kotlin.path", get_kotlin_home().display())?;
-        self.dependencies.iter().try_for_each(|dependency| write!(f, "{}", dependency))
+impl Printable for Manifest {
+    fn print(&self, terminal: &mut util::terminal::Terminal) {
+        self.project.print(terminal);
+        terminal.print(&format!("{:<26}{}", "kotlin.path", get_kotlin_home().display()));
+        self.dependencies.iter().for_each(|dependency| dependency.print(terminal));
     }
 }
-
 

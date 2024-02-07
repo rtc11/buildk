@@ -2,16 +2,20 @@ use crate::Command;
 use manifest::config::Config;
 use gryf::Graph;
 use gryf::algo::TopoSort;
-use std::fmt::Display;
-use std::path::{Path, PathBuf};
+use util::terminal::{Terminal, Printable};
+use std::path::{PathBuf, Path};
 use util::buildk_output::BuildkOutput;
 use util::paths::all_files_recursive;
 use util::{PartialConclusion, StringExtras};
 
 impl Command {
-    pub fn build_tree(&self, config: &Config) -> BuildkOutput {
+    pub fn build_tree(
+        &self, 
+        config: &Config,
+        _terminal: &mut Terminal,
+    ) -> BuildkOutput {
         let mut output = BuildkOutput::default();
-        match sort_by_imports(config) {
+        match sort_by_imports(config){
             Ok(sorted) => {
                 //let project_path = &config.manifest.project.path;
                 //sorted.iter().for_each(|file| println!("\r{:?}", file.strip_prefix(project_path).unwrap()));
@@ -32,18 +36,18 @@ impl Command {
 pub fn sort_by_imports(config: &Config) -> anyhow::Result<Vec<PathBuf>> {
     let mut graph = Graph::new_directed();
 
-    let paths = all_files_recursive(vec![], config.manifest.project.src.clone());
-    let files: Vec<HeaderKt> = paths.iter()
+    let paths = all_files_recursive(vec![], config.manifest.project.src.clone())?;
+    paths.iter()
         .filter(|path| path.extension().unwrap_or_default() == "kt")
         .map(Path::new)
-        .filter_map(|path| HeaderKt::parse(path).ok())
-        .collect();
-
-    for file in files.iter() {
-        graph.add_vertex(file.clone());
-    }
+        .map(HeaderKt::parse)
+        .filter_map(|header| header.ok())
+        .for_each(|header| {
+            graph.add_vertex(header);
+        });
 
     graph.connect_vertices(|u, v| v.has_dependency(u).then_some(()));
+
     let sorted = TopoSort::on(&graph)
         .run()
         .map(|r| r.map(|v| graph[v].file.clone()))
@@ -87,8 +91,8 @@ impl HeaderKt {
     }
 }
 
-impl Display for HeaderKt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Printable for HeaderKt {
+    fn print(&self, terminal: &mut Terminal) {
         let mut s = String::new();
 
         if self.package.is_empty() {
@@ -104,7 +108,7 @@ impl Display for HeaderKt {
             s.push_str(", ");
         }
 
-        write!(f, "{}", s)
+        terminal.print(&s);
     }
 }
 

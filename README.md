@@ -64,6 +64,9 @@ com.google.code.gson.gson = "2.10.1"
 | help    | print this help        |
 
 # 🚧 TODO
+- [ ] Java runtime dependency resolution
+- [ ] Java compile time dependency resolution
+- [ ] AVL trees for dependency graph?
 - [ ] Resolve conflicting dependency versions
 - [x] Resolve cyclic transitive dependencies
 - [ ] Cache classpath (complete dependency graph per used dependency)

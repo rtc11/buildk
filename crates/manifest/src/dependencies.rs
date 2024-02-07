@@ -1,11 +1,12 @@
-use std::collections::BTreeMap;
-use std::fmt::{Debug, Display, Formatter};
+use std::collections::{BTreeMap, HashMap};
+use std::fmt::Display;
+use std::io::BufReader;
+use std::path::PathBuf;
 use std::str::FromStr;
-use std::{io::BufReader, path::PathBuf};
+use util::terminal::Printable;
 use xml::reader::XmlEvent;
 use xml::EventReader;
 
-use crate::buildk;
 use crate::Section;
 use anyhow::bail;
 use regex::Regex;
@@ -19,11 +20,11 @@ pub struct Dependency {
     pub version: String,
     pub kind: Kind,
     pub target_dir: PathBuf,
-    pub path: String,     // url to the artifact directory that contains all the files.
-    pub jar: String,     // Filename
+    pub path: String, // url to the artifact directory that contains all the files.
+    pub jar: String,  // Filename
     pub sources: String, // Filename
-    pub pom: String,     // Filename
-    pub module: String,  // Filename
+    pub pom: String,  // Filename
+    pub module: String, // Filename
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -34,11 +35,21 @@ pub enum Kind {
 }
 
 impl Display for Dependency {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
-            Kind::Source => writeln!(f, "{:<26}{}:{}", "dependency", self.name, self.version),
-            Kind::Test => writeln!(f, "{:<26}{}:{}", "test-dependency", self.name, self.version),
-            Kind::Platform => writeln!(f, "{:<26}{}:{}", "platform-dependency", self.name, self.version),
+            Kind::Source => write!(f, "dependency: {}:{}:{:?}", self.name, self.version, self.kind),
+            Kind::Test => write!(f, "test-dependency: {}:{}:{:?}", self.name, self.version, self.kind),
+            Kind::Platform => write!(f, "platform-dependency: {}:{}:{:?}", self.name, self.version, self.kind),
+        }
+    }
+}
+
+impl Printable for Dependency {
+    fn print(&self, terminal: &mut util::terminal::Terminal) {
+        match self.kind {
+            Kind::Source => terminal.print(&format!("{:<26}{}:{}", "dependency", self.name, self.version)),
+            Kind::Test => terminal.print(&format!("{:<26}{}:{}", "test-dependency", self.name, self.version)),
+            Kind::Platform => terminal.print(&format!("{:<26}{}:{}", "platform-dependency", self.name, self.version)),
         }
     }
 }
@@ -61,7 +72,8 @@ pub(crate) fn platform_deps() -> Vec<Dependency> {
             &Kind::Platform,
             "org.junit.jupiter.junit-jupiter-api",
             "5.5.2",
-        ).unwrap(),
+        )
+        .unwrap(),
     ]
 }
 
@@ -81,11 +93,15 @@ impl Dependency {
         self.target_dir.join(&self.jar)
     }
 
-    // todo: save to project-cache-file
-    // todo: if cache failed, go through every transitive dep (before downloading, check file on
-    // disk)
+    // todo: if one transitive dep has previously failed, this is not good enough for a check
     pub fn is_cached(&self) -> bool {
-        self.target_dir.join(&self.jar).is_file() && self.target_dir.join(&self.pom).metadata().unwrap().len() > 0
+        let jar = self.target_dir.join(&self.jar);
+        let pom = self.target_dir.join(&self.pom);
+
+        jar.exists()
+            && pom.exists()
+            && jar.metadata().unwrap().len() > 0
+            && pom.metadata().unwrap().len() > 0
     }
 
     pub fn new(kind: &Kind, name: &str, version: &str) -> Option<Dependency> {
@@ -104,11 +120,7 @@ impl Dependency {
             .ok()
     }
 
-    pub fn from_toml(
-        kind: &Kind,
-        name: &str,
-        item: &toml_edit::Value,
-    ) -> Option<Dependency> {
+    pub fn from_toml(kind: &Kind, name: &str, item: &toml_edit::Value) -> Option<Dependency> {
         item.as_str()
             .and_then(|version| Self::new(kind, name, version))
     }
@@ -119,15 +131,13 @@ impl Dependency {
     }
 }
 
-/**
-*   [name] "org.apache.kafka.kafka-clients"
-*   [version] "3.4.0"
-*/
+/// [name] "org.apache.kafka.kafka-clients"
+/// [version] "3.4.0"
 fn dependency_info(name: &str, version: &str) -> anyhow::Result<DependencyInfo> {
     let after_last_slash = Regex::new(r"([^/]+)$").unwrap();
     let name = name.replace('.', "/");
     // todo: place this elsewhere
-    let home = buildk::home_dir().unwrap();
+    let home = home::home_dir().unwrap().join(".buildk");
     let cache = home.join("cache");
 
     match after_last_slash.find(&name) {
@@ -160,19 +170,19 @@ pub trait DependenciesKind {
 
 impl DependenciesKind for Vec<Dependency> {
     fn for_test_ref(&self) -> Vec<&Dependency> {
-        self.into_iter()
+        self.iter()
             .filter(|dep| dep.kind == Kind::Test)
             .collect()
     }
 
     fn for_src_ref(&self) -> Vec<&Dependency> {
-        self.into_iter()
+        self.iter()
             .filter(|dep| dep.kind == Kind::Source)
             .collect()
     }
 
     fn for_platform_ref(&self) -> Vec<&Dependency> {
-        self.into_iter()
+        self.iter()
             .filter(|dep| dep.kind == Kind::Platform)
             .collect()
     }
@@ -277,8 +287,18 @@ impl PomParser for PathBuf {
             let mut is_artifact_id = false;
             let mut is_version = false;
 
+            let mut is_properties = false;
+            let mut properties_version = String::new();
+            let mut properties: HashMap<String, String> = HashMap::new();
+
             reader.into_iter().for_each(|element| {
                 match &element {
+                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("properties") => {
+                       is_properties = true 
+                    }
+                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("properties") => {
+                       is_properties = false 
+                    }
                     Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("dependency") => {
                         group.clear();
                         artifact.clear();
@@ -326,7 +346,15 @@ impl PomParser for PathBuf {
                         is_version = false;
                     }
 
+                    Ok(XmlEvent::StartElement { name, .. }) => {
+                        if is_properties {
+                            properties_version = name.local_name.clone();
+                        }
+                    }
                     Ok(XmlEvent::Characters(content)) => {
+                        if is_properties {
+                            properties.insert(properties_version.clone(), content.clone());
+                        }
                         if is_group_id {
                             group = content.clone()
                         }
@@ -334,7 +362,14 @@ impl PomParser for PathBuf {
                             artifact = content.clone()
                         }
                         if is_version {
-                            version = content.clone()
+                            let content = content.clone();
+
+                            // version is defined in <properties> or directly in <version>
+                            if properties.get(&content).is_some() {
+                                version = properties.get(&content).unwrap().clone();
+                            } else {
+                                version = content.clone();
+                            }
                         }
                     }
 

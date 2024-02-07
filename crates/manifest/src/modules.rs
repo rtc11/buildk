@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-use std::path::PathBuf;
+use async_std::path::PathBuf;
+
 use crate::dependencies::Dependency;
 
 #[derive(Clone)]

@@ -1,8 +1,11 @@
-use std::fs::{create_dir_all, File};
-use std::path::{Path, PathBuf};
+use std::fs::{File, create_dir_all};
+use std::io::Write;
+use std::path::{PathBuf, Path};
+
+use anyhow::Result;
 use manifest::dependencies::Dependency;
 
-use util::{BuildkResult, PartialConclusion, paths};
+use util::{PartialConclusion, paths};
 use util::process_builder::ProcessBuilder;
 use util::process_error::ProcessError;
 
@@ -28,12 +31,12 @@ impl Cache {
     pub fn load(kotlin_home: &Path, cache_location: &Path) -> Cache {
         let kotlin_bin = kotlin_home.join("bin");
 
-        match kotlinc_fingerprint(&kotlin_bin) {
+        match kotlinc_fingerprint(&kotlin_bin){
             Ok(fingerprint) => {
                 let empty = CacheData::empty(fingerprint);
                 let mut dirty = true;
 
-                let data = match read(cache_location) {
+                let data = match read(cache_location){
                     Ok(data) => {
                         if data.fingerprint() == fingerprint {
                             dirty = false;
@@ -47,7 +50,7 @@ impl Cache {
                 let location = cache_location.to_path_buf();
                 return Cache { location, dirty, data };
 
-                fn read(path: &Path) -> BuildkResult<CacheData> {
+                fn read(path: &Path) -> Result<CacheData> {
                     let json = paths::read(path)?;
                     Ok(serde_json::from_str(&json)?)
                 }
@@ -68,7 +71,7 @@ impl Cache {
         &mut self,
         cmd: &ProcessBuilder,
         extra_fingerprint: u64,
-    ) -> BuildkResult<CacheResult> {
+    ) -> Result<CacheResult> {
         let key = process_fingerprint(cmd, extra_fingerprint);
         let partial_conclusion = match self.data.contains_key(&key) {
             true => PartialConclusion::CACHED,
@@ -104,7 +107,7 @@ impl Cache {
     pub fn cache_file(
         &mut self,
         file: &PathBuf,
-    ) -> BuildkResult<PartialConclusion> {
+    ) -> Result<PartialConclusion> {
         let key = file_fingerprint(file)?;
         match self.data.contains_key(&key) {
             true => Ok(PartialConclusion::CACHED),
@@ -122,7 +125,7 @@ impl Cache {
     pub fn cache_dependency(
         &mut self,
         dep: &Dependency,
-    ) -> BuildkResult<PartialConclusion> {
+    ) -> Result<PartialConclusion> {
         let key = dependency_fingerprint(dep)?;
         match self.data.contains_key(&key) {
             true => Ok(PartialConclusion::CACHED),
@@ -143,21 +146,26 @@ impl Cache {
 
 impl Drop for Cache {
     fn drop(&mut self) {
-        if !self.dirty { return; }
+        if !self.dirty { 
+            return; 
+        }
 
         if let Some(path) = &self.location.parent() {
-            if !path.exists() {
-                if let Err(msg) = create_dir_all(path) {
+            if !path.exists(){
+                if let Err(msg) = create_dir_all(path){
                     println!("failed to create missing director(y/ies) {}. {msg}", path.display())
                 }
             }
         }
 
-        match File::create(&self.location) {
-            Err(e) => println!("failed to create cache file {}: {}", self.location.display(), e),
-            Ok(file) => if let Err(e) = serde_json::to_writer_pretty(&file, &self.data) {
-                println!("failed to update kotlinc info cache: {e}")
+        let file = File::create(&self.location);
+        if let Ok(mut file) = file {
+            if let Ok(text) = serde_json::to_string_pretty(&self.data) {
+                if let Err(msg) = file.write_all(text.as_bytes()){
+                    println!("Failed to write cache to {}. {msg}", self.location.display());
+                }
             }
         }
     }
 }
+

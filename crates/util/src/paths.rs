@@ -1,10 +1,11 @@
-use std::{env, fs, iter};
-use std::path::{Path, PathBuf};
-
-use anyhow::Context;
+use anyhow::Result;
 use filetime::FileTime;
+use std::{
+    env, fs, iter,
+    path::{Path, PathBuf},
+};
 
-pub fn resolve_executable(exec: &Path) -> anyhow::Result<PathBuf> {
+pub fn resolve_executable(exec: &Path) -> Result<PathBuf> {
     if exec.components().count() == 1 {
         let paths = env::var_os("PATH").ok_or_else(|| anyhow::format_err!("no PATH"))?;
         let candidates = env::split_paths(&paths).flat_map(|path| {
@@ -24,37 +25,38 @@ pub fn resolve_executable(exec: &Path) -> anyhow::Result<PathBuf> {
     }
 }
 
-pub fn modification_time(path: &Path) -> anyhow::Result<FileTime> {
-    let meta = fs::metadata(path).with_context(|| format!("failed to stat `{}`", path.display()))?;
+pub fn modification_time(path: &Path) -> Result<FileTime> {
+    let meta = fs::metadata(path)?;
     Ok(FileTime::from_last_modification_time(&meta))
 }
 
-pub fn read(path: &Path) -> anyhow::Result<String> {
-    match String::from_utf8(read_bytes(path)?) {
-        Ok(s) => Ok(s),
-        Err(_) => anyhow::bail!("path at `{}` was not valid utf-8", path.display()),
-    }
+pub fn read(path: &Path) -> Result<String> {
+    let bytes = read_bytes(path)?;
+    let string = String::from_utf8(bytes)?;
+    Ok(string)
 }
 
-pub fn read_bytes(path: &Path) -> anyhow::Result<Vec<u8>> {
-    fs::read(path).with_context(|| format!("failed to read `{}`", path.display()))
+pub fn read_bytes(path: &Path) -> Result<Vec<u8>> {
+    let bytes = fs::read(path)?;
+    Ok(bytes)
 }
 
-pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> anyhow::Result<()> {
-    let path = path.as_ref();
-    fs::write(path, contents.as_ref()).with_context(|| format!("failed to write `{}`", path.display()))
+pub fn write<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, contents: C) -> Result<()> {
+    fs::write(&path, &contents)?;
+    Ok(())
 }
 
-pub fn all_files_recursive(mut files: Vec<PathBuf>, path: PathBuf) -> Vec<PathBuf>{
+//#[async_recursion]
+pub fn all_files_recursive(mut files: Vec<PathBuf>, path: PathBuf) -> Result<Vec<PathBuf>> {
     if path.is_file() {
         files.push(path)
+    } else if path.is_dir() {
+        let dir = std::fs::read_dir(&path)?;
+
+        for res in dir.flatten() {
+            let next_files = all_files_recursive(vec![], res.path());
+            files.extend(next_files?);
+        }
     }
-    else if path.is_dir() {
-        fs::read_dir(&path).unwrap().map(|res| res.map(|e| e.path()))
-            .filter_map(|it|it.ok())
-            .for_each(|it| {
-                files.extend(all_files_recursive(vec![], it));
-            })
-    }
-    files
+    Ok(files)
 }

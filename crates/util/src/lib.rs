@@ -1,18 +1,31 @@
 use std::path::PathBuf;
 
+use colorize::Colorize;
+use terminal::Printable;
+
 pub mod buildk_output;
 pub mod colorize;
 pub mod hasher;
 pub mod paths;
 pub mod process_builder;
 pub mod process_error;
+pub mod terminal;
 pub mod timer;
-
-pub type BuildkResult<T> = anyhow::Result<T>;
 
 pub enum Conclusion {
     SUCCESS,
     FAILED,
+}
+
+impl Printable for Conclusion {
+    fn print(&self, terminal: &mut terminal::Terminal) {
+        let colored_str = match self {
+            Conclusion::SUCCESS => "SUCCESS".as_green(),
+            Conclusion::FAILED => "FAILED".as_red(),
+        };
+
+        terminal.print(&colored_str);
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -21,6 +34,30 @@ pub enum PartialConclusion {
     CACHED,
     SUCCESS,
     FAILED,
+}
+
+impl PartialConclusion {
+    pub fn color_symbol(&self) -> String {
+        match self {
+            PartialConclusion::INIT => format!(" {}", "∅".as_yellow()),
+            PartialConclusion::SUCCESS => format!(" {}", "✓".as_green()),
+            PartialConclusion::FAILED => format!(" {}", "✕".as_red()),
+            PartialConclusion::CACHED => format!(" {}", "❤".as_blue()),
+        }
+    }
+}
+
+impl Printable for PartialConclusion {
+    fn print(&self, terminal: &mut terminal::Terminal) {
+        let colored_str = match self {
+            PartialConclusion::INIT => format!(" {}", "∅".as_yellow()),
+            PartialConclusion::SUCCESS => format!(" {}", "✓".as_green()),
+            PartialConclusion::FAILED => format!(" {}", "✕".as_red()),
+            PartialConclusion::CACHED => format!(" {}", "❤".as_blue()),
+        };
+
+        terminal.print(&colored_str);
+    }
 }
 
 pub fn get_kotlinc() -> PathBuf {

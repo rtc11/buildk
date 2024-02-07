@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
+use util::terminal::Terminal;
 use util::{get_kotlinc, PartialConclusion};
 
 use crate::{build_tree, Command};
@@ -11,7 +12,11 @@ const DEBUG: bool = false;
 
 impl Command {
 
-    pub fn build_src(&mut self, config: &Config) -> BuildkOutput {
+    pub fn build_src(
+        &mut self, 
+        config: &Config,
+        _terminal: &mut Terminal,
+    ) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
 
@@ -24,17 +29,12 @@ impl Command {
                 let sorted_src = sorted_src
                     .iter()
                     .filter(|file| {
-                        let has_changes = match self.cache.lock().unwrap().cache_file(file) {
-                            Ok(PartialConclusion::CACHED) => false,
-                            _ => true,
-                        };
-
+                        let has_changes = !matches!(self.cache.lock().unwrap().cache_file(file), Ok(PartialConclusion::CACHED));
                         if DEBUG {
                             println!("\r {} {}", if has_changes { "compile" } else { "cached" }, file.display())
                         }
 
                         has_changes
-
                     })
                     .collect::<Vec<&PathBuf>>();
 
@@ -73,11 +73,15 @@ impl Command {
         self.execute(&mut output, &kotlinc, extra)
     }
 
-    pub fn build_test(&self, config: &Config) -> BuildkOutput {
+    pub fn build_test(
+        &self, 
+        config: &Config,
+        _terminal: &mut Terminal,
+    ) -> BuildkOutput {
         let mut output = BuildkOutput::default();
 
         // return if no tests are configured
-        if !config.manifest.project.test.is_dir() {
+        if !config.manifest.project.test.is_dir(){
             return output
         }
 

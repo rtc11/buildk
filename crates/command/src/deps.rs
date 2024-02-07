@@ -1,40 +1,100 @@
+use async_std::task;
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use manifest::config::Config;
 use manifest::dependencies::Dependency;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 use util::PartialConclusion;
+use util::terminal::Terminal;
 
 use crate::Command;
 
-const LIST_TRANSITIVE: bool = true;
-
 impl Command {
-    pub fn deps(&self, config: &Config) -> BuildkOutput {
+    pub fn deps(
+        &self, 
+        config: &Config,
+        _terminal: &mut Terminal,
+    ) -> BuildkOutput {
         let mut output = BuildkOutput::default();
 
         match lsp::update_classpath(config) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),
-
             Err(err) => output
                 .conclude(PartialConclusion::FAILED)
                 .stderr(err.to_string()),
         };
 
-        let stdout = list_dependencies(&config.manifest.dependencies, vec![], 0);
+        task::block_on(async {
+            let deps = config.manifest.dependencies.clone();
+            let deps = find_dependent_deps(deps, vec![], 0, true).await;
+            println!("deps contains: {:?}", deps.len());
+        });
 
-        output
-            .stdout(format!("{stdout}"))
-            .conclude(PartialConclusion::SUCCESS);
+        output.conclude(PartialConclusion::SUCCESS);
 
         output.to_owned()
     }
 }
+fn status(dep: &Dependency) -> &str {
+    match dep.is_cached() {
+        true => "[cached]",
+        false => "[missing]",
+    }
+}
+
+fn display(status: &str, dep: &Dependency, depth: usize) -> String {
+    format!(
+        "\r{:>depth$}{:<14}{}:{}",
+        "",
+        status,
+        dep.name,
+        dep.version,
+        depth = depth * 2
+    )
+}
+
+pub fn find_dependent_deps(
+    dependencies: Vec<Dependency>,
+    mut traversed: Vec<Dependency>,
+    depth: usize,
+    print: bool,
+) -> BoxFuture<'static, Vec<Dependency>> {
+    async move {
+        if dependencies.is_empty() {
+            return traversed;
+        }
+
+        dependencies.iter().for_each(|dep| {
+            let status = status(dep);
+            let display = display(status, dep, depth);
+            let color = Color::get_index(depth);
+            let stdout = display.colorize(&color).to_string();
+            if print {
+                println!("{}", stdout);
+            }
+            traversed.push(dep.clone());
+        });
+
+        let transitives = dependencies
+            .iter()
+            .flat_map(|it| it.transitives())
+            .filter(|it| !traversed.contains(it))
+            .collect::<Vec<_>>();
+
+        find_dependent_deps(transitives, traversed, depth + 1, print).await
+    }
+    .boxed()
+}
 
 mod lsp {
-    use std::os::unix::fs::OpenOptionsExt;
     use anyhow::Context;
     use manifest::config::Config;
+    use std::os::unix::fs::OpenOptionsExt;
 
+    /**
+     * This function is used to update the classpath for the kotlin language server.
+     **/
     pub(crate) fn update_classpath(config: &Config) -> anyhow::Result<()> {
         use std::fs::OpenOptions;
         use std::io::prelude::*;
@@ -68,61 +128,13 @@ mod lsp {
                 .with_context(|| format!("Failed to edit {}", &kls_classpath.display()))?,
         };
 
-        write!(file, "#/bin/bash\necho {}", classpath)
-            .with_context(|| {
-                format!(
-                    "Failed to write classpath to kotlin lsp file: {}",
-                    kls_classpath.display()
-                )
-            })?;
+        write!(file, "#/bin/bash\necho {}", classpath).with_context(|| {
+            format!(
+                "Failed to write classpath to kotlin lsp file: {}",
+                kls_classpath.display()
+            )
+        })?;
 
         Ok(())
     }
-}
-
-fn list_dependencies<'a>(
-    dependencies: &'a [Dependency],
-    mut traversed: Vec<&'a str>,
-    depth: usize,
-) -> String {
-    let color = Color::get_index(depth);
-
-    let stdout = dependencies
-        .iter()
-        .map(|dep| {
-            traversed.push(dep.path.as_str());
-
-            let status = match dep.is_cached() {
-                true => "[cached]",
-                false => "[missing]",
-            };
-
-            let display = format!(
-                "\r{:>depth$}{:<14}{}:{}",
-                "",
-                status,
-                dep.name,
-                dep.version,
-                depth = depth * 2,
-            );
-
-            let stdout = format!("{}", display.colorize(&color));
-
-            let transitives = &dep
-                .transitives()
-                .into_iter()
-                .filter(|dep| !traversed.contains(&dep.path.as_str()))
-                .collect::<Vec<_>>();
-
-            let next = list_dependencies(transitives, traversed.clone(), depth + 1);
-
-            if LIST_TRANSITIVE {
-                format!("{}\n{}", stdout, next)
-            } else {
-                stdout
-            }
-        })
-        .fold(String::new(), |acc, next| format!("{}{}", acc, next));
-
-    stdout
 }

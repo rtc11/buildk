@@ -1,14 +1,15 @@
-use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use anyhow::Result;
 use cache::cache::Cache;
 use ::manifest::config::Config;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
 use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
-use util::{get_kotlin_home, BuildkResult, PartialConclusion};
+use util::terminal::Printable;
+use util::{get_kotlin_home, PartialConclusion};
 
 mod build;
 mod clean;
@@ -29,7 +30,12 @@ pub enum Option {
     BuildSrc,
     BuildTest,
     Test,
-    Run,
+    Run
+    /*{
+        #[arg(value_name = "FILENAME")]
+        file: Option<OsString>
+    }*/
+    ,
     Release,
     BuildTree,
     Config,
@@ -54,9 +60,9 @@ impl Option {
     }
 }
 
-impl Display for Option {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let display = match self {
+impl ToString for Option {
+    fn to_string(&self) -> String {
+        match self {
             Option::Clean => "clean",
             Option::BuildSrc => "build src",
             Option::BuildTest => "build test",
@@ -68,9 +74,13 @@ impl Display for Option {
             Option::BuildTree => "tree",
             Option::Config => "config",
             Option::Help => "help",
-        };
+        }.to_string()
+    }
+}
 
-        write!(f, "{:<12}", display)
+impl Printable for Option {
+    fn print(&self, terminal: &mut util::terminal::Terminal) {
+        terminal.print(&format!("{:<12}", self.to_string()));
     }
 }
 
@@ -82,7 +92,7 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn new(config: &Config) -> BuildkResult<Command> {
+    pub fn new(config: &Config) -> Result<Command> {
         let kotlin_home = get_kotlin_home();
         let cache = Cache::load(&kotlin_home, &config.manifest.project.out.cache);
 

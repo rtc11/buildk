@@ -20,8 +20,20 @@ impl CacheData {
         }
     }
 
-    pub fn fingerprint(&self) -> u64 { self.kotlinc_fingerprint }
-    pub fn contains_key(&self, key: &u64) -> bool { self.outputs.contains_key(key) }
-    pub fn get(&self, key: &u64) -> &Output { &self.outputs[key] }
-    pub fn insert(&mut self, key: u64, value: Output) { self.outputs.insert(key, value); }
+    pub fn fingerprint(&self) -> u64 {
+        self.kotlinc_fingerprint
+    }
+
+    pub fn contains_key(&self, key: &u64) -> bool {
+        self.outputs.contains_key(key)
+    }
+
+    pub fn get(&self, key: &u64) -> &Output {
+        &self.outputs[key]
+    }
+
+    pub fn insert(&mut self, key: u64, value: Output) {
+        self.outputs.insert(key, value);
+    }
 }
+

@@ -1,35 +1,49 @@
-use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
-use crate::buildk;
+use util::terminal::{Terminal, Printable};
+
 use crate::classpath::Classpath;
 use crate::manifest::Manifest;
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct Config {
-    /// `$HOME/.buildk`
-    pub home: PathBuf,
+    /// $HOME/.buildk
+    pub home: Buildk,
+
     /// `buildk.toml`
     pub manifest: Manifest,
-    pub classpath: Classpath,
+
+
+    pub _classpath: Classpath,
 }
 
-impl Default for Config {
+#[derive(Clone)]
+pub struct Buildk {
+    home: PathBuf
+}
+
+impl Default for Buildk {
     fn default() -> Self {
-        Config {
-            manifest: Manifest::default(),
-            home: match buildk::home_dir() {
-                Ok(home_dir) => home_dir,
-                Err(e) => panic!("Failed to construct config.home: {}", e),
-            },
-            classpath: Classpath::default(),
+        let home = home::home_dir()
+            .map(|it| it.join(".buildk"))
+            .expect("buildk could not find its home directory");
+
+        Self {
+            home
         }
     }
 }
 
-impl Display for Config {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:<26}{}", "buildk.home:", self.home.display())?;
-        write!(f, "{}", self.manifest)
+impl Printable for Config {
+    fn print(&self, terminal: &mut Terminal) {
+        self.home.print(terminal);
+        self.manifest.print(terminal);
     }
 }
+
+impl Printable for Buildk {
+    fn print(&self, terminal: &mut Terminal) {
+        terminal.print(&format!("{:<26}{}", "buildk.home:", self.home.display()));
+    }
+}
+

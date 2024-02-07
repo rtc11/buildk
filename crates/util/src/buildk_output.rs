@@ -1,4 +1,3 @@
-
 use crate::PartialConclusion;
 use crate::timer::Timer;
 
@@ -48,6 +47,16 @@ impl BuildkOutput {
         }
         self
     }
+
+    pub fn append_stderr(&mut self, stderr: String) -> &mut Self {
+        if let Some(err) = &self.stderr {
+            self.stderr = Some(err.to_owned() + "\n" + &stderr);
+            self
+        } else {
+            self.stderr(stderr)
+        }
+    }
+
     pub fn status(&mut self, status: i32) -> &mut Self {
         self.status = status;
         self

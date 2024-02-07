@@ -3,13 +3,17 @@ use std::path::PathBuf;
 use manifest::config::Config;
 use manifest::dependencies::Kind;
 use util::buildk_output::BuildkOutput;
-//use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
+use util::terminal::Terminal;
 
 use crate::Command;
 
 impl Command {
-    pub fn run(&self, config: &Config) -> BuildkOutput {
+    pub fn run(
+        &self, 
+        config: &Config,
+        _terminal: &mut Terminal,
+    ) -> BuildkOutput {
         let mut output = BuildkOutput::default();
         let mut java = ProcessBuilder::new("java");
 
@@ -29,11 +33,17 @@ impl Command {
 
         classpath.extend(dependencies.iter());
 
+        let extra_cmd: Option<String> = None; 
+
+        let main = match extra_cmd {
+            Some(class) => class.to_string() + "Kt",
+            None => config.manifest.project.compiled_main_file()
+        };
+
         java.cwd(&config.manifest.project.path)
             .classpaths(classpath)
-            .sources(&config.manifest.project.compiled_main_file());
+            .sources(&main);
 
-        let output = self.execute(&mut output, &java, 0);
 
         /*
         if let Some(stdout) = output.get_stdout() {
@@ -46,6 +56,7 @@ impl Command {
         }
         */
 
-        output
+        self.execute(&mut output, &java, 0)
     }
 }
+

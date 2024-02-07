@@ -1,6 +1,7 @@
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+
+use async_std::path::{PathBuf, Path};
 
 #[derive(Clone, Default)]
 pub struct Classpath {
