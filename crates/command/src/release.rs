@@ -2,24 +2,23 @@ use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::get_kotlinc;
 use util::process_builder::ProcessBuilder;
-use util::terminal::Terminal;
 
-use crate::Command;
+use crate::{Commands, ReleaseCmd};
 
-impl Command {
-    pub fn release(
-        &self, 
+impl ReleaseCmd for Commands {
+    fn release(
+        &mut self, 
         config: &Config,
-        _terminal: &mut Terminal,
     ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+        let mut output = BuildkOutput::new("release");
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
 
         kotlinc.cwd(&config.manifest.project.path)
             .include_runtime()
-            .destination(&config.manifest.project.out.jar)
+            .destination(&config.manifest.project.out.release)
             .sources(&config.manifest.project.src);
 
-        self.execute(&mut output, &kotlinc, 0)
+        //todo cache
+        self.execute(&mut output, config, &kotlinc, 0)
     }
 }

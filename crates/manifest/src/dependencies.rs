@@ -3,7 +3,6 @@ use std::fmt::Display;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::str::FromStr;
-use util::terminal::Printable;
 use xml::reader::XmlEvent;
 use xml::EventReader;
 
@@ -37,19 +36,9 @@ pub enum Kind {
 impl Display for Dependency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
-            Kind::Source => write!(f, "dependency: {}:{}:{:?}", self.name, self.version, self.kind),
-            Kind::Test => write!(f, "test-dependency: {}:{}:{:?}", self.name, self.version, self.kind),
-            Kind::Platform => write!(f, "platform-dependency: {}:{}:{:?}", self.name, self.version, self.kind),
-        }
-    }
-}
-
-impl Printable for Dependency {
-    fn print(&self, terminal: &mut util::terminal::Terminal) {
-        match self.kind {
-            Kind::Source => terminal.print(&format!("{:<26}{}:{}", "dependency", self.name, self.version)),
-            Kind::Test => terminal.print(&format!("{:<26}{}:{}", "test-dependency", self.name, self.version)),
-            Kind::Platform => terminal.print(&format!("{:<26}{}:{}", "platform-dependency", self.name, self.version)),
+            Kind::Source => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
+            Kind::Test => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
+            Kind::Platform => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
         }
     }
 }

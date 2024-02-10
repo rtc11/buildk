@@ -1,14 +1,11 @@
-use std::path::PathBuf;
-use std::sync::Mutex;
-
 use anyhow::Result;
 use cache::cache::Cache;
+use clap::{Parser, Subcommand, ValueEnum};
 use ::manifest::config::Config;
 use http::client::Client;
 use util::buildk_output::BuildkOutput;
 use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
-use util::terminal::Printable;
 use util::{get_kotlin_home, PartialConclusion};
 
 mod build;
@@ -17,99 +14,192 @@ mod config;
 mod deps;
 mod fetch;
 mod help;
-mod build_tree;
 mod release;
 mod run;
 mod test;
+mod tree;
 
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Option {
+#[derive(Parser)]
+#[command(name = "buildk")]
+#[command(about = "A build tool for Kotlin projects")]
+pub struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+impl Cli {
+    pub fn commands() -> Commands {
+        Cli::parse().command
+    } 
+}
+
+#[derive(Subcommand)]
+pub enum Commands {
+    Build {
+        #[arg(
+            value_name = "SOURCE",
+            num_args = 0..=1,
+            default_missing_value = "always",
+            default_value_t = Set::All,
+            value_enum
+        )]
+        set: Set,
+    },
     Clean,
+    Config,
     Deps,
     Fetch,
-    BuildSrc,
-    BuildTest,
-    Test,
-    Run
-    /*{
-        #[arg(value_name = "FILENAME")]
-        file: Option<OsString>
-    }*/
-    ,
-    Release,
-    BuildTree,
-    Config,
     Help,
+    Release,
+    Run {
+        #[arg(
+            value_name = "MAIN",
+        )]
+        name: Option<String>,
+    },
+    Test {
+        #[arg(
+            value_name = "NAME",
+        )]
+        name: Option<String>,
+    },
+    Tree,
 }
 
-impl Option {
-    pub fn from(value: String) -> Vec<Option> {
-        match value.as_str() {
-            "clean" => vec![Option::Clean],
-            "fetch" => vec![Option::Fetch],
-            "build" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest],
-            "test" => vec![Option::Fetch, Option::BuildSrc, Option::BuildTest, Option::Test],
-            "run" => vec![Option::Fetch, Option::BuildSrc, Option::Run],
-            "release" => vec![Option::Fetch, Option::BuildSrc, Option::Release],
-            "deps" => vec![Option::Deps],
-            "tree" => vec![Option::BuildTree],
-            "config" => vec![Option::Config],
-            "help" => vec![Option::Help],
-            _ => vec![],
+#[derive(ValueEnum, Copy, Clone, PartialEq, Eq)]
+pub enum Set {
+    All,
+    Src,
+    Test,
+}
+
+trait BuildCmd {
+    fn build(&mut self, config: &Config, set: Set) -> BuildkOutput;
+}
+
+trait CleanCmd {
+    fn clean(&mut self, config: &Config) -> BuildkOutput;
+}
+
+trait ConfigCmd {
+    fn config(&mut self, config: &Config) -> BuildkOutput;
+}
+
+trait DepsCmd {
+    fn deps(&mut self, config: &Config) -> BuildkOutput;
+}
+
+trait FetchCmd {
+    fn fetch(&mut self, config: &Config) -> BuildkOutput;
+}
+
+trait HelpCmd {
+    fn help(&mut self, config: &Config) -> BuildkOutput;
+}
+
+trait ReleaseCmd {
+    fn release(&mut self, config: &Config) -> BuildkOutput;
+}
+
+trait RunCmd {
+    fn run(&mut self, config: &Config, name: Option<String>) -> BuildkOutput;
+}
+
+trait TestCmd {
+    fn test(&mut self, config: &Config, name: Option<String>) -> BuildkOutput;
+}
+
+trait TreeCmd {
+    fn tree(&mut self, config: &Config) -> BuildkOutput;
+}
+
+impl Commands {
+    pub fn apply(&mut self, config: &Config) -> BuildkOutput {
+
+        match self {
+            Commands::Build { ref set } => self.build(config, set.clone()),
+            Commands::Clean => self.clean(config),
+            Commands::Config => self.config(config),
+            Commands::Deps => self.deps(config),
+            Commands::Fetch => self.fetch(config),
+            Commands::Help => self.help(config),
+            Commands::Release => self.release(config),
+            Commands::Tree => self.tree(config),
+            Commands::Run { ref name } => self.run(config, name.clone()),
+            Commands::Test { ref name } => self.test(config, name.clone()),
         }
     }
-}
 
-impl ToString for Option {
-    fn to_string(&self) -> String {
-        match self {
-            Option::Clean => "clean",
-            Option::BuildSrc => "build src",
-            Option::BuildTest => "build test",
-            Option::Fetch => "fetch",
-            Option::Test => "test",
-            Option::Run => "run",
-            Option::Release => "release",
-            Option::Deps => "deps",
-            Option::BuildTree => "tree",
-            Option::Config => "config",
-            Option::Help => "help",
-        }.to_string()
+    fn load_cache(&self, config: &Config) -> Cache {
+        let kotlin_home = get_kotlin_home();
+        let cache_dir = &config.manifest.project.out.cache;
+
+        Cache::load(&kotlin_home, cache_dir)
     }
-}
 
-impl Printable for Option {
-    fn print(&self, terminal: &mut util::terminal::Terminal) {
-        terminal.print(&format!("{:<12}", self.to_string()));
+    fn execute(
+        &self,
+        output: &mut BuildkOutput,
+        config: &Config,
+        cmd: &ProcessBuilder,
+        extra_fingerprint: u64,
+    ) -> BuildkOutput {
+        let mut cache = self.load_cache(config);
+        match cache.cache_command(cmd, extra_fingerprint) {
+            Ok(cache_res) => {
+                output
+                    .conclude(cache_res.conclusion)
+                    .stdout(cache_res.stdout.unwrap_or("".to_owned()))
+                    .status(cache_res.status);
+
+                if let Some(stderr) = cache_res.stderr {
+                    output
+                        .conclude(PartialConclusion::FAILED)
+                        .stderr(stderr);
+                }
+
+                output.to_owned()
+            }
+
+            Err(err) => {
+                let err = err.to_string().as_red();
+
+                println!("\r{err:#}");
+
+                output
+                    .conclude(PartialConclusion::FAILED)
+                    .stderr(err.to_string())
+                    .to_owned()
+            },
+        }
     }
 }
 
 pub struct Command {
     pub version: String,
-    pub cache: Mutex<Cache>,
-    test_libs: Vec<PathBuf>,
+    //test_libs: Vec<PathBuf>,
     pub client: Client,
 }
 
 impl Command {
+    // TODO: This should be loaded as an init to see if kotlin is installed
     pub fn new(config: &Config) -> Result<Command> {
         let kotlin_home = get_kotlin_home();
-        let cache = Cache::load(&kotlin_home, &config.manifest.project.out.cache);
+        let mut cache = Cache::load(&kotlin_home, &config.manifest.project.out.cache);
 
         let mut kotlinc = Command {
             version: "unknown".to_string(),
-            cache: Mutex::new(cache),
-            test_libs: vec![
+            /*test_libs: vec![
                 kotlin_home.join("libexec/lib/kotlin-test-junit5.jar"),
                 kotlin_home.join("libexec/lib/kotlin-test.jar"),
-            ],
+            ],*/
             client: Client
         };
 
         let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
         runner.cwd(&config.manifest.project.path).arg("-version");
 
-        let cache_res = kotlinc.cache.lock().unwrap().cache_command(&runner, 0)?;
+        let cache_res = cache.cache_command(&runner, 0)?;
         let version = cache_res
             .stdout
             .expect("kotlinc -version gave no stdout")
@@ -125,51 +215,4 @@ impl Command {
         Ok(kotlinc)
     }
 
-    fn execute(
-        &self,
-        output: &mut BuildkOutput,
-        cmd: &ProcessBuilder,
-        extra_fingerprint: u64,
-    ) -> BuildkOutput {
-        match self
-            .cache
-            .lock()
-            .unwrap()
-            .cache_command(cmd, extra_fingerprint)
-        {
-            Ok(cache_res) => {
-                //println!("{:?}", cache_res);
-
-                output
-                    .conclude(cache_res.conclusion)
-                    .stdout(cache_res.stdout.unwrap_or("".to_owned()))
-                    .status(cache_res.status);
-
-                if let Some(stderr) = cache_res.stderr {
-                    output
-                        .conclude(PartialConclusion::FAILED)
-                        .stderr(stderr);
-                }
-
-                output.to_owned()
-
-            }
-
-            Err(err) => {
-
-                let err = err.to_string().as_red();
-        
-                println!("\r{err:#}");
-
-                output
-                    .conclude(PartialConclusion::FAILED)
-                    .stderr(err.to_string())
-                    .to_owned()
-            },
-        }
-    }
-
-    fn invalidate_cache(&mut self) {
-        self.cache.lock().unwrap().invalidate()
-    }
 }

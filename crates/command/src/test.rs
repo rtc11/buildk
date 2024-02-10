@@ -4,18 +4,17 @@ use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 use util::PartialConclusion;
-use util::terminal::Terminal;
 
-use crate::build_tree::HeaderKt;
-use crate::Command;
+use crate::{TestCmd, Commands};
+use crate::tree::HeaderKt;
 
-impl Command {
-    pub fn run_tests(
-        &self, 
+impl TestCmd for Commands {
+    fn test(
+        &mut self, 
         config: &Config,
-        _terminal: &mut Terminal,
+        _name: Option<String>,
     ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+        let mut output = BuildkOutput::new("test");
         let mut java = ProcessBuilder::new("java");
 
         let dependencies = config.manifest.dependencies.clone();
@@ -70,7 +69,7 @@ impl Command {
         }    
         */
 
-        self.execute(&mut output, &java, 0)
+        self.execute(&mut output, config, &java, 0)
     }
 }
 

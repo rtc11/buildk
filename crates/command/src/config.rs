@@ -1,17 +1,16 @@
 use manifest::config::Config;
-use util::{buildk_output::BuildkOutput, terminal::{Terminal, Printable}};
+use util::buildk_output::BuildkOutput;
 
-use crate::Command;
+use crate::{ConfigCmd, Commands};
 
-impl Command {
-    pub fn config(
+impl ConfigCmd for Commands {
+    fn config(
         &mut self, 
         config: &Config,
-        _terminal: &mut Terminal,
     ) -> BuildkOutput {
-        let output = BuildkOutput::default();
+        let output = BuildkOutput::new("config");
 
-        config.print(_terminal);
+        println!("\r{}", config);
 
         output
     }

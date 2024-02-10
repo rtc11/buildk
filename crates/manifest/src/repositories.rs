@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, fmt::Display};
 
 use toml_edit::Document;
 
@@ -16,6 +16,12 @@ impl Default for Repository {
             name: "mavenCentral".into(),
             url: "https://repo1.maven.org/maven2".into(),
         }
+    }
+}
+
+impl Display for Repository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:<26}{} ({})", "repository", self.url, self.name)
     }
 }
 

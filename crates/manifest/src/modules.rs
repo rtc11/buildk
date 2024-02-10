@@ -1,10 +1,17 @@
 #![allow(dead_code)]
-use async_std::path::PathBuf;
+use std::fmt::Display;
 
-use crate::dependencies::Dependency;
+use async_std::path::PathBuf;
 
 #[derive(Clone)]
 pub struct Module {
+    name: String,
     path: PathBuf,
-    dependencies: Vec<Dependency>
 }
+
+impl Display for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:<26}{} ({})", "module:", self.path.display(), self.name)
+    }
+}
+

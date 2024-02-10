@@ -1,16 +1,14 @@
-use crate::Command;
+use crate::{Commands, HelpCmd};
 use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
-use util::terminal::Terminal;
 
-impl Command {
-    pub fn help(
-        &self, 
+impl HelpCmd for Commands {
+    fn help(
+        &mut self, 
         _config: &Config,
-        _terminal: &mut Terminal,
     ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+        let mut output = BuildkOutput::new("help");
 
         let mut display = String::new();
         display.push_str("───────────┬─────────────────────\n");

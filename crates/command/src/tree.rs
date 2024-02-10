@@ -1,20 +1,19 @@
-use crate::Command;
+use crate::{TreeCmd, Commands};
 use manifest::config::Config;
 use gryf::Graph;
 use gryf::algo::TopoSort;
-use util::terminal::{Terminal, Printable};
+use std::fmt::Display;
 use std::path::{PathBuf, Path};
 use util::buildk_output::BuildkOutput;
 use util::paths::all_files_recursive;
 use util::{PartialConclusion, StringExtras};
 
-impl Command {
-    pub fn build_tree(
-        &self, 
+impl TreeCmd for Commands {
+    fn tree(
+        &mut self, 
         config: &Config,
-        _terminal: &mut Terminal,
     ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+        let mut output = BuildkOutput::new("tree");
         match sort_by_imports(config){
             Ok(sorted) => {
                 //let project_path = &config.manifest.project.path;
@@ -91,8 +90,8 @@ impl HeaderKt {
     }
 }
 
-impl Printable for HeaderKt {
-    fn print(&self, terminal: &mut Terminal) {
+impl Display for HeaderKt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
 
         if self.package.is_empty() {
@@ -108,7 +107,7 @@ impl Printable for HeaderKt {
             s.push_str(", ");
         }
 
-        terminal.print(&s);
+        write!(f, "{}", s)
     }
 }
 

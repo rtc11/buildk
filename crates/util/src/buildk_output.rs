@@ -3,6 +3,7 @@ use crate::timer::Timer;
 
 #[derive(Clone, Debug)]
 pub struct BuildkOutput {
+    command: String, 
     conclusion: PartialConclusion,
     stdout: Option<String>,
     stderr: Option<String>,
@@ -14,6 +15,7 @@ pub struct BuildkOutput {
 impl Default for BuildkOutput {
     fn default() -> Self {
         BuildkOutput {
+            command: String::new(),
             conclusion: PartialConclusion::INIT,
             stdout: None,
             stderr: None,
@@ -25,6 +27,17 @@ impl Default for BuildkOutput {
 }
 
 impl BuildkOutput {
+    pub fn new(command: &str) -> Self {
+        BuildkOutput {
+            command: command.to_string(),
+            ..Default::default()
+        }
+    }
+    
+    pub fn get_command(&self) -> &str {
+        &self.command
+    }
+
     pub fn conclude(&mut self, status: PartialConclusion) -> &mut Self {
         if self.conclusion == PartialConclusion::INIT {
             self.conclusion = status;

@@ -6,17 +6,15 @@ use manifest::dependencies::Dependency;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 use util::PartialConclusion;
-use util::terminal::Terminal;
 
-use crate::Command;
+use crate::{DepsCmd, Commands};
 
-impl Command {
-    pub fn deps(
-        &self, 
+impl DepsCmd for Commands {
+    fn deps(
+        &mut self, 
         config: &Config,
-        _terminal: &mut Terminal,
     ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+        let mut output = BuildkOutput::new("deps");
 
         match lsp::update_classpath(config) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),

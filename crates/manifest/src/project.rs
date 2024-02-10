@@ -1,6 +1,6 @@
 use crate::Section;
 use anyhow::{ensure, Result};
-use util::terminal::Printable;
+use std::fmt::Display;
 use std::path::PathBuf;
 use std::str::FromStr;
 use toml_edit::Document;
@@ -61,13 +61,13 @@ impl Project {
     }
 }
 
-impl Printable for Project {
-    fn print(&self, terminal: &mut util::terminal::Terminal) {
-        terminal.print(&format!("{:<26}{}", "project.path", self.path.display()));
-        terminal.print(&format!("{:<26}{}", "project.src", self.src.display()));
-        terminal.print(&format!("{:<26}{}", "project.test", self.test.display()));
-        terminal.print(&format!("{:<26}{}", "project.main", self.main));
-        self.out.print(terminal);
+impl Display for Project {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:<26}{}", "project", self.path.display())?;
+        writeln!(f, "{:<26}{}", "project.src", self.src.display())?;
+        writeln!(f, "{:<26}{}", "project.test", self.test.display())?;
+        writeln!(f, "{:<26}{}", "project.main", self.main)?;
+        write!(f, "{}", self.out)
     }
 }
 
@@ -78,7 +78,7 @@ pub struct ProjectOutput {
     pub cache: PathBuf,
     pub test: PathBuf,
     pub test_report: PathBuf,
-    pub jar: PathBuf,
+    pub release: PathBuf,
 }
 
 impl ProjectOutput {
@@ -88,20 +88,20 @@ impl ProjectOutput {
             cache: path.join("cache.json"),
             test: path.join("test"),
             test_report: path.join("test-report"),
-            jar: path.join("app.jar"),
+            release: path.join("app.jar"),
             path,
         }
     }
 }
 
-impl Printable for ProjectOutput {
-    fn print(&self, terminal: &mut util::terminal::Terminal) {
-        terminal.print(&format!("{:<26}{}", "project.out.path", self.path.display()));
-        terminal.print(&format!("{:<26}{}", "project.out.cache", self.cache.display()));
-        terminal.print(&format!("{:<26}{}", "project.out.src", self.src.display()));
-        terminal.print(&format!("{:<26}{}", "project.out.test", self.test.display()));
-        terminal.print(&format!("{:<26}{}", "project.out.test-report", self.test_report.display()));
-        terminal.print(&format!("{:<26}{}", "project.out.jar", self.jar.display()));
+impl Display for ProjectOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:<26}{}", "project.out", self.path.display())?;
+        writeln!(f, "{:<26}{}", "project.out.cache", self.cache.display())?;
+        writeln!(f, "{:<26}{}", "project.out.src", self.src.display())?;
+        writeln!(f, "{:<26}{}", "project.out.test", self.test.display())?;
+        writeln!(f, "{:<26}{}", "project.out.test-report", self.test_report.display())?;
+        writeln!(f, "{:<26}{}", "project.out.release", self.release.display())
     }
 }
 
@@ -267,6 +267,6 @@ relative-path = "src"
     fn default_out_jar() {
         let default_out: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
-        assert_eq!(project.out.jar, default_out.join("out").join("app.jar"));
+        assert_eq!(project.out.release, default_out.join("out").join("app.jar"));
     }
 }

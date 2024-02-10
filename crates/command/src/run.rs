@@ -4,17 +4,16 @@ use manifest::config::Config;
 use manifest::dependencies::Kind;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
-use util::terminal::Terminal;
 
-use crate::Command;
+use crate::{RunCmd, Commands};
 
-impl Command {
-    pub fn run(
-        &self, 
+impl RunCmd for Commands {
+    fn run(
+        &mut self, 
         config: &Config,
-        _terminal: &mut Terminal,
+        name: Option<String>,
     ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+        let mut output = BuildkOutput::new("run");
         let mut java = ProcessBuilder::new("java");
 
         let dependencies = &config
@@ -33,9 +32,7 @@ impl Command {
 
         classpath.extend(dependencies.iter());
 
-        let extra_cmd: Option<String> = None; 
-
-        let main = match extra_cmd {
+        let main = match name {
             Some(class) => class.to_string() + "Kt",
             None => config.manifest.project.compiled_main_file()
         };
@@ -56,7 +53,7 @@ impl Command {
         }
         */
 
-        self.execute(&mut output, &java, 0)
+        self.execute(&mut output, config, &java, 0)
     }
 }
 

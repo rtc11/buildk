@@ -1,25 +1,24 @@
 use std::collections::HashSet;
 use async_std::task;
-use http::client::DownloadResult;
+use http::client::{DownloadResult, Client};
 use itertools::Itertools;
 use manifest::{config::Config, dependencies::Dependency};
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
-use util::terminal::Terminal;
 use spinners::{Spinner, Spinners};
-use crate::{Command, deps};
+use crate::{deps, Commands, FetchCmd};
 
 const DEBUG: bool = false;
 const PRINT_DOWNLOADS: bool = false;
 
-impl Command {
-    pub fn fetch_async(
-        &self, 
+impl FetchCmd for Commands {
+    fn fetch(
+        &mut self, 
         config: &Config,
-        _terminal: &mut Terminal,
     ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
-
+        let mut output = BuildkOutput::new("fetch");
+        let client = Client;
+            
         let deps = &config.manifest.dependencies;
 
         let downloads = task::block_on(async {
@@ -34,7 +33,7 @@ impl Command {
 
                     //let dep = dep.clone();
                     let config = config.clone();
-                    let client = self.client.clone();
+                    let client = client.clone();
 
                     task::block_on(async {
                         let mut spinner = Spinner::new(Spinners::Dots7, format!("\r          downloading {}:{}", dep.name, dep.version).to_string());

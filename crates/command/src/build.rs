@@ -3,33 +3,44 @@ use std::path::PathBuf;
 use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
-use util::terminal::Terminal;
-use util::{get_kotlinc, PartialConclusion};
+use util::{get_kotlinc, PartialConclusion, get_kotlin_home};
 
-use crate::{build_tree, Command};
+use crate::{Commands, Set, BuildCmd, tree};
 
 const DEBUG: bool = false;
 
-impl Command {
+impl BuildCmd for Commands {
 
-    pub fn build_src(
-        &mut self, 
-        config: &Config,
-        _terminal: &mut Terminal,
-    ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+    fn build(&mut self, config: &Config, source: Set) -> BuildkOutput {
+        let mut output = BuildkOutput::new("build");
+
+        match source {
+            Set::Src => self.build_src(&mut output, config),
+            Set::Test => self.build_test(&mut output, config),
+            Set::All => {
+                let mut output = self.build_src(&mut output, config);
+                self.build_test(&mut output, config)
+            }
+        }
+    }
+}
+
+impl Commands {
+
+    fn build_src(&self, output: &mut BuildkOutput, config: &Config) -> BuildkOutput {
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
-
+        let mut cache = self.load_cache(config);
+        
         kotlinc
             .cwd(&config.manifest.project.path)
             .destination(&config.manifest.project.out.src);
 
-        let extra_fingerprints = match build_tree::sort_by_imports(config) {
+        let extra_fingerprints = match tree::sort_by_imports(config) {
             Ok(sorted_src) => {
                 let sorted_src = sorted_src
                     .iter()
                     .filter(|file| {
-                        let has_changes = !matches!(self.cache.lock().unwrap().cache_file(file), Ok(PartialConclusion::CACHED));
+                        let has_changes = !matches!(cache.cache_file(file), Ok(PartialConclusion::CACHED));
                         if DEBUG {
                             println!("\r {} {}", if has_changes { "compile" } else { "cached" }, file.display())
                         }
@@ -40,7 +51,7 @@ impl Command {
 
                 if sorted_src.is_empty() {
                     output.conclude(PartialConclusion::CACHED);
-                    return output
+                    return output.to_owned()
                 } else {
                     output.conclude(PartialConclusion::SUCCESS);
                     sorted_src
@@ -64,25 +75,20 @@ impl Command {
                 output.stdout("possible cyclic DAG detected, see stderr".to_owned());
                 output.stderr(e.to_string());
                 output.conclude(PartialConclusion::FAILED);
-                return output;
+                return output.to_owned()
             }
         };
 
         let extra = extra_fingerprints.into_iter().reduce(|a, b| (a + b)).expect("failed to reduce fingerprints");
 
-        self.execute(&mut output, &kotlinc, extra)
+        self.execute(output, config, &kotlinc, extra)
     }
 
-    pub fn build_test(
-        &self, 
-        config: &Config,
-        _terminal: &mut Terminal,
-    ) -> BuildkOutput {
-        let mut output = BuildkOutput::default();
+    fn build_test(&self, output: &mut BuildkOutput, config: &Config) -> BuildkOutput {
 
         // return if no tests are configured
         if !config.manifest.project.test.is_dir(){
-            return output
+            return output.to_owned()
         }
 
         let project_test_libs = config
@@ -95,8 +101,14 @@ impl Command {
             .collect::<Vec<PathBuf>>();
 
         let mut classpath = vec![&config.manifest.project.out.src];
+        let kotlin_home = get_kotlin_home();
+        let test_libs = vec![
+            kotlin_home.join("libexec/lib/kotlin-test-junit5.jar"),
+            kotlin_home.join("libexec/lib/kotlin-test.jar"),
+        ];
+
         classpath.extend(project_test_libs.iter());
-        classpath.extend(self.test_libs.iter());
+        classpath.extend(test_libs.iter());
 
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
 
@@ -106,6 +118,7 @@ impl Command {
             .classpaths(classpath)
             .destination(&config.manifest.project.out.test);
 
-        self.execute(&mut output, &kotlinc, 0)
+        self.execute(output, config, &kotlinc, 0)
     }
 }
+
