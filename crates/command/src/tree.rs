@@ -1,4 +1,5 @@
 use crate::{TreeCmd, Commands};
+use anyhow::Result;
 use manifest::config::Config;
 use gryf::Graph;
 use gryf::algo::TopoSort;
@@ -14,11 +15,11 @@ impl TreeCmd for Commands {
         config: &Config,
     ) -> BuildkOutput {
         let mut output = BuildkOutput::new("tree");
-        match sort_by_imports(config){
-            Ok(sorted) => {
-                //let project_path = &config.manifest.project.path;
-                //sorted.iter().for_each(|file| println!("\r{:?}", file.strip_prefix(project_path).unwrap()));
-                output.stdout(format!("{sorted:?}"));
+        let mut tree = Tree::new(config);
+        
+        match tree.sort_by_imports() {
+            Ok(_) => {
+                output.stdout(format!("{tree}"));
                 output.conclude(PartialConclusion::SUCCESS);
             }
             Err(e) => {
@@ -32,27 +33,52 @@ impl TreeCmd for Commands {
     }
 }
 
-pub fn sort_by_imports(config: &Config) -> anyhow::Result<Vec<PathBuf>> {
-    let mut graph = Graph::new_directed();
+pub struct Tree {
+    pub files: Vec<PathBuf>,
+}
 
-    let paths = all_files_recursive(vec![], config.manifest.project.src.clone())?;
-    paths.iter()
-        .filter(|path| path.extension().unwrap_or_default() == "kt")
-        .map(Path::new)
-        .map(HeaderKt::parse)
-        .filter_map(|header| header.ok())
-        .for_each(|header| {
-            graph.add_vertex(header);
-        });
+impl Display for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        for file in &self.files {
+            s.push_str(&format!("{}\n", file.display()));
+        }
+        write!(f, "{}", s)
+    }
+}
 
-    graph.connect_vertices(|u, v| v.has_dependency(u).then_some(()));
+impl Tree {
+    pub fn new(config: &Config) -> Self {
+        let src = config.manifest.project.src.clone();
+        let files = all_files_recursive(vec![], src).unwrap_or_default();
+        Tree {
+            files
+        }
+    }
 
-    let sorted = TopoSort::on(&graph)
-        .run()
-        .map(|r| r.map(|v| graph[v].file.clone()))
-        .collect::<Result<Vec<_>, _>>();
+    pub fn sort_by_imports(&mut self) -> Result<()> {
+        let mut graph = Graph::new_directed();
 
-    Ok(sorted?)
+        self.files.iter()
+            .filter(|path| path.extension().unwrap_or_default() == "kt")
+            .map(Path::new)
+            .map(HeaderKt::parse)
+            .filter_map(|header| header.ok())
+            .for_each(|header| {
+                graph.add_vertex(header);
+            });
+
+        graph.connect_vertices(|u, v| v.has_dependency(u).then_some(()));
+
+        let sorted = TopoSort::on(&graph)
+            .run()
+            .map(|r| r.map(|v| graph[v].file.clone()))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.files = sorted; 
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Default, Debug)]
@@ -63,7 +89,7 @@ pub struct HeaderKt {
 }
 
 impl HeaderKt {
-    pub fn parse(file: &Path) -> anyhow::Result<HeaderKt> {
+    pub fn parse(file: &Path) -> Result<HeaderKt> {
         let content = util::paths::read(file)?;
         let file = file.to_path_buf();
         let mut package = String::new();

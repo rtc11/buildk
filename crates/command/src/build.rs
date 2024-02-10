@@ -5,7 +5,8 @@ use util::buildk_output::BuildkOutput;
 use util::process_builder::ProcessBuilder;
 use util::{get_kotlinc, PartialConclusion, get_kotlin_home};
 
-use crate::{Commands, Set, BuildCmd, tree};
+use crate::tree::Tree;
+use crate::{Commands, Set, BuildCmd};
 
 const DEBUG: bool = false;
 
@@ -26,7 +27,6 @@ impl BuildCmd for Commands {
 }
 
 impl Commands {
-
     fn build_src(&self, output: &mut BuildkOutput, config: &Config) -> BuildkOutput {
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
         let mut cache = self.load_cache(config);
@@ -35,9 +35,11 @@ impl Commands {
             .cwd(&config.manifest.project.path)
             .destination(&config.manifest.project.out.src);
 
-        let extra_fingerprints = match tree::sort_by_imports(config) {
-            Ok(sorted_src) => {
-                let sorted_src = sorted_src
+        let mut tree = Tree::new(config);
+    
+        let extra_fingerprints = match tree.sort_by_imports() {
+            Ok(_) => {
+                let sorted_src = tree.files
                     .iter()
                     .filter(|file| {
                         let has_changes = !matches!(cache.cache_file(file), Ok(PartialConclusion::CACHED));
