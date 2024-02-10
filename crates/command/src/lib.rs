@@ -13,7 +13,6 @@ mod clean;
 mod config;
 mod deps;
 mod fetch;
-mod help;
 mod release;
 mod run;
 mod test;
@@ -21,7 +20,8 @@ mod tree;
 
 #[derive(Parser)]
 #[command(name = "buildk")]
-#[command(about = "A build tool for Kotlin projects")]
+#[command(version = "0.1.0")]
+#[command(about = "A Kotlin build tool for the 21st century")]
 pub struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -35,9 +35,11 @@ impl Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Build the project
+    #[command(short_flag = 'b')]
     Build {
         #[arg(
-            value_name = "SOURCE",
+            value_name = "SET",
             num_args = 0..=1,
             default_missing_value = "always",
             default_value_t = Set::All,
@@ -45,25 +47,39 @@ pub enum Commands {
         )]
         set: Set,
     },
+    
+    /// Clean the output directory
+    #[command(short_flag = 'c')]
     Clean,
+
+    /// Show the project configuration
     Config,
+
+    /// Print the dependencies
     Deps,
+
+    /// Fetch the dependencies
     Fetch,
-    Help,
+
+    /// Create a release (jar)
     Release,
+
+    /// Run the project
+    #[command(short_flag = 'r')]
     Run {
-        #[arg(
-            value_name = "MAIN",
-        )]
+        #[arg(value_name = "MAIN")]
         name: Option<String>,
     },
+
+    /// Run JUnit tests
+    #[command(short_flag = 't')]
     Test {
-        #[arg(
-            value_name = "NAME",
-        )]
+        #[arg(value_name = "NAME")]
         name: Option<String>,
     },
-    Tree,
+
+    /// Print the build tree
+    Tree, 
 }
 
 #[derive(ValueEnum, Copy, Clone, PartialEq, Eq)]
@@ -122,7 +138,6 @@ impl Commands {
             Commands::Config => self.config(config),
             Commands::Deps => self.deps(config),
             Commands::Fetch => self.fetch(config),
-            Commands::Help => self.help(config),
             Commands::Release => self.release(config),
             Commands::Tree => self.tree(config),
             Commands::Run { ref name } => self.run(config, name.clone()),

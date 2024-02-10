@@ -89,6 +89,7 @@ pub struct HeaderKt {
 }
 
 impl HeaderKt {
+    // TODO: build a lexer?
     pub fn parse(file: &Path) -> Result<HeaderKt> {
         let content = util::paths::read(file)?;
         let file = file.to_path_buf();
@@ -119,7 +120,7 @@ impl HeaderKt {
         self.imports.contains(&other.package)
     }
 }
-
+/*
 impl Display for HeaderKt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
@@ -140,3 +141,4 @@ impl Display for HeaderKt {
         write!(f, "{}", s)
     }
 }
+*/

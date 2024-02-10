@@ -2,6 +2,9 @@
 name = "buildk"
 version = "0.1.0"
 edition = "2021"
+authors = ["Robin T <robin.tordly@gmail.com>"]
+description = "A Kotlin build tool for the 21st century"
+license = "MIT"
 
 #[[bin]]
 #name = "buildk"
