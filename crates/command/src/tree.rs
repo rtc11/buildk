@@ -1,22 +1,19 @@
-use crate::{TreeCmd, Commands};
+use crate::{Commands, TreeCmd};
 use anyhow::Result;
-use manifest::config::Config;
-use gryf::Graph;
 use gryf::algo::TopoSort;
+use gryf::Graph;
+use manifest::config::Config;
 use std::fmt::Display;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use util::buildk_output::BuildkOutput;
 use util::paths::all_files_recursive;
 use util::{PartialConclusion, StringExtras};
 
 impl TreeCmd for Commands {
-    fn tree(
-        &mut self, 
-        config: &Config,
-    ) -> BuildkOutput {
+    fn tree(&mut self, config: &Config) -> BuildkOutput {
         let mut output = BuildkOutput::new("tree");
         let mut tree = Tree::new(config);
-        
+
         match tree.sort_by_imports() {
             Ok(_) => {
                 output.stdout(format!("{tree}"));
@@ -41,7 +38,9 @@ impl Display for Tree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
         for file in &self.files {
-            s.push_str(&format!("{}\n", file.display()));
+            if let Some(filename) = file.file_name() {
+                s.push_str(&format!("{}\n", filename.to_string_lossy()));
+            }
         }
         write!(f, "{}", s)
     }
@@ -51,31 +50,32 @@ impl Tree {
     pub fn new(config: &Config) -> Self {
         let src = config.manifest.project.src.clone();
         let files = all_files_recursive(vec![], src).unwrap_or_default();
-        Tree {
-            files
-        }
+        Tree { files }
     }
 
     pub fn sort_by_imports(&mut self) -> Result<()> {
         let mut graph = Graph::new_directed();
 
-        self.files.iter()
+        self.files
+            .iter()
             .filter(|path| path.extension().unwrap_or_default() == "kt")
             .map(Path::new)
             .map(HeaderKt::parse)
-            .filter_map(|header| header.ok())
+            .filter_map(Result::ok)
             .for_each(|header| {
                 graph.add_vertex(header);
             });
 
-        graph.connect_vertices(|u, v| v.has_dependency(u).then_some(()));
+        graph.connect_vertices(|u, v| 
+            v.has_dependency(u).then_some(())
+        );
 
         let sorted = TopoSort::on(&graph)
             .run()
-            .map(|r| r.map(|v| graph[v].file.clone()))
+            .map(|res| res.map(|v| graph[v].file.clone()))
             .collect::<Result<Vec<_>, _>>()?;
 
-        self.files = sorted; 
+        self.files = sorted;
 
         Ok(())
     }
@@ -97,8 +97,12 @@ impl HeaderKt {
 
         for line in content.lines() {
             match line {
-                line if line.starts_with("package ") => package = line.replace("package ", "") .replace_after_last("."),
-                line if line.starts_with("import ") => imports.push( line.replace("import ", "").replace_after_last(".")),
+                line if line.starts_with("package ") => {
+                    package = line.replace("package ", "").replace_after_last(".")
+                }
+                line if line.starts_with("import ") => {
+                    imports.push(line.replace("import ", "").replace_after_last("."))
+                }
                 line if line.is_empty() => {}
                 _ => break, // skip rest of file
             }
@@ -136,4 +140,3 @@ impl Display for HeaderKt {
         write!(f, "{}", s)
     }
 }
-
