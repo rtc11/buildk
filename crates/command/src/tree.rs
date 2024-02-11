@@ -1,4 +1,4 @@
-use crate::{Commands, TreeCmd};
+use crate::Command;
 use anyhow::Result;
 use gryf::algo::TopoSort;
 use gryf::Graph;
@@ -9,14 +9,20 @@ use util::buildk_output::BuildkOutput;
 use util::paths::all_files_recursive;
 use util::{PartialConclusion, StringExtras};
 
-impl TreeCmd for Commands {
-    fn tree(&mut self, config: &Config) -> BuildkOutput {
-        let mut output = BuildkOutput::new("tree");
-        let mut tree = Tree::new(config);
+pub (crate) struct Tree {
+    files: Vec<PathBuf>,
+}
 
-        match tree.sort_by_imports() {
-            Ok(_) => {
-                output.stdout(format!("{tree}"));
+impl <'a> Command for Tree {
+    type Item = ();
+
+    fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
+        let mut output = BuildkOutput::new("tree");
+
+        match self.get_sorted_tree() {
+            Ok(files) => {
+                self.files = files;
+                output.stdout(format!("{self}"));
                 output.conclude(PartialConclusion::SUCCESS);
             }
             Err(e) => {
@@ -28,10 +34,6 @@ impl TreeCmd for Commands {
 
         output
     }
-}
-
-pub struct Tree {
-    pub files: Vec<PathBuf>,
 }
 
 impl Display for Tree {
@@ -46,14 +48,14 @@ impl Display for Tree {
     }
 }
 
-impl Tree {
-    pub fn new(config: &Config) -> Self {
+impl <'a> Tree {
+    pub fn new(config: &'a Config) -> Tree {
         let src = config.manifest.project.src.clone();
         let files = all_files_recursive(vec![], src).unwrap_or_default();
         Tree { files }
     }
 
-    pub fn sort_by_imports(&mut self) -> Result<()> {
+    pub fn get_sorted_tree(&self) -> Result<Vec<PathBuf>> {
         let mut graph = Graph::new_directed();
 
         self.files
@@ -75,9 +77,7 @@ impl Tree {
             .map(|res| res.map(|v| graph[v].file.clone()))
             .collect::<Result<Vec<_>, _>>()?;
 
-        self.files = sorted;
-
-        Ok(())
+        Ok(sorted)
     }
 }
 
@@ -120,25 +120,4 @@ impl HeaderKt {
         self.imports.contains(&other.package)
     }
 }
-/*
-impl Display for HeaderKt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut s = String::new();
 
-        if self.package.is_empty() {
-            let str = format!("{:<20} | ", &self.file.display());
-            s.push_str(&str);
-        } else {
-            let str = format!("{:<20} | ", &self.package);
-            s.push_str(&str);
-        }
-
-        for import in &self.imports {
-            s.push_str(import);
-            s.push_str(", ");
-        }
-
-        write!(f, "{}", s)
-    }
-}
-*/

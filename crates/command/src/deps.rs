@@ -1,4 +1,5 @@
 use async_std::task;
+use cache::cache::Cache;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use manifest::config::Config;
@@ -7,16 +8,19 @@ use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 use util::PartialConclusion;
 
-use crate::{DepsCmd, Commands};
+use crate::Command;
 
-impl DepsCmd for Commands {
-    fn deps(
-        &mut self, 
-        config: &Config,
-    ) -> BuildkOutput {
+pub (crate) struct Deps<'a> {
+    config: &'a Config,
+}
+
+impl <'a> Command for Deps<'a> {
+    type Item = ();
+
+    fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("deps");
 
-        match lsp::update_classpath(config) {
+        match lsp::update_classpath(self.config) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),
             Err(err) => output
                 .conclude(PartialConclusion::FAILED)
@@ -24,7 +28,7 @@ impl DepsCmd for Commands {
         };
 
         task::block_on(async {
-            let deps = config.manifest.dependencies.clone();
+            let deps = self.config.manifest.dependencies.clone();
             let deps = find_dependent_deps(deps, vec![], 0, true).await;
             println!("deps contains: {:?}", deps.len());
         });
@@ -34,6 +38,13 @@ impl DepsCmd for Commands {
         output.to_owned()
     }
 }
+
+impl <'a> Deps<'a> {
+    pub fn new(config: &'a Config, _cache: &'a mut Cache) -> Deps<'a> {
+        Deps { config }
+    }
+}
+
 fn status(dep: &Dependency) -> &str {
     match dep.is_cached() {
         true => "[cached]",

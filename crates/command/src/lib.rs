@@ -1,12 +1,21 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
+use build::Build;
 use cache::cache::Cache;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum, command};
+use clean::Clean;
+use deps::Deps;
+use fetch::Fetch;
 use ::manifest::config::Config;
 use http::client::Client;
+use release::Release;
+use run::Run;
+use test::Test;
+use tree::Tree;
 use util::buildk_output::BuildkOutput;
-use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
-use util::{get_kotlin_home, PartialConclusion};
+use util::get_kotlin_home;
 
 mod build;
 mod clean;
@@ -89,125 +98,48 @@ pub enum Set {
     Test,
 }
 
-trait BuildCmd {
-    fn build(&mut self, config: &Config, set: Set) -> BuildkOutput;
-}
+trait Command {
+    type Item;
 
-trait CleanCmd {
-    fn clean(&mut self, config: &Config) -> BuildkOutput;
-}
-
-trait ConfigCmd {
-    fn config(&mut self, config: &Config) -> BuildkOutput;
-}
-
-trait DepsCmd {
-    fn deps(&mut self, config: &Config) -> BuildkOutput;
-}
-
-trait FetchCmd {
-    fn fetch(&mut self, config: &Config) -> BuildkOutput;
-}
-
-trait HelpCmd {
-    fn help(&mut self, config: &Config) -> BuildkOutput;
-}
-
-trait ReleaseCmd {
-    fn release(&mut self, config: &Config) -> BuildkOutput;
-}
-
-trait RunCmd {
-    fn run(&mut self, config: &Config, name: Option<String>) -> BuildkOutput;
-}
-
-trait TestCmd {
-    fn test(&mut self, config: &Config, name: Option<String>) -> BuildkOutput;
-}
-
-trait TreeCmd {
-    fn tree(&mut self, config: &Config) -> BuildkOutput;
+    fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput;
 }
 
 impl Commands {
     pub fn apply(&mut self, config: &Config) -> BuildkOutput {
+        let mut cache = Cache::new(config);
+        let mut tree = Tree::new(config);
 
         match self {
-            Commands::Build { ref set } => self.build(config, set.clone()),
-            Commands::Clean => self.clean(config),
-            Commands::Config => self.config(config),
-            Commands::Deps => self.deps(config),
-            Commands::Fetch => self.fetch(config),
-            Commands::Release => self.release(config),
-            Commands::Tree => self.tree(config),
-            Commands::Run { ref name } => self.run(config, name.clone()),
-            Commands::Test { ref name } => self.test(config, name.clone()),
-        }
-    }
-
-    fn load_cache(&self, config: &Config) -> Cache {
-        let kotlin_home = get_kotlin_home();
-        let cache_dir = &config.manifest.project.out.cache;
-
-        Cache::load(&kotlin_home, cache_dir)
-    }
-
-    fn execute(
-        &self,
-        output: &mut BuildkOutput,
-        config: &Config,
-        cmd: &ProcessBuilder,
-        extra_fingerprint: u64,
-    ) -> BuildkOutput {
-        let mut cache = self.load_cache(config);
-        match cache.cache_command(cmd, extra_fingerprint) {
-            Ok(cache_res) => {
-                output
-                    .conclude(cache_res.conclusion)
-                    .stdout(cache_res.stdout.unwrap_or("".to_owned()))
-                    .status(cache_res.status);
-
-                if let Some(stderr) = cache_res.stderr {
-                    output
-                        .conclude(PartialConclusion::FAILED)
-                        .stderr(stderr);
-                }
-
-                output.to_owned()
-            }
-
-            Err(err) => {
-                let err = err.to_string().as_red();
-
-                println!("\r{err:#}");
-
-                output
-                    .conclude(PartialConclusion::FAILED)
-                    .stderr(err.to_string())
-                    .to_owned()
-            },
+            Commands::Build { set } => Build::new(config, &mut cache, &tree).execute(Some(*set)),
+            Commands::Clean => Clean::new(config, &mut cache).execute(None),
+            Commands::Config => config::Config::new(config).execute(None),
+            Commands::Deps => Deps::new(config, &mut cache).execute(None),
+            Commands::Fetch => Fetch::new(config, &mut cache).execute(None),
+            Commands::Release => Release::new(config, &mut cache).execute(None),
+            Commands::Run { name } => Run::new(config, &mut cache).execute(name.clone()),
+            Commands::Test { name } => Test::new(config, &mut cache).execute(name.clone()),
+            Commands::Tree => tree.execute(None),
         }
     }
 }
 
-pub struct Command {
+pub struct KotlinCompiler {
     pub version: String,
-    //test_libs: Vec<PathBuf>,
+    pub _test_libs: Vec<PathBuf>,
     pub client: Client,
 }
 
-impl Command {
-    // TODO: This should be loaded as an init to see if kotlin is installed
-    pub fn new(config: &Config) -> Result<Command> {
+impl KotlinCompiler {
+    pub fn new(config: &Config) -> Result<KotlinCompiler> {
         let kotlin_home = get_kotlin_home();
-        let mut cache = Cache::load(&kotlin_home, &config.manifest.project.out.cache);
+        let mut cache = Cache::new(config);
 
-        let mut kotlinc = Command {
+        let mut kotlinc = KotlinCompiler {
             version: "unknown".to_string(),
-            /*test_libs: vec![
+            _test_libs: vec![
                 kotlin_home.join("libexec/lib/kotlin-test-junit5.jar"),
                 kotlin_home.join("libexec/lib/kotlin-test.jar"),
-            ],*/
+            ],
             client: Client
         };
 

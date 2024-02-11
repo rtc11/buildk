@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::{PathBuf, Path};
 
 use anyhow::Result;
+use manifest::config::Config;
 use manifest::dependencies::Dependency;
 
 use util::{PartialConclusion, paths};
@@ -27,8 +28,21 @@ pub struct CacheResult {
     pub status: i32,
 }
 
+impl From<&Config> for Cache {
+    fn from(config: &Config) -> Cache {
+        let kotlin_home = util::get_kotlin_home();
+        let cache_dir = &config.manifest.project.out.cache;
+
+        Cache::load(&kotlin_home, cache_dir)
+    }
+}
+
 impl Cache {
-    pub fn load(kotlin_home: &Path, cache_location: &Path) -> Cache {
+    pub fn new(config: &Config) -> Cache {
+        Cache::from(config)
+    }
+
+    fn load(kotlin_home: &Path, cache_location: &Path) -> Cache {
         let kotlin_bin = kotlin_home.join("bin");
 
         match kotlinc_fingerprint(&kotlin_bin){

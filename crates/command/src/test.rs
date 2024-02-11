@@ -1,23 +1,28 @@
 use std::path::{PathBuf, Path};
 
+use cache::cache::Cache;
 use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
+use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
 use util::PartialConclusion;
 
-use crate::{TestCmd, Commands};
+use crate::Command;
 use crate::tree::HeaderKt;
 
-impl TestCmd for Commands {
-    fn test(
-        &mut self, 
-        config: &Config,
-        _name: Option<String>,
-    ) -> BuildkOutput {
+pub (crate) struct Test<'a> {
+    config: &'a Config,
+    cache: &'a mut Cache,
+}
+
+impl <'a> Command for Test<'a> {
+    type Item = String;
+
+    fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("test");
         let mut java = ProcessBuilder::new("java");
 
-        let dependencies = config.manifest.dependencies.clone();
+        let dependencies = self.config.manifest.dependencies.clone();
 
         let console_launcher = dependencies
             .iter()
@@ -36,21 +41,21 @@ impl TestCmd for Commands {
             .collect::<Vec<PathBuf>>();
 
         let mut classpath = vec![
-            &config.manifest.project.out.src,
-            &config.manifest.project.out.test,
+            &self.config.manifest.project.out.src,
+            &self.config.manifest.project.out.test,
         ];
 
         classpath.extend(&dep_jars);
 
-        java.cwd(&config.manifest.project.path)
+        java.cwd(&self.config.manifest.project.path)
             .jar(&console_launcher.unwrap().jar_absolute_path())
             .classpaths(classpath)
             .args(&["--details", "tree"]) //none,flat,tree,verbose
             .args(&["--exclude-engine", "junit-vintage"]) //engine:junit-platform-suite
             .args(&["--exclude-engine", "junit-platform-suite"]) //engine:junit-platform-suite
-            .test_report(&config.manifest.project.out.test_report);
+            .test_report(&self.config.manifest.project.out.test_report);
 
-        if let Ok(test_files) = util::paths::all_files_recursive(vec![], config.manifest.project.test.clone()){
+        if let Ok(test_files) = util::paths::all_files_recursive(vec![], self.config.manifest.project.test.clone()){
             let test_packages = test_files
                 .iter()
                 .map(Path::new)
@@ -63,13 +68,46 @@ impl TestCmd for Commands {
             }
         }
 
-        /*
-        if let Some(stdout) = output.get_stdout() {
-            println!("\r\n{stdout}");
-        }    
-        */
-
-        self.execute(&mut output, config, &java, 0)
+        self.execute_with_cache(&mut output, &java)
     }
 }
 
+impl <'a> Test <'_> {
+    pub fn new(config: &'a Config, cache: &'a mut Cache) -> Test<'a> {
+        Test { config, cache }
+    }
+
+    fn execute_with_cache(
+        &mut self,
+        output: &mut BuildkOutput,
+        cmd: &ProcessBuilder,
+    ) -> BuildkOutput {
+        match self.cache.cache_command(cmd, 0) {
+            Ok(cache_res) => {
+                output
+                    .conclude(cache_res.conclusion)
+                    .stdout(cache_res.stdout.unwrap_or("".to_owned()))
+                    .status(cache_res.status);
+
+                if let Some(stderr) = cache_res.stderr {
+                    output
+                        .conclude(PartialConclusion::FAILED)
+                        .stderr(stderr);
+                }
+
+                output.to_owned()
+            }
+
+            Err(err) => {
+                let err = err.to_string().as_red();
+
+                println!("\r{err:#}");
+
+                output
+                    .conclude(PartialConclusion::FAILED)
+                    .stderr(err.to_string())
+                    .to_owned()
+            },
+        }
+    }
+}

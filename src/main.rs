@@ -1,11 +1,11 @@
 use anyhow::Result;
 use util::terminal::Terminal;
-use command::{Command, Cli};
+use command::{KotlinCompiler, Cli};
 use manifest::config::Config;
 
 fn main() -> Result<()> {
     let config = Config::default();
-    let _ = Command::new(&config).expect("kotlin expected");
+    let _ = KotlinCompiler::new(&config).expect("kotlin expected");
     let mut terminal = Terminal::default();
 
 

@@ -1,92 +1,82 @@
 use std::path::PathBuf;
 
+use cache::cache::Cache;
 use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
+use util::colorize::Colorize;
 use util::process_builder::ProcessBuilder;
 use util::{get_kotlinc, PartialConclusion, get_kotlin_home};
 
 use crate::tree::Tree;
-use crate::{Commands, Set, BuildCmd};
+use crate::{Set, Command};
 
-const DEBUG: bool = false;
+pub (crate) struct Build<'a> {
+    config: &'a Config,
+    cache: &'a mut Cache,
+    tree: &'a Tree,
+}
 
-impl BuildCmd for Commands {
+impl <'a> Command for Build<'a> {
+    type Item = Set;
 
-    fn build(&mut self, config: &Config, source: Set) -> BuildkOutput {
+    fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("build");
-
-        match source {
-            Set::Src => self.build_src(&mut output, config),
-            Set::Test => self.build_test(&mut output, config),
-            Set::All => {
-                let mut output = self.build_src(&mut output, config);
-                self.build_test(&mut output, config)
+        match arg {
+            Some(Set::Src) => self.build_src(&mut output),
+            Some(Set::Test) => self.build_test(&mut output),
+            _ => {
+                let mut output = self.build_src(&mut output);
+                self.build_test(&mut output)
             }
         }
     }
 }
 
-impl Commands {
-    fn build_src(&self, output: &mut BuildkOutput, config: &Config) -> BuildkOutput {
+impl <'a> Build<'_> {
+    pub fn new(config: &'a Config, cache: &'a mut Cache, tree: &'a Tree) -> Build<'a> {
+        Build { config, cache, tree }
+    }
+
+    fn is_not_cached(&mut self, file: &PathBuf) -> bool {
+        let conclusion = self.cache.cache_file(file);
+        !matches!(conclusion, Ok(PartialConclusion::CACHED))
+    }
+
+    fn build_src(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         let mut kotlinc = ProcessBuilder::new(get_kotlinc());
-        let mut cache = self.load_cache(config);
         
         kotlinc
-            .cwd(&config.manifest.project.path)
-            .destination(&config.manifest.project.out.src);
+            .cwd(&self.config.manifest.project.path)
+            .destination(&self.config.manifest.project.out.src);
 
-        let mut tree = Tree::new(config);
-    
-        let extra_fingerprints = match tree.sort_by_imports() {
-            Ok(_) => {
-                let sorted_src = tree.files
-                    .iter()
-                    .filter(|file| {
-                        let has_changes = !matches!(cache.cache_file(file), Ok(PartialConclusion::CACHED));
-                        if DEBUG {
-                            println!("\r {} {}", if has_changes { "compile" } else { "cached" }, file.display())
-                        }
+        let build_tree = self.tree.get_sorted_tree().expect("Failed to get sorted build tree");
+        let changed_files: Vec<&PathBuf> = build_tree.iter().filter(|file| self.is_not_cached(file)).collect();
 
-                        has_changes
-                    })
-                    .collect::<Vec<&PathBuf>>();
+        if changed_files.is_empty() {
+            output.conclude(PartialConclusion::CACHED);
+            return output.to_owned()
+        }
 
-                if sorted_src.is_empty() {
-                    output.conclude(PartialConclusion::CACHED);
-                    return output.to_owned()
-                } else {
-                    output.conclude(PartialConclusion::SUCCESS);
-                    sorted_src
-                        .iter()
-                        .map(|src| {
-                            // extra fingerprints is used to check if the kotlinc command should be
-                            // rerun (its files have been modified)
-                            let fingerprint = cache::file_fingerprint(src).expect("failed to fingerprint file");
+        let extra_fingerprints = changed_files.iter().map(|src| {
+            kotlinc.sources(src);
+            cache::file_fingerprint(src).expect("Faile to create extra fingerprint")
+        }).reduce(|a, b| a + b);
 
-                            kotlinc.sources(src);
-
-                            if DEBUG {
-                                println!("compiling {}", src.display());
-                            }
-
-                            fingerprint
-                        }).collect::<Vec<_>>()
-                }
-            }
-            Err(e) => {
+        let extra_fingerprint = match extra_fingerprints {
+            Some(fingerprint) => fingerprint,
+            None => {
                 output.stdout("possible cyclic DAG detected, see stderr".to_owned());
-                output.stderr(e.to_string());
+                output.stderr("Failed to create extra fingerprint".to_owned());
                 output.conclude(PartialConclusion::FAILED);
                 return output.to_owned()
             }
         };
 
-        let extra = extra_fingerprints.into_iter().reduce(|a, b| (a + b)).expect("failed to reduce fingerprints");
-
-        self.execute(output, config, &kotlinc, extra)
+        self.execute_with_cache(output, &kotlinc, extra_fingerprint)
     }
 
-    fn build_test(&self, output: &mut BuildkOutput, config: &Config) -> BuildkOutput {
+    fn build_test(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
+        let config = self.config;
 
         // return if no tests are configured
         if !config.manifest.project.test.is_dir(){
@@ -120,7 +110,42 @@ impl Commands {
             .classpaths(classpath)
             .destination(&config.manifest.project.out.test);
 
-        self.execute(output, config, &kotlinc, 0)
+        self.execute_with_cache(output, &kotlinc, 0)
+    }
+    
+    fn execute_with_cache(
+        &mut self,
+        output: &mut BuildkOutput,
+        cmd: &ProcessBuilder,
+        extra: u64,
+    ) -> BuildkOutput {
+        match self.cache.cache_command(cmd, extra) {
+            Ok(cache_res) => {
+                output
+                    .conclude(cache_res.conclusion)
+                    .stdout(cache_res.stdout.unwrap_or("".to_owned()))
+                    .status(cache_res.status);
+
+                if let Some(stderr) = cache_res.stderr {
+                    output
+                        .conclude(PartialConclusion::FAILED)
+                        .stderr(stderr);
+                }
+
+                output.to_owned()
+            }
+
+            Err(err) => {
+                let err = err.to_string().as_red();
+
+                println!("\r{err:#}");
+
+                output
+                    .conclude(PartialConclusion::FAILED)
+                    .stderr(err.to_string())
+                    .to_owned()
+            },
+        }
     }
 }
 

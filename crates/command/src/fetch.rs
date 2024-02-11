@@ -1,28 +1,33 @@
 use std::collections::HashSet;
 use async_std::task;
+use cache::cache::Cache;
 use http::client::{DownloadResult, Client};
 use itertools::Itertools;
 use manifest::{config::Config, dependencies::Dependency};
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 use spinners::{Spinner, Spinners};
-use crate::{deps, Commands, FetchCmd};
+
+use crate::Command;
 
 const DEBUG: bool = false;
 const PRINT_DOWNLOADS: bool = false;
 
-impl FetchCmd for Commands {
-    fn fetch(
-        &mut self, 
-        config: &Config,
-    ) -> BuildkOutput {
+pub (crate) struct Fetch<'a> {
+    config: &'a Config,
+}
+
+impl <'a> Command for Fetch<'a> {
+    type Item = ();
+
+    fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("fetch");
         let client = Client;
             
-        let deps = &config.manifest.dependencies;
+        let deps = &self.config.manifest.dependencies;
 
         let downloads = task::block_on(async {
-            let all_deps = deps::find_dependent_deps(deps.to_vec(), vec![], 0, false).await;
+            let all_deps = crate::deps::find_dependent_deps(deps.to_vec(), vec![], 0, false).await;
 
             println!("\rtotal deps: {}", all_deps.len());
 
@@ -32,7 +37,7 @@ impl FetchCmd for Commands {
                 .map(|dep| {
 
                     //let dep = dep.clone();
-                    let config = config.clone();
+                    let config = self.config.clone();
                     let client = client.clone();
 
                     task::block_on(async {
@@ -64,7 +69,12 @@ impl FetchCmd for Commands {
 
         output
     }
+}
 
+impl <'a> Fetch<'a> {
+    pub fn new(config: &'a Config, _cache: &'a Cache) -> Fetch<'a> {
+        Fetch { config }
+    }
 }
 
 #[allow(dead_code)]
