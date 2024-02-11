@@ -46,6 +46,7 @@ pub struct Dependency {
     scope: Scope, // todo: change to enum when all values are known
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 enum Scope {
     /// Default scope, includes all

@@ -24,9 +24,9 @@ impl <'a> Command for Clean<'a> {
         let out_dir = &self.config.manifest.project.out.path;
 
         match remove_dir_all(out_dir) {
-            Ok(_) => self.cleaned(&mut output, &out_dir),
-            Err(e) if e.to_string() == *OS_2_ERROR => self.cleaned(&mut output, &out_dir),
-            Err(e) => self.failed(&mut output, &out_dir, e)
+            Ok(_) => self.cleaned(&mut output, out_dir),
+            Err(e) if e.to_string() == *OS_2_ERROR => self.cleaned(&mut output, out_dir),
+            Err(e) => self.failed(&mut output, out_dir, e)
         }
     }
 

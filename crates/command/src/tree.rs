@@ -13,7 +13,7 @@ pub (crate) struct Tree {
     files: Vec<PathBuf>,
 }
 
-impl <'a> Command for Tree {
+impl Command for Tree {
     type Item = ();
 
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
@@ -104,7 +104,7 @@ impl HeaderKt {
                 line if line.starts_with("import ") => {
                     imports.push(line.replace("import ", "").replace_after_last("."))
                 }
-                line if line.is_empty() => {}
+                "" => {}
                 _ => break, // skip rest of file
             }
         }

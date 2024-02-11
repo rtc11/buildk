@@ -114,7 +114,7 @@ impl Commands {
             Commands::Clean => Clean::new(config, &mut cache).execute(None),
             Commands::Config => config::Config::new(config).execute(None),
             Commands::Deps => Deps::new(config, &mut cache).execute(None),
-            Commands::Fetch => Fetch::new(config, &mut cache).execute(None),
+            Commands::Fetch => Fetch::new(config, &cache).execute(None),
             Commands::Release => Release::new(config, &mut cache).execute(None),
             Commands::Run { name } => Run::new(config, &mut cache).execute(name.clone()),
             Commands::Test { name } => Test::new(config, &mut cache).execute(name.clone()),
