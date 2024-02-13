@@ -1,9 +1,6 @@
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
-use util::get_kotlin_home;
-
-use crate::classpath::Classpath;
 use crate::manifest::Manifest;
 
 #[derive(Default, Clone)]
@@ -13,9 +10,6 @@ pub struct Config {
 
     /// `buildk.toml`
     pub manifest: Manifest,
-
-
-    pub _classpath: Classpath,
 }
 
 #[derive(Clone)]
@@ -42,8 +36,7 @@ impl Display for Home {
 impl Display for Config {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}", self.home)?;
-        write!(f, "{}", self.manifest)?;
-        writeln!(f, "{:<26}{}", "kotlin.home", get_kotlin_home().display())
+        write!(f, "{}", self.manifest)
     }
 }
 

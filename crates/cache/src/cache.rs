@@ -3,17 +3,16 @@ use std::io::Write;
 use std::path::{PathBuf, Path};
 
 use anyhow::Result;
-use manifest::config::Config;
 use manifest::dependencies::Dependency;
 
+use util::buildk_output::BuildkOutput;
 use util::{PartialConclusion, paths};
-use util::process_builder::ProcessBuilder;
-use util::process_error::ProcessError;
 
-use crate::{dependency_fingerprint, kotlinc_fingerprint, file_fingerprint, process_fingerprint};
+use crate::{dependency_fingerprint, file_fingerprint};
 use crate::data::CacheData;
 use crate::output::Output;
 
+#[derive(Clone)]
 pub struct Cache {
     location: PathBuf,
     dirty: bool,
@@ -28,94 +27,64 @@ pub struct CacheResult {
     pub status: i32,
 }
 
-impl From<&Config> for Cache {
-    fn from(config: &Config) -> Cache {
-        let kotlin_home = util::get_kotlin_home();
-        let cache_dir = &config.manifest.project.out.cache;
+pub trait Cacheable {
+    type Item;
 
-        Cache::load(&kotlin_home, cache_dir)
+    fn cache(&mut self, cache: &mut Cache, item: Self::Item) -> Result<CacheResult>;
+    fn fingerprint(&self, item: Self::Item) -> u64;
+}
+
+impl From<CacheResult> for BuildkOutput {
+    fn from(value: CacheResult) -> Self {
+        let conclusion = match value.stderr {
+            Some(_) => PartialConclusion::FAILED,
+            None => value.conclusion,
+        };
+
+        BuildkOutput::new("temp")
+            .conclude(conclusion)
+            .status(value.status)
+            .stdout(value.stdout.unwrap_or("".to_owned()))
+            .stderr(value.stderr.unwrap_or("".to_owned()))
+            .to_owned()
     }
 }
 
 impl Cache {
-    pub fn new(config: &Config) -> Cache {
-        Cache::from(config)
-    }
+    pub fn load(cache_location: &Path) -> Cache {
+        let location = cache_location.to_path_buf();
 
-    fn load(kotlin_home: &Path, cache_location: &Path) -> Cache {
-        let kotlin_bin = kotlin_home.join("bin");
-
-        match kotlinc_fingerprint(&kotlin_bin){
-            Ok(fingerprint) => {
-                let empty = CacheData::empty(fingerprint);
-                let mut dirty = true;
-
-                let data = match read(cache_location){
-                    Ok(data) => {
-                        if data.fingerprint() == fingerprint {
-                            dirty = false;
-                            data
-                        } else {
-                            empty
-                        }
-                    }
-                    Err(_) => empty
-                };
-                let location = cache_location.to_path_buf();
-                return Cache { location, dirty, data };
-
-                fn read(path: &Path) -> Result<CacheData> {
-                    let json = paths::read(path)?;
-                    Ok(serde_json::from_str(&json)?)
-                }
+        match Self::read(cache_location){
+            Ok(data) => {
+                let dirty = false;
+                Cache { location, dirty, data }
             }
-            Err(e) => {
-                eprintln!("no cache found {e}");
-
+            Err(_) => {
                 Cache {
                     location: cache_location.to_path_buf(),
                     dirty: false,
-                    data: CacheData::default(),
+                    data: CacheData::default()
                 }
             }
         }
     }
 
-    pub fn cache_command(
-        &mut self,
-        cmd: &ProcessBuilder,
-        extra_fingerprint: u64,
-    ) -> Result<CacheResult> {
-        let key = process_fingerprint(cmd, extra_fingerprint);
-        let partial_conclusion = match self.data.contains_key(&key) {
-            true => PartialConclusion::CACHED,
-            false => {
-                let output = cmd.output()?;
-                self.data.insert(key, Output::try_from(cmd, output)?);
-                self.dirty = true;
-                PartialConclusion::SUCCESS
-            }
-        };
+    fn read(path: &Path) -> Result<CacheData> {
+        let json = paths::read(path)?;
+        Ok(serde_json::from_str(&json)?)
+    }
 
-        let output = self.data.get(&key);
+    pub fn insert(&mut self, key: u64, output: Output) {
+        self.data.insert(key, output);
+        self.dirty = true;
+    }
 
-        match output.success {
-            true => {
-                Ok(CacheResult {
-                    conclusion: partial_conclusion,
-                    stdout: Some(output.stdout.clone()),
-                    stderr: Some(output.stderr.clone()),
-                    status: output.code.unwrap_or(0)
-                })
-            },
-            false => Err(ProcessError::new_with_raw_output(
-                &format!("process didn't exit successfully (cache): {cmd}"),
-                output.code,
-                &output.status,
-                Some(output.stdout.as_ref()),
-                Some(output.stderr.as_ref()),
-            ).into())
-        }
+    pub fn get(&self, key: &u64) -> &Output {
+        self.data.get(key)
+    }
+
+    pub fn contains_key(&self, key: &u64) -> bool {
+        self.data.contains_key(key)
     }
 
     pub fn cache_file(

@@ -1,6 +1,5 @@
 extern crate core;
 
-use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -12,10 +11,9 @@ pub mod config;
 pub mod project;
 pub mod dependencies;
 pub mod modules;
-pub mod classpath;
 
 pub fn read_file(file: &Path) -> Result<String> {
-    fs::read_to_string(file).context(format!("File not found: {}", file.display()))
+    std::fs::read_to_string(file).context(format!("File not found: {}", file.display()))
 }
 
 pub(crate) enum Section {
@@ -24,6 +22,7 @@ pub(crate) enum Section {
     Module,
     Dependencies,
     TestDependencies,
+    Kotlin,
 }
 
 impl FromStr for Section {
@@ -36,6 +35,7 @@ impl FromStr for Section {
             "module" => Section::Module,
             "dependencies" => Section::Dependencies,
             "test-dependencies" => Section::TestDependencies,
+            "kotlin" => Section::Kotlin,
             _ => anyhow::bail!("Invalid section: {}", s),
         })
     }

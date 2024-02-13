@@ -1,10 +1,9 @@
-use std::path::{PathBuf, Path};
+use std::path::Path;
 
-use cache::cache::Cache;
 use manifest::config::Config;
+use manifest::dependencies::DependenciesTools;
+use process::java::Java;
 use util::buildk_output::BuildkOutput;
-use util::colorize::Colorize;
-use util::process_builder::ProcessBuilder;
 use util::PartialConclusion;
 
 use crate::Command;
@@ -12,7 +11,7 @@ use crate::tree::HeaderKt;
 
 pub (crate) struct Test<'a> {
     config: &'a Config,
-    cache: &'a mut Cache,
+    java: &'a Java<'a>,
 }
 
 impl <'a> Command for Test<'a> {
@@ -20,40 +19,36 @@ impl <'a> Command for Test<'a> {
 
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("test");
-        let mut java = ProcessBuilder::new("java");
 
-        let dependencies = self.config.manifest.dependencies.clone();
+        let console_launcher = match self.config.manifest.dependencies.junit_platform() {
+            Some(dep) => dep.jar_absolute_path(),
+            None => {
+                return output
+                    .conclude(PartialConclusion::FAILED)
+                    .stderr("missing junit platform dependency".to_owned()).to_owned();
+            }
+        };
 
-        let console_launcher = dependencies
-            .iter()
-            .filter(|it| it.is_cached())
-            .find(|it| it.name.contains("junit-platform-console-standalone"));
-
-        if console_launcher.is_none() {
-            output.conclude(PartialConclusion::FAILED);
-            println!("missing console logger")
-        }
-
-        let dep_jars = dependencies
-            .iter()
-            .filter(|it| !it.name.contains("junit-platform-console-standalone"))
-            .map(|it| it.jar_absolute_path())
-            .collect::<Vec<PathBuf>>();
+        let test_deps = self.config.manifest.dependencies.test_deps();
+        let test_deps_cp = test_deps.iter().map(|dep| dep.jar_absolute_path()).collect::<Vec<_>>();
+        let junit_cp = self.config.manifest.dependencies.junit_runner().map(|dep| dep.jar_absolute_path()).expect("missing junit");
 
         let mut classpath = vec![
             &self.config.manifest.project.out.src,
             &self.config.manifest.project.out.test,
+            &junit_cp,
         ];
 
-        classpath.extend(&dep_jars);
+        classpath.extend(&test_deps_cp);
 
-        java.cwd(&self.config.manifest.project.path)
-            .jar(&console_launcher.unwrap().jar_absolute_path())
-            .classpaths(classpath)
-            .args(&["--details", "tree"]) //none,flat,tree,verbose
-            .args(&["--exclude-engine", "junit-vintage"]) //engine:junit-platform-suite
-            .args(&["--exclude-engine", "junit-platform-suite"]) //engine:junit-platform-suite
-            .test_report(&self.config.manifest.project.out.test_report);
+        let mut java = self.java.builder();
+        java.workdir(&self.config.manifest.project.path)
+            .classpath(classpath)
+            .jar(&console_launcher)
+            .test_report(&self.config.manifest.project.out.test_report)
+            .args(&["--details", "tree"])
+            .args(&["--exclude-engine", "junit-vintage"])
+            .args(&["--exclude-engine", "junit-platform-suite"]);
 
         if let Ok(test_files) = util::paths::all_files_recursive(vec![], self.config.manifest.project.test.clone()){
             let test_packages = test_files
@@ -68,46 +63,13 @@ impl <'a> Command for Test<'a> {
             }
         }
 
-        self.execute_with_cache(&mut output, &java)
+        java.run(&mut output)
     }
 }
 
 impl <'a> Test <'_> {
-    pub fn new(config: &'a Config, cache: &'a mut Cache) -> Test<'a> {
-        Test { config, cache }
-    }
-
-    fn execute_with_cache(
-        &mut self,
-        output: &mut BuildkOutput,
-        cmd: &ProcessBuilder,
-    ) -> BuildkOutput {
-        match self.cache.cache_command(cmd, 0) {
-            Ok(cache_res) => {
-                output
-                    .conclude(cache_res.conclusion)
-                    .stdout(cache_res.stdout.unwrap_or("".to_owned()))
-                    .status(cache_res.status);
-
-                if let Some(stderr) = cache_res.stderr {
-                    output
-                        .conclude(PartialConclusion::FAILED)
-                        .stderr(stderr);
-                }
-
-                output.to_owned()
-            }
-
-            Err(err) => {
-                let err = err.to_string().as_red();
-
-                println!("\r{err:#}");
-
-                output
-                    .conclude(PartialConclusion::FAILED)
-                    .stderr(err.to_string())
-                    .to_owned()
-            },
-        }
+    pub fn new(config: &'a Config, java: &'a Java) -> Test<'a> {
+        Test { config, java }
     }
 }
+

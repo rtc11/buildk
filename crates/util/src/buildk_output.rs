@@ -33,6 +33,14 @@ impl BuildkOutput {
             ..Default::default()
         }
     }
+
+    pub fn apply(&mut self, other: BuildkOutput) -> &mut Self {
+        self.conclusion = other.conclusion;
+        self.stdout = other.stdout;
+        self.stderr = other.stderr;
+        self.status = other.status;
+        self
+    }
     
     pub fn get_command(&self) -> &str {
         &self.command

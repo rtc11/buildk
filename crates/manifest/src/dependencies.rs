@@ -31,6 +31,7 @@ pub enum Kind {
     Source,
     Test,
     Platform,
+    PlatformTest,
 }
 
 impl Display for Dependency {
@@ -39,14 +40,61 @@ impl Display for Dependency {
             Kind::Source => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
             Kind::Test => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
             Kind::Platform => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
+            Kind::PlatformTest => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
         }
     }
 }
 
-pub(crate) fn platform_deps() -> Vec<Dependency> {
+pub trait DependenciesTools {
+    fn platform_deps(&self) -> Vec<Dependency>;
+    fn platform_test_deps(&self) -> Vec<Dependency>;
+    fn src_deps(&self) -> Vec<Dependency>;
+    fn test_deps(&self) -> Vec<Dependency>;
+    fn junit_runner(&self) -> Option<Dependency>;
+    fn kotlin_stdlib(&self) -> Option<Dependency>; 
+    fn junit_platform(&self) -> Option<Dependency>; 
+}
+
+impl DependenciesTools for Vec<Dependency> {
+    fn platform_deps(&self) -> Vec<Dependency> {
+        self.iter().filter(|dep| dep.kind == Kind::Platform).cloned().collect()
+    }
+
+    fn platform_test_deps(&self) -> Vec<Dependency> {
+        self.iter().filter(|dep| dep.kind == Kind::PlatformTest).cloned().collect()
+    }
+
+    fn src_deps(&self) -> Vec<Dependency> {
+        self.iter().filter(|dep| dep.kind == Kind::Source).cloned().collect() 
+    }
+
+    fn test_deps(&self) -> Vec<Dependency> {
+        self.iter().filter(|dep| dep.kind == Kind::Test).cloned().collect()
+    }
+
+    fn junit_runner(&self) -> Option<Dependency> {
+        self.platform_test_deps().iter()
+            .find(|dep| dep.name.eq("org.junit.platform.junit-platform-console-standalone"))
+            .cloned()
+    }
+
+    fn kotlin_stdlib(&self) -> Option<Dependency> {
+        self.platform_deps().iter()
+            .find(|dep| dep.name.eq("org.jetbrains.kotlin.kotlin-stdlib"))
+            .cloned()
+    }
+
+    fn junit_platform(&self) -> Option<Dependency> {
+        self.platform_test_deps().iter()
+            .find(|dep| dep.name.eq("org.junit.jupiter.junit-jupiter-api"))
+            .cloned()
+    }
+}
+
+pub(crate) fn create_platform_deps() -> Vec<Dependency> {
     vec![
         Dependency::new(
-            &Kind::Platform,
+            &Kind::PlatformTest,
             "org.junit.platform.junit-platform-console-standalone",
             "1.10.1",
         )
@@ -58,7 +106,7 @@ pub(crate) fn platform_deps() -> Vec<Dependency> {
         )
         .unwrap(),
         Dependency::new(
-            &Kind::Platform,
+            &Kind::PlatformTest,
             "org.junit.jupiter.junit-jupiter-api",
             "5.5.2",
         )
@@ -211,7 +259,7 @@ pub(crate) fn dependencies(manifest: &Document) -> Vec<Dependency> {
         })
         .collect::<Vec<Dependency>>();
 
-    let platform_deps = platform_deps();
+    let platform_deps = create_platform_deps();
 
     manifested_deps
         .iter()

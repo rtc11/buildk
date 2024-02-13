@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use colorize::Colorize;
 use terminal::Printable;
 
@@ -7,8 +5,6 @@ pub mod buildk_output;
 pub mod colorize;
 pub mod hasher;
 pub mod paths;
-pub mod process_builder;
-pub mod process_error;
 pub mod terminal;
 pub mod timer;
 
@@ -60,16 +56,6 @@ impl Printable for PartialConclusion {
     }
 }
 
-pub fn get_kotlinc() -> PathBuf {
-    get_kotlin_home().join("bin/kotlinc")
-}
-
-pub fn get_kotlin_home() -> PathBuf {
-    match option_env!("KOTLIN_HOME") {
-        Some(dir) => PathBuf::from(dir),
-        None => PathBuf::from("/usr/local/Cellar/kotlin/1.9.22/"),
-    }
-}
 
 pub trait StrExtras {
     fn replace_after_last(&self, pattern: &str) -> &str;

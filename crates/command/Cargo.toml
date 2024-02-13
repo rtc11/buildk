@@ -9,6 +9,7 @@ manifest.workspace = true
 home.workspace = true
 http.workspace = true
 util.workspace = true
+process.workspace = true
 
 itertools.workspace = true
 gryf.workspace = true

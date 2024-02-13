@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::dependencies::{dependencies, Dependency};
 use crate::modules::Module;
@@ -14,6 +14,7 @@ pub struct Manifest {
     pub repositories: Vec<Repository>,
     pub modules: Vec<Module>,
     pub dependencies: Vec<Dependency>,
+    pub kotlin_home: Option<PathBuf>,
 }
 
 impl Default for Manifest {
@@ -27,9 +28,18 @@ impl Default for Manifest {
             repositories: repositories(&toml),
             modules: vec![],
             dependencies: dependencies(&toml),
+            kotlin_home: kotlin_home(&toml),
         }
     }
 }
+
+fn kotlin_home(manifest: &toml_edit::Document) -> Option<PathBuf> {
+    manifest.as_table()
+        .get("kotlin")
+        .and_then(|it| it.as_str())
+        .map(PathBuf::from)
+}
+
 
 impl Display for Manifest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -48,7 +58,6 @@ impl Display for Manifest {
         }
 
         write!(f, "")
-        
     }
 }
 

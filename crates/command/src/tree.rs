@@ -109,11 +109,7 @@ impl HeaderKt {
             }
         }
 
-        Ok(HeaderKt {
-            file,
-            package,
-            imports,
-        })
+        Ok(HeaderKt { file, package, imports })
     }
 
     pub fn has_dependency(&self, other: &HeaderKt) -> bool {

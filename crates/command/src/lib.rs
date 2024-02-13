@@ -1,21 +1,16 @@
-use std::path::PathBuf;
-
-use anyhow::Result;
+use ::manifest::config::Config;
 use build::Build;
 use cache::cache::Cache;
-use clap::{Parser, Subcommand, ValueEnum, command};
+use clap::{command, Parser, Subcommand, ValueEnum};
 use clean::Clean;
 use deps::Deps;
 use fetch::Fetch;
-use ::manifest::config::Config;
-use http::client::Client;
+use process::{kotlin::Kotlin, Process, java::Java};
 use release::Release;
 use run::Run;
 use test::Test;
 use tree::Tree;
 use util::buildk_output::BuildkOutput;
-use util::process_builder::ProcessBuilder;
-use util::get_kotlin_home;
 
 mod build;
 mod clean;
@@ -28,7 +23,7 @@ mod test;
 mod tree;
 
 #[derive(Parser)]
-#[command(name = "buildk")]
+#[command(name = "")]
 #[command(version = "0.1.0")]
 #[command(about = "A Kotlin build tool for the 21st century")]
 pub struct Cli {
@@ -39,7 +34,7 @@ pub struct Cli {
 impl Cli {
     pub fn commands() -> Commands {
         Cli::parse().command
-    } 
+    }
 }
 
 #[derive(Subcommand)]
@@ -56,7 +51,7 @@ pub enum Commands {
         )]
         set: Set,
     },
-    
+
     /// Clean the output directory
     #[command(short_flag = 'c')]
     Clean,
@@ -88,7 +83,7 @@ pub enum Commands {
     },
 
     /// Print the build tree
-    Tree, 
+    Tree,
 }
 
 #[derive(ValueEnum, Copy, Clone, PartialEq, Eq)]
@@ -106,60 +101,22 @@ trait Command {
 
 impl Commands {
     pub fn apply(&mut self, config: &Config) -> BuildkOutput {
-        let mut cache = Cache::new(config);
+        let mut cache = Cache::load(&config.manifest.project.out.cache);
         let mut tree = Tree::new(config);
+        let kotlin = Kotlin::new(config).expect("kotlin not found");
+        let java = Java::new(config).expect("java not found");
 
         match self {
-            Commands::Build { set } => Build::new(config, &mut cache, &tree).execute(Some(*set)),
+            Commands::Build { set } => Build::new(config, &kotlin, &mut cache, &tree).execute(Some(*set)),
             Commands::Clean => Clean::new(config, &mut cache).execute(None),
             Commands::Config => config::Config::new(config).execute(None),
             Commands::Deps => Deps::new(config, &mut cache).execute(None),
             Commands::Fetch => Fetch::new(config, &cache).execute(None),
-            Commands::Release => Release::new(config, &mut cache).execute(None),
-            Commands::Run { name } => Run::new(config, &mut cache).execute(name.clone()),
-            Commands::Test { name } => Test::new(config, &mut cache).execute(name.clone()),
+            Commands::Release => Release::new(config, &kotlin).execute(None),
+            Commands::Run { name } => Run::new(config, &java).execute(name.clone()),
+            Commands::Test { name } => Test::new(config, &java).execute(name.clone()),
             Commands::Tree => tree.execute(None),
         }
     }
 }
 
-pub struct KotlinCompiler {
-    pub version: String,
-    pub _test_libs: Vec<PathBuf>,
-    pub client: Client,
-}
-
-impl KotlinCompiler {
-    pub fn new(config: &Config) -> Result<KotlinCompiler> {
-        let kotlin_home = get_kotlin_home();
-        let mut cache = Cache::new(config);
-
-        let mut kotlinc = KotlinCompiler {
-            version: "unknown".to_string(),
-            _test_libs: vec![
-                kotlin_home.join("libexec/lib/kotlin-test-junit5.jar"),
-                kotlin_home.join("libexec/lib/kotlin-test.jar"),
-            ],
-            client: Client
-        };
-
-        let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
-        runner.cwd(&config.manifest.project.path).arg("-version");
-
-        let cache_res = cache.cache_command(&runner, 0)?;
-        let version = cache_res
-            .stdout
-            .expect("kotlinc -version gave no stdout")
-            .lines()
-            .find(|l| l.starts_with("Kotlin version "))
-            .map(|l| l.replace("Kotlin version ", ""))
-            .ok_or_else(|| {
-                anyhow::format_err!("`kotlinc -version` didnt have a line for `Kotlin version")
-            })?;
-
-        kotlinc.version = version;
-
-        Ok(kotlinc)
-    }
-
-}

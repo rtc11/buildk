@@ -21,6 +21,7 @@ cache = { path = "crates/cache" }
 command = { path = "crates/command" }
 dependencies = { path = "crates/dependencies" }
 manifest = { path = "crates/manifest" }
+process = { path = "crates/process" }
 http = { path = "crates/http" }
 util = { path = "crates/util" }
 
@@ -46,7 +47,7 @@ serde_derive = "1.0.196"
 serde_json = "1.0.113"
 toml = "0.8.10"
 toml_edit = "0.22.4"
-xml-rs = "0.8.4"
+xml-rs = "0.8.19"
 roxmltree = "0.19.0"
 
 #multi-spinner = "0.1.0"
