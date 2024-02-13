@@ -6,7 +6,7 @@ use manifest::config::Config;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 
-use crate::Command;
+use crate::{Command, CleanSet};
 
 const OS_2_ERROR: &str = "No such file or directory (os error 2)";
 
@@ -16,21 +16,19 @@ pub (crate) struct Clean<'a> {
 }
 
 impl <'a> Command for Clean<'a> {
-    type Item = ();
+    type Item = CleanSet;
 
-    fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
+    fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("clean");
+        let arg = arg.expect("arg should have default value == All");
 
-        let out_dir = &self.config.manifest.project.out.path;
-
-        match remove_dir_all(out_dir) {
-            Ok(_) => self.cleaned(&mut output, out_dir),
-            Err(e) if e.to_string() == *OS_2_ERROR => self.cleaned(&mut output, out_dir),
-            Err(e) => self.failed(&mut output, out_dir, e)
+        match arg {
+            CleanSet::Src => self.clean_src(&mut output),
+            CleanSet::Test => self.clean_test(&mut output),
+            CleanSet::Release => self.clean_release(&mut output),
+            CleanSet::All => self.clean_all(&mut output)
         }
     }
-
-
 }
 
 impl <'a> Clean<'_> {
@@ -38,8 +36,36 @@ impl <'a> Clean<'_> {
         Clean { config, cache }
     }
 
+    fn clean_src(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
+        let path = &self.config.manifest.project.out.src;
+        self.delete(output, path)
+    }
+
+    fn clean_test(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
+        let path = &self.config.manifest.project.out.test;
+        self.delete(output, path)
+    }
+
+    fn clean_release(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
+        let path = &self.config.manifest.project.out.release;
+        self.delete(output, path)
+    }
+
+    fn clean_all(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
+        let path = &self.config.manifest.project.out.path;
+        self.delete(output, path) 
+    }
+
+    fn delete(&mut self, output: &mut BuildkOutput, out_dir: &Path) -> BuildkOutput {
+        match remove_dir_all(out_dir) {
+            Ok(_) => self.cleaned(output, out_dir),
+            Err(e) if e.to_string() == *OS_2_ERROR => self.cleaned(output, out_dir),
+            Err(e) => self.failed(output, out_dir, e)
+        }
+    }
+
     fn cleaned(&mut self, output: &mut BuildkOutput, dir: &Path) -> BuildkOutput {
-        self.cache.invalidate(); // todo: does this work? is it mutable?
+        self.cache.invalidate(); 
 
         output
             .conclude(PartialConclusion::SUCCESS)

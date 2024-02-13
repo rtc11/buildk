@@ -19,6 +19,7 @@ impl <'a> Command for Release<'a> {
             .workdir(&self.config.manifest.project.path)
             .target(&self.config.manifest.project.out.release)
             .source(&self.config.manifest.project.src)
+            .include_runtime()
             .compile(&mut output)
     }
 }

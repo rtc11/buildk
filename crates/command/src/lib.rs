@@ -54,7 +54,16 @@ pub enum Commands {
 
     /// Clean the output directory
     #[command(short_flag = 'c')]
-    Clean,
+    Clean {
+        #[arg(
+            value_name = "SET",
+            num_args = 0..=1,
+            default_missing_value = "always",
+            default_value_t = CleanSet::All,
+            value_enum
+        )]
+        set: CleanSet,
+    }, 
 
     /// Show the project configuration
     Config,
@@ -93,6 +102,15 @@ pub enum Set {
     Test,
 }
 
+#[derive(ValueEnum, Copy, Clone, PartialEq, Eq)]
+pub enum CleanSet {
+    All,
+    Src,
+    Test,
+    Release
+}
+
+
 trait Command {
     type Item;
 
@@ -108,7 +126,7 @@ impl Commands {
 
         match self {
             Commands::Build { set } => Build::new(config, &kotlin, &mut cache, &tree).execute(Some(*set)),
-            Commands::Clean => Clean::new(config, &mut cache).execute(None),
+            Commands::Clean { set } => Clean::new(config, &mut cache).execute(Some(*set)),
             Commands::Config => config::Config::new(config).execute(None),
             Commands::Deps => Deps::new(config, &mut cache).execute(None),
             Commands::Fetch => Fetch::new(config, &cache).execute(None),

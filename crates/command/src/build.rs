@@ -23,12 +23,9 @@ impl <'a> Command for Build<'a> {
     fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("build");
         match arg {
-            Some(Set::Src) => self.build_src(&mut output),
-            Some(Set::Test) => self.build_test(&mut output),
-            _ => {
-                let mut output = self.build_src(&mut output);
-                self.build_test(&mut output)
-            }
+            Some(Set::Src) => output.apply(self.build_src()),
+            Some(Set::Test) => output.apply(self.build_test()),
+            _ => output.apply(self.build_src()).apply(self.build_test())
         }
     }
 }
@@ -38,7 +35,8 @@ impl <'a> Build<'_> {
         Build { config, kotlin, cache, tree }
     }
 
-    fn build_src(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
+    fn build_src(&mut self) -> BuildkOutput {
+        let mut output = BuildkOutput::new("build src");
         let build_tree = self.tree.get_sorted_tree().expect("Failed to get sorted build tree");
         let changed_files: Vec<&PathBuf> = build_tree.iter().filter(|file| self.is_not_cached(file)).collect();
 
@@ -58,11 +56,13 @@ impl <'a> Build<'_> {
             .target(&self.config.manifest.project.out.src)
             .classpath(vec![])
             .cache_key(cache_key)
-            .compile(output)
+            .compile(&mut output)
+            .to_owned()
     }
 
-    fn build_test(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
-        // return if no tests are configured
+    fn build_test(&mut self) -> BuildkOutput {
+        let mut output = BuildkOutput::new("build test"); 
+
         if !self.config.manifest.project.test.is_dir(){
             return output.to_owned()
         }
@@ -84,7 +84,8 @@ impl <'a> Build<'_> {
             .sources(vec![&self.config.manifest.project.test])
             .classpath(classpath)
             .target(&self.config.manifest.project.out.test)
-            .compile(output)
+            .compile(&mut output)
+            .to_owned()
     }
 
     fn is_not_cached(&mut self, file: &PathBuf) -> bool {

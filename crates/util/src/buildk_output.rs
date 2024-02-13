@@ -34,12 +34,20 @@ impl BuildkOutput {
         }
     }
 
-    pub fn apply(&mut self, other: BuildkOutput) -> &mut Self {
-        self.conclusion = other.conclusion;
-        self.stdout = other.stdout;
-        self.stderr = other.stderr;
-        self.status = other.status;
-        self
+    pub fn apply(&mut self, other: BuildkOutput) -> Self {
+        if other.conclusion != PartialConclusion::INIT {
+            self.conclusion = other.conclusion;
+        }
+        if other.stdout.is_some() {
+            self.stdout = other.stdout;
+        }
+        if other.stderr.is_some() {
+            self.stderr = other.stderr;
+        }
+        if other.status != 0 {
+            self.status = other.status;
+        }
+        self.to_owned()
     }
     
     pub fn get_command(&self) -> &str {

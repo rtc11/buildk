@@ -37,8 +37,8 @@ pub trait Cacheable {
 impl From<CacheResult> for BuildkOutput {
     fn from(value: CacheResult) -> Self {
         let conclusion = match value.stderr {
-            Some(_) => PartialConclusion::FAILED,
-            None => value.conclusion,
+            Some(ref err) if !err.is_empty() => PartialConclusion::FAILED ,
+            _ => value.conclusion,
         };
 
         BuildkOutput::new("temp")

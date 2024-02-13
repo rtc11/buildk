@@ -103,7 +103,7 @@ impl <'a> JavaBuilder<'a> {
 
     fn execute_with_cache(&mut self, output: &mut BuildkOutput, cmd: &ProcessBuilder) -> BuildkOutput {
         match self.cache(&mut self.cache.clone(), cmd.clone()) {
-            Ok(cache_res) => output.apply(BuildkOutput::from(cache_res)).to_owned(), 
+            Ok(cache_res) => output.apply(BuildkOutput::from(cache_res)), 
             Err(err) => {
                 println!("\r{:#}", err.to_string().as_red());
 
