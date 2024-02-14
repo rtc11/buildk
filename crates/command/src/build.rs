@@ -52,9 +52,8 @@ impl <'a> Build<'_> {
 
         self.kotlin.builder()
             .workdir(&self.config.manifest.project.path)
-            .sources(changed_files)
             .target(&self.config.manifest.project.out.src)
-            .classpath(vec![])
+            .sources(changed_files)
             .cache_key(cache_key)
             .compile(&mut output)
             .to_owned()
