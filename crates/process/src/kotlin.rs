@@ -132,7 +132,7 @@ impl <'a> KotlinBuilder<'a> {
     }
 }
 
-impl <'a> Cacheable for KotlinBuilder<'_> {
+impl Cacheable for KotlinBuilder<'_> {
     type Item = ProcessBuilder;
 
     fn cache(&mut self, cache: &mut Cache, item: Self::Item) -> Result<CacheResult> {

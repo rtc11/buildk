@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use cache::cache::Cache;
 use manifest::config::Config;
@@ -89,11 +89,11 @@ impl <'a> Build<'_> {
 }
 
 trait IsCached {
-    fn not_cached(&mut self, file: &PathBuf) -> bool;
+    fn not_cached(&mut self, file: &Path) -> bool;
 }
 
 impl IsCached for Cache {
-    fn not_cached(&mut self, _file: &PathBuf) -> bool {
+    fn not_cached(&mut self, _file: &Path) -> bool {
         //!matches!(self.cache_file(file), Ok(PartialConclusion::CACHED))
         true
     }
