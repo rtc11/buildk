@@ -12,7 +12,6 @@ const OS_2_ERROR: &str = "No such file or directory (os error 2)";
 
 pub (crate) struct Clean<'a> {
     config: &'a Config,
-    cache: &'a mut Cache,
 }
 
 impl <'a> Command for Clean<'a> {
@@ -32,8 +31,8 @@ impl <'a> Command for Clean<'a> {
 }
 
 impl <'a> Clean<'_> {
-    pub fn new(config: &'a Config, cache: &'a mut Cache) -> Clean<'a> {
-        Clean { config, cache }
+    pub fn new(config: &'a Config) -> Clean<'a> {
+        Clean { config }
     }
 
     fn clean_src(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
@@ -65,7 +64,8 @@ impl <'a> Clean<'_> {
     }
 
     fn cleaned(&mut self, output: &mut BuildkOutput, dir: &Path) -> BuildkOutput {
-        self.cache.invalidate(); 
+        let mut cache = Cache::load(&self.config.manifest.project.out.cache);
+        cache.invalidate();
 
         output
             .conclude(PartialConclusion::SUCCESS)
@@ -80,4 +80,3 @@ impl <'a> Clean<'_> {
             .clone()
     }
 }
-

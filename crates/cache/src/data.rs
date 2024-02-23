@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -25,3 +25,12 @@ impl CacheData {
     }
 }
 
+impl Display for CacheData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (key, value) in self.outputs.iter() {
+            write!(f, "{}: {}", key, value)?;
+        }
+
+        write!(f, "")
+    }
+}

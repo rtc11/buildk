@@ -8,10 +8,10 @@ use util::{buildk_output::BuildkOutput, hasher::StableHasher, PartialConclusion,
 use crate::{ProcessBuilder, ProcessError, Process, try_from};
 
 pub struct Kotlin<'a> {
+    config: &'a Config, 
     pub version: String,
     pub home: PathBuf,
     pub bin: PathBuf,
-    config: &'a Config, 
 }
 
 impl <'a> Process<'a> for Kotlin<'a>  {
@@ -20,22 +20,18 @@ impl <'a> Process<'a> for Kotlin<'a>  {
     fn new(config: &'a Config) -> Result<Self::Item> {
         let kotlin_home = match config.manifest.kotlin_home.as_ref() {
             Some(kotlin_home) => kotlin_home.clone(),
-            None => {
-                match option_env!("KOTLIN_HOME") {
-                    Some(dir) => PathBuf::from(dir),
-                    None => PathBuf::from("/usr/local/Cellar/kotlin/1.9.22/"),
-                }
+            None => match option_env!("KOTLIN_HOME") {
+                Some(dir) => PathBuf::from(dir),
+                None => PathBuf::from("/usr/local/Cellar/kotlin/1.9.22/"),
             }
         };
 
-        let kotlin = Kotlin {
+        Ok(Kotlin {
             config,
             version: version(config, &kotlin_home)?,
             bin: kotlin_home.join("bin"),
             home: kotlin_home.to_path_buf(),
-        };
-        
-        Ok(kotlin)
+        })
     }
 }
 
@@ -54,8 +50,6 @@ impl Kotlin<'_> {
     pub fn compiler(&self) -> PathBuf {
         self.bin.join("kotlinc")
     }
-
-
 }
 
 pub struct KotlinBuilder<'a>  {
@@ -64,16 +58,6 @@ pub struct KotlinBuilder<'a>  {
     cache_key: u64,
     process: ProcessBuilder,
 }
-
-
-/*
-fn kotlinc_fingerprint(kotlin_bin: &Path) -> Result<u64> {
-    let kotlinc = kotlin_bin.join(get_kotlinc());
-    let mut hasher = StableHasher::default();
-    hash(&mut hasher, &kotlinc)?;
-    Ok(hasher.finish())
-}
-*/
 
 impl <'a> KotlinBuilder<'a> {
     fn new(kotlin: &'a Kotlin<'a>) -> KotlinBuilder<'a> {
@@ -148,7 +132,7 @@ impl <'a> KotlinBuilder<'a> {
     }
 }
 
-impl Cacheable for KotlinBuilder<'_> {
+impl <'a> Cacheable for KotlinBuilder<'_> {
     type Item = ProcessBuilder;
 
     fn cache(&mut self, cache: &mut Cache, item: Self::Item) -> Result<CacheResult> {
@@ -157,7 +141,8 @@ impl Cacheable for KotlinBuilder<'_> {
             true => PartialConclusion::CACHED,
             false => {
                 let output = item.output()?;
-                cache.insert(key, try_from(&item, output)?);
+                let output = try_from(&item, output)?;
+                cache.insert(key, output);
                 PartialConclusion::SUCCESS
             }
         };
@@ -166,11 +151,11 @@ impl Cacheable for KotlinBuilder<'_> {
         match output.success {
             true => {
                 Ok(CacheResult {
-                        conclusion: partial_conclusion,
-                        stdout: Some(output.stdout.clone()),
-                        stderr: Some(output.stderr.clone()),
-                        status: output.code.unwrap_or(0)
-                    })
+                    conclusion: partial_conclusion,
+                    stdout: Some(output.stdout.clone()),
+                    stderr: Some(output.stderr.clone()),
+                    status: output.code.unwrap_or(0)
+                })
             },
             false => {
                 Err(ProcessError::new_with_raw_output(

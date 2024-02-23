@@ -1,7 +1,7 @@
 use async_std::task;
-use cache::cache::Cache;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+
 use manifest::config::Config;
 use manifest::dependencies::Dependency;
 use util::buildk_output::BuildkOutput;
@@ -10,11 +10,11 @@ use util::PartialConclusion;
 
 use crate::Command;
 
-pub (crate) struct Deps<'a> {
+pub(crate) struct Deps<'a> {
     config: &'a Config,
 }
 
-impl <'a> Command for Deps<'a> {
+impl<'a> Command for Deps<'a> {
     type Item = ();
 
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
@@ -39,8 +39,8 @@ impl <'a> Command for Deps<'a> {
     }
 }
 
-impl <'a> Deps<'a> {
-    pub fn new(config: &'a Config, _cache: &'a mut Cache) -> Deps<'a> {
+impl<'a> Deps<'a> {
+    pub fn new(config: &'a Config) -> Deps<'a> {
         Deps { config }
     }
 }
@@ -93,13 +93,13 @@ pub fn find_dependent_deps(
 
         find_dependent_deps(transitives, traversed, depth + 1, print).await
     }
-    .boxed()
+        .boxed()
 }
 
 mod lsp {
+    use std::os::unix::fs::OpenOptionsExt;
     use anyhow::Context;
     use manifest::config::Config;
-    use std::os::unix::fs::OpenOptionsExt;
 
     /**
      * This function is used to update the classpath for the kotlin language server.

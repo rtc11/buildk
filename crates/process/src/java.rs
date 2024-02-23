@@ -1,21 +1,22 @@
-use std::{path::PathBuf, hash::{Hash, Hasher}, ffi::OsStr};
+use std::{ffi::OsStr, hash::{Hash, Hasher}, path::PathBuf};
 
 use anyhow::Result;
+
 use cache::cache::{Cache, Cacheable, CacheResult};
 use manifest::config::Config;
-use util::{hasher::StableHasher, PartialConclusion, buildk_output::BuildkOutput, colorize::Colorize};
+use util::{buildk_output::BuildkOutput, hasher::StableHasher, PartialConclusion};
+use util::buildk_output::WithBKOutput;
 
 use crate::{Process, ProcessBuilder, ProcessError, try_from};
 
-
 pub struct Java<'a> {
-    config: &'a Config, // TODO: lifetime for &'a Config
+    config: &'a Config,
     pub version: String,
     pub home: PathBuf,
     pub bin: PathBuf,
 }
 
-impl <'a> Process<'a> for Java<'a> {
+impl<'a> Process<'a> for Java<'a> {
     type Item = Java<'a>;
 
     fn new(config: &'a Config) -> Result<Self::Item> {
@@ -30,16 +31,9 @@ impl <'a> Process<'a> for Java<'a> {
     }
 }
 
-pub struct JavaBuilder<'a> {
-    java: &'a Java<'a>,
-    cache: Cache,
-    cache_key: u64,
-    process: ProcessBuilder,
-}
-
-impl Java<'_> {
+impl<'a> Java<'a> {
     pub fn builder(&self) -> JavaBuilder {
-        JavaBuilder::new(self, self.config)
+        JavaBuilder::new(self)
     }
 
     fn runtime(&self) -> PathBuf {
@@ -51,11 +45,18 @@ impl Java<'_> {
     }
 }
 
-impl <'a> JavaBuilder<'a> {
-    fn new(java: &'a Java, config: &'a Config) -> JavaBuilder<'a> {
+pub struct JavaBuilder<'a> {
+    java: &'a Java<'a>,
+    cache: Cache,
+    cache_key: u64,
+    process: ProcessBuilder,
+}
+
+impl<'a> JavaBuilder<'a> {
+    fn new(java: &'a Java) -> JavaBuilder<'a> {
         JavaBuilder {
             java,
-            cache: Cache::load(&config.manifest.project.out.cache),
+            cache: Cache::load(&java.config.manifest.project.out.cache),
             cache_key: 0,
             process: ProcessBuilder::new(""),
         }
@@ -67,7 +68,7 @@ impl <'a> JavaBuilder<'a> {
     }
 
     pub fn classpath(&mut self, classpath: Vec<&PathBuf>) -> &mut Self {
-        self.process.classpaths(classpath); 
+        self.process.classpaths(classpath);
         self
     }
 
@@ -93,33 +94,38 @@ impl <'a> JavaBuilder<'a> {
 
     pub fn run(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         self.process.program(self.java.runtime());
-        self.execute_with_cache(output, &self.process.clone()).to_owned()
+        let mut cache = self.cache.clone();
+        match self.cache(&mut cache, self.process.clone()) {
+            Ok(result) => result.add_to_output(output).to_owned(),
+            Err(err) => {
+                //println!("\r{:#}", err.to_string().as_red());
+                output.conclude(PartialConclusion::FAILED).stderr(err.to_string()).to_owned()
+            }
+        }
     }
 
     pub fn compile(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         self.process.program(self.java.compiler());
-        self.execute_with_cache(output, &self.process.clone()).to_owned()
-    }
-
-    fn execute_with_cache(&mut self, output: &mut BuildkOutput, cmd: &ProcessBuilder) -> BuildkOutput {
-        match self.cache(&mut self.cache.clone(), cmd.clone()) {
-            Ok(cache_res) => output.apply(BuildkOutput::from(cache_res)), 
+        let mut cache = self.cache.clone();
+        match self.cache(&mut cache, self.process.clone()) {
+            Ok(result) => result.add_to_output(output).to_owned(),
             Err(err) => {
-                println!("\r{:#}", err.to_string().as_red());
-
-                output
-                    .conclude(PartialConclusion::FAILED)
-                    .stderr(err.to_string())
-                    .to_owned()
+                //println!("\r{:#}", err.to_string().as_red());
+                output.conclude(PartialConclusion::FAILED).stderr(err.to_string()).to_owned()
             }
         }
     }
 }
 
-impl <'a> Cacheable for JavaBuilder<'a> {
+pub trait ProcessCacher {
+    fn cache(&mut self, item: ProcessBuilder) -> Result<CacheResult>;
+    fn fingerprint(&self, item: ProcessBuilder) -> u64;
+}
+
+impl<'a> Cacheable for JavaBuilder<'a> {
     type Item = ProcessBuilder;
 
-    fn cache(&mut self, cache: &mut Cache, item: Self::Item) -> Result<cache::cache::CacheResult> {
+    fn cache(&mut self, cache: &mut Cache, item: Self::Item) -> Result<CacheResult> {
         let key = self.fingerprint(item.clone());
         let partial_conclusion = match cache.contains_key(&key) {
             true => PartialConclusion::CACHED,
@@ -134,12 +140,12 @@ impl <'a> Cacheable for JavaBuilder<'a> {
         match output.success {
             true => {
                 Ok(CacheResult {
-                        conclusion: partial_conclusion,
-                        stdout: Some(output.stdout.clone()),
-                        stderr: Some(output.stderr.clone()),
-                        status: output.code.unwrap_or(0)
-                    })
-            },
+                    conclusion: partial_conclusion,
+                    stdout: Some(output.stdout.clone()),
+                    stderr: Some(output.stderr.clone()),
+                    status: output.code.unwrap_or(0),
+                })
+            }
             false => {
                 Err(ProcessError::new_with_raw_output(
                     &format!("process didn't exit successfully (cache): {item}"),

@@ -25,6 +25,9 @@ impl Default for BuildkOutput {
         }
     }
 }
+pub trait WithBKOutput {
+    fn add_to_output<'a>(&'a self, out: &'a mut BuildkOutput) -> &'a mut BuildkOutput;
+}
 
 impl BuildkOutput {
     pub fn new(command: &str) -> Self {

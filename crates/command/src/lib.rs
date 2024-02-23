@@ -1,6 +1,5 @@
 use ::manifest::config::Config;
 use build::Build;
-use cache::cache::Cache;
 use clap::{command, Parser, Subcommand, ValueEnum};
 use clean::Clean;
 use deps::Deps;
@@ -119,17 +118,16 @@ trait Command {
 
 impl Commands {
     pub fn apply(&mut self, config: &Config) -> BuildkOutput {
-        let mut cache = Cache::load(&config.manifest.project.out.cache);
         let mut tree = Tree::new(config);
         let kotlin = Kotlin::new(config).expect("kotlin not found");
         let java = Java::new(config).expect("java not found");
 
         match self {
-            Commands::Build { set } => Build::new(config, &kotlin, &mut cache, &tree).execute(Some(*set)),
-            Commands::Clean { set } => Clean::new(config, &mut cache).execute(Some(*set)),
+            Commands::Build { set } => Build::new(config, &kotlin, &tree).execute(Some(*set)),
+            Commands::Clean { set } => Clean::new(config).execute(Some(*set)),
             Commands::Config => config::Config::new(config).execute(None),
-            Commands::Deps => Deps::new(config, &mut cache).execute(None),
-            Commands::Fetch => Fetch::new(config, &cache).execute(None),
+            Commands::Deps => Deps::new(config).execute(None),
+            Commands::Fetch => Fetch::new(config).execute(None),
             Commands::Release => Release::new(config, &kotlin).execute(None),
             Commands::Run { name } => Run::new(config, &java).execute(name.clone()),
             Commands::Test { name } => Test::new(config, &java).execute(name.clone()),

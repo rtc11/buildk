@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -23,4 +25,12 @@ impl Output {
         self.success = true
     }
 
+}
+
+impl Display for Output {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.action)?;
+        writeln!(f, "{}", self.success)?;
+        writeln!(f, "{}", self.stdout)
+    }
 }

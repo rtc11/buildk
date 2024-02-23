@@ -13,7 +13,6 @@ use crate::{Set, Command};
 pub (crate) struct Build<'a> {
     config: &'a Config,
     kotlin: &'a Kotlin<'a>,
-    cache: &'a mut Cache,
     tree: &'a Tree,
 }
 
@@ -31,14 +30,15 @@ impl <'a> Command for Build<'a> {
 }
 
 impl <'a> Build<'_> {
-    pub fn new(config: &'a Config, kotlin: &'a Kotlin, cache: &'a mut Cache, tree: &'a Tree) -> Build<'a> {
-        Build { config, kotlin, cache, tree }
+    pub fn new(config: &'a Config, kotlin: &'a Kotlin, tree: &'a Tree) -> Build<'a> {
+        Build { config, kotlin, tree }
     }
 
     fn build_src(&mut self) -> BuildkOutput {
         let mut output = BuildkOutput::new("build src");
+        let mut cache = Cache::load(&self.config.manifest.project.out.cache);
         let build_tree = self.tree.get_sorted_tree().expect("Failed to get sorted build tree");
-        let changed_files: Vec<&PathBuf> = build_tree.iter().filter(|file| self.is_not_cached(file)).collect();
+        let changed_files: Vec<&PathBuf> = build_tree.iter().filter(|file| cache.not_cached(file)).collect();
 
         if changed_files.is_empty() {
             return output.conclude(PartialConclusion::CACHED).to_owned();
@@ -86,11 +86,15 @@ impl <'a> Build<'_> {
             .compile(&mut output)
             .to_owned()
     }
-
-    fn is_not_cached(&mut self, file: &PathBuf) -> bool {
-        let conclusion = self.cache.cache_file(file);
-        !matches!(conclusion, Ok(PartialConclusion::CACHED))
-    }
-
 }
 
+trait IsCached {
+    fn not_cached(&mut self, file: &PathBuf) -> bool;
+}
+
+impl IsCached for Cache {
+    fn not_cached(&mut self, _file: &PathBuf) -> bool {
+        //!matches!(self.cache_file(file), Ok(PartialConclusion::CACHED))
+        true
+    }
+}

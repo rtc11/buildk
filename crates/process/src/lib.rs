@@ -317,7 +317,7 @@ fn try_from(
     let status = if output.status.success() { String::new() } else { exit_status_to_string(output.status) };
 
     Ok(cache::output::Output {
-        action,
+        action: action.to_owned(),
         success: output.status.success(),
         status,
         code: output.status.code(),

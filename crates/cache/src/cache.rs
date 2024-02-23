@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::fs::{File, create_dir_all};
 use std::io::Write;
 use std::path::{PathBuf, Path};
@@ -5,7 +6,7 @@ use std::path::{PathBuf, Path};
 use anyhow::Result;
 use manifest::dependencies::Dependency;
 
-use util::buildk_output::BuildkOutput;
+use util::buildk_output::{BuildkOutput, WithBKOutput};
 use util::{PartialConclusion, paths};
 
 use crate::{dependency_fingerprint, file_fingerprint};
@@ -34,6 +35,16 @@ pub trait Cacheable {
     fn fingerprint(&self, item: Self::Item) -> u64;
 }
 
+impl WithBKOutput for CacheResult {
+    fn add_to_output<'a>(&'a self, out: &'a mut BuildkOutput) -> &'a mut BuildkOutput {
+        out
+            .conclude(self.conclusion.clone())
+            .status(self.status)
+            .stdout(self.stdout.clone().unwrap_or_default())
+            .stderr(self.stderr.clone().unwrap_or_default())
+    }
+}
+
 impl From<CacheResult> for BuildkOutput {
     fn from(value: CacheResult) -> Self {
         let conclusion = match value.stderr {
@@ -53,19 +64,11 @@ impl From<CacheResult> for BuildkOutput {
 impl Cache {
     pub fn load(cache_location: &Path) -> Cache {
         let location = cache_location.to_path_buf();
+        let dirty = false;
 
         match Self::read(cache_location){
-            Ok(data) => {
-                let dirty = false;
-                Cache { location, dirty, data }
-            }
-            Err(_) => {
-                Cache {
-                    location: cache_location.to_path_buf(),
-                    dirty: false,
-                    data: CacheData::default()
-                }
-            }
+            Ok(data) => Cache { location, dirty, data },
+            Err(_) => Cache { location, dirty, data: CacheData::default() }
         }
     }
 
@@ -127,16 +130,23 @@ impl Cache {
     }
 }
 
+impl Display for Cache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Cache: {}", self.location.display())?;
+        write!(f, "Data: {}", self.data)
+    }
+}
+
 impl Drop for Cache {
     fn drop(&mut self) {
         if !self.dirty { 
-            return; 
+            return;
         }
 
         if let Some(path) = &self.location.parent() {
             if !path.exists(){
                 if let Err(msg) = create_dir_all(path){
-                    println!("failed to create missing director(y/ies) {}. {msg}", path.display())
+                    println!("failed to create missing directories {}. {msg}", path.display())
                 }
             }
         }

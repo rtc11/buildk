@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use async_std::task;
-use cache::cache::Cache;
 use http::client::{DownloadResult, Client};
 use itertools::Itertools;
 use manifest::{config::Config, dependencies::Dependency};
@@ -72,7 +71,7 @@ impl <'a> Command for Fetch<'a> {
 }
 
 impl <'a> Fetch<'a> {
-    pub fn new(config: &'a Config, _cache: &'a Cache) -> Fetch<'a> {
+    pub fn new(config: &'a Config) -> Fetch<'a> {
         Fetch { config }
     }
 }
