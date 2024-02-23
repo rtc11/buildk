@@ -11,14 +11,10 @@ http.workspace = true
 util.workspace = true
 process.workspace = true
 
-itertools.workspace = true
 gryf.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 
 async-std.workspace = true
-async-recursion.workspace = true
 futures.workspace = true
-
-#multi-spinner.workspace = true
 spinners.workspace = true

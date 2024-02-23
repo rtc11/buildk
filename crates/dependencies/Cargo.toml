@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-util.workspace = true
-
 anyhow.workspace = true
 roxmltree.workspace = true 
 surf.workspace = true

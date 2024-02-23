@@ -1,28 +1,29 @@
 use std::collections::HashSet;
+
 use async_std::task;
-use http::client::{DownloadResult, Client};
-use itertools::Itertools;
+use spinners::{Spinner, Spinners};
+
+use http::client::{Client, DownloadResult};
 use manifest::{config::Config, dependencies::Dependency};
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
-use spinners::{Spinner, Spinners};
 
 use crate::Command;
 
 const DEBUG: bool = false;
 const PRINT_DOWNLOADS: bool = false;
 
-pub (crate) struct Fetch<'a> {
+pub(crate) struct Fetch<'a> {
     config: &'a Config,
 }
 
-impl <'a> Command for Fetch<'a> {
+impl<'a> Command for Fetch<'a> {
     type Item = ();
 
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("fetch");
         let client = Client;
-            
+
         let deps = &self.config.manifest.dependencies;
 
         let downloads = task::block_on(async {
@@ -46,17 +47,17 @@ impl <'a> Command for Fetch<'a> {
                         //println!("downloaded {}:{}", dep.name, dep.version);
                         download_res
                     })
-                }).collect_vec()
+                }).collect::<Vec<_>>()
         });
 
         downloads
             .iter()
-            .filter_map(|download | match download {
+            .filter_map(|download| match download {
                 DownloadResult::Failed(err) => Some(err.to_owned()),
                 _ => None,
             }).for_each(|err| {
-                output.append_stderr(err);
-            });
+            output.append_stderr(err);
+        });
 
         if output.get_stderr().is_some() {
             output.conclude(util::PartialConclusion::FAILED);
@@ -70,7 +71,7 @@ impl <'a> Command for Fetch<'a> {
     }
 }
 
-impl <'a> Fetch<'a> {
+impl<'a> Fetch<'a> {
     pub fn new(config: &'a Config) -> Fetch<'a> {
         Fetch { config }
     }
