@@ -1,4 +1,5 @@
 use manifest::config::Config;
+use manifest::manifest::Manifest;
 use process::kotlin::Kotlin;
 use util::buildk_output::BuildkOutput;
 
@@ -14,12 +15,14 @@ impl <'a> Command for Release<'a> {
 
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("release");
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
 
         self.kotlin.builder()
-            .source(&self.config.manifest.project.src)
+            .source(&manifest.project.src)
             .include_runtime()
-            .workdir(&self.config.manifest.project.path)
-            .target(&self.config.manifest.project.out.release)
+            .workdir(&manifest.project.path)
+            .target(&manifest.project.out.release)
             .compile(&mut output)
     }
 }

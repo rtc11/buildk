@@ -11,6 +11,7 @@ pub mod config;
 pub mod project;
 pub mod dependencies;
 pub mod modules;
+pub mod home;
 
 pub fn read_file(file: &Path) -> Result<String> {
     std::fs::read_to_string(file).context(format!("File not found: {}", file.display()))

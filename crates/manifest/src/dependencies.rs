@@ -3,13 +3,14 @@ use std::fmt::Display;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::str::FromStr;
-use xml::reader::XmlEvent;
-use xml::EventReader;
 
-use crate::Section;
-use anyhow::bail;
+use anyhow::{bail, Context};
 use regex::Regex;
 use toml_edit::{Document, Item, Table, Value};
+use xml::EventReader;
+use xml::reader::XmlEvent;
+
+use crate::Section;
 
 // https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
 
@@ -19,10 +20,14 @@ pub struct Dependency {
     pub version: String,
     pub kind: Kind,
     pub target_dir: PathBuf,
-    pub path: String, // url to the artifact directory that contains all the files.
-    pub jar: String,  // Filename
-    pub sources: String, // Filename
-    pub pom: String,  // Filename
+    pub path: String,
+    // url to the artifact directory that contains all the files.
+    pub jar: String,
+    // Filename
+    pub sources: String,
+    // Filename
+    pub pom: String,
+    // Filename
     pub module: String, // Filename
 }
 
@@ -51,8 +56,8 @@ pub trait DependenciesTools {
     fn src_deps(&self) -> Vec<Dependency>;
     fn test_deps(&self) -> Vec<Dependency>;
     fn junit_runner(&self) -> Option<Dependency>;
-    fn kotlin_stdlib(&self) -> Option<Dependency>; 
-    fn junit_platform(&self) -> Option<Dependency>; 
+    fn kotlin_stdlib(&self) -> Option<Dependency>;
+    fn junit_platform(&self) -> Option<Dependency>;
 }
 
 impl DependenciesTools for Vec<Dependency> {
@@ -65,7 +70,7 @@ impl DependenciesTools for Vec<Dependency> {
     }
 
     fn src_deps(&self) -> Vec<Dependency> {
-        self.iter().filter(|dep| dep.kind == Kind::Source).cloned().collect() 
+        self.iter().filter(|dep| dep.kind == Kind::Source).cloned().collect()
     }
 
     fn test_deps(&self) -> Vec<Dependency> {
@@ -98,19 +103,19 @@ pub(crate) fn create_platform_deps() -> Vec<Dependency> {
             "org.junit.platform.junit-platform-console-standalone",
             "1.10.1",
         )
-        .unwrap(),
+            .unwrap(),
         Dependency::new(
             &Kind::Platform,
             "org.jetbrains.kotlin.kotlin-stdlib",
             "1.9.22",
         )
-        .unwrap(),
+            .unwrap(),
         Dependency::new(
             &Kind::PlatformTest,
             "org.junit.jupiter.junit-jupiter-api",
             "5.5.2",
         )
-        .unwrap(),
+            .unwrap(),
     ]
 }
 
@@ -141,8 +146,8 @@ impl Dependency {
             && pom.metadata().unwrap().len() > 0
     }
 
-    pub fn new(kind: &Kind, name: &str, version: &str) -> Option<Dependency> {
-        dependency_info(name, version)
+    pub fn new(kind: &Kind, name: &str, version: &str) -> anyhow::Result<Dependency> {
+        let dep = dependency_info(name, version)
             .map(|info| Self {
                 name: name.into(),
                 version: version.into(),
@@ -153,13 +158,14 @@ impl Dependency {
                 sources: format!("{}-sources.jar", info.file_suffix),
                 pom: format!("{}.pom", info.file_suffix),
                 module: format!("{}.module", info.file_suffix),
-            })
-            .ok()
+            })?;
+
+        Ok(dep)
     }
 
-    pub fn from_toml(kind: &Kind, name: &str, item: &toml_edit::Value) -> Option<Dependency> {
-        item.as_str()
-            .and_then(|version| Self::new(kind, name, version))
+    pub fn from_toml(kind: &Kind, name: &str, item: &Value) -> anyhow::Result<Dependency> {
+        let version = item.as_str().context("missing version")?;
+        Self::new(kind, name, version)
     }
 
     pub fn transitives(&self) -> Vec<Dependency> {
@@ -276,15 +282,15 @@ fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
     });
 
     map.into_iter()
-        .filter_map(|(key, value)| Dependency::from_toml(&kind, &key, value))
+        .filter_map(|(key, value)| Dependency::from_toml(&kind, &key, value).ok())
         .collect()
 }
 
 /**
- In TOML syntax a dot (.) represents an inline table and not
- part of the field name. This is a workaround to get a list
- of all keys until the value field (that should be the version).
-*/
+In TOML syntax a dot (.) represents an inline table and not
+part of the field name. This is a workaround to get a list
+of all keys until the value field (that should be the version).
+ */
 fn decend<'a>(
     mut map: BTreeMap<String, &'a Value>,
     keys: Vec<&'a str>,
@@ -331,10 +337,10 @@ impl PomParser for PathBuf {
             reader.into_iter().for_each(|element| {
                 match &element {
                     Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("properties") => {
-                       is_properties = true 
+                        is_properties = true
                     }
                     Ok(XmlEvent::EndElement { name }) if name.local_name.eq("properties") => {
-                       is_properties = false 
+                        is_properties = false
                     }
                     Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("dependency") => {
                         group.clear();
@@ -345,9 +351,7 @@ impl PomParser for PathBuf {
 
                     Ok(XmlEvent::EndElement { name }) if name.local_name.eq("dependency") => {
                         let name = format!("{}.{}", &group, artifact);
-                        if let Some(dependency) =
-                            Dependency::new(kind, name.as_str(), version.as_str())
-                        {
+                        if let Ok(dependency) = Dependency::new(kind, name.as_str(), version.as_str()) {
                             dependencies.push(dependency);
                         }
                         is_dependency = false;
@@ -459,8 +463,8 @@ mod tests {
         [dependencies]
         splendid = "4.0.0"
         "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 1);
@@ -474,8 +478,8 @@ mod tests {
         [dependencies]
         dotted.keys = "1.1"
         "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 1);
@@ -490,8 +494,8 @@ mod tests {
 nice = "3.2.1"
 amazing = "2.0"
 "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 2);
@@ -506,8 +510,8 @@ amazing = "2.0"
 [test-dependencies]
 awesome = "1.2.3"
 "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 1);
@@ -522,8 +526,8 @@ awesome = "1.2.3"
 nice = "3.2.1"
 amazing = "2.0"
 "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 2);
@@ -543,8 +547,8 @@ another.amazing.dep = "2.4"
 splendid.test.lib = "3.2.1"
 amazing = "2.0"
 "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 4);
@@ -563,8 +567,8 @@ awesome.lib.prod = "3.0.0"
 awesome.lib.test = "3.0.1"
 
 "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 2);
@@ -582,8 +586,8 @@ awesome.lib = "3.0.0"
 [test-dependencies]
 splendid.test.lib = "3.2.1"
 "#
-            .parse()
-            .unwrap(),
+                .parse()
+                .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 2);

@@ -4,6 +4,7 @@ use futures::FutureExt;
 
 use manifest::config::Config;
 use manifest::dependencies::Dependency;
+use manifest::manifest::Manifest;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 use util::PartialConclusion;
@@ -19,6 +20,8 @@ impl<'a> Command for Deps<'a> {
 
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("deps");
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
 
         match lsp::update_classpath(self.config) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),
@@ -28,7 +31,7 @@ impl<'a> Command for Deps<'a> {
         };
 
         task::block_on(async {
-            let deps = self.config.manifest.dependencies.clone();
+            let deps = manifest.dependencies.clone();
             let deps = find_dependent_deps(deps, vec![], 0, true).await;
             println!("deps contains: {:?}", deps.len());
         });
@@ -104,6 +107,7 @@ mod lsp {
     use std::os::unix::fs::OpenOptionsExt;
     use anyhow::Context;
     use manifest::config::Config;
+    use manifest::manifest::Manifest;
 
     /**
      * This function is used to update the classpath for the kotlin language server.
@@ -112,15 +116,16 @@ mod lsp {
         use std::fs::OpenOptions;
         use std::io::prelude::*;
 
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&config.manifest).expect("manifest");
+
         let kls_classpath = home::home_dir()
             .map(|home| home.join(".config"))
             .expect("Failed to get home dir")
             .join("kotlin-language-server")
             .join("kls-classpath");
 
-        let classpath = config
-            .manifest
-            .dependencies
+        let classpath = manifest.dependencies
             .iter()
             .map(|dep| dep.jar_absolute_path().display().to_string())
             .collect::<Vec<_>>()

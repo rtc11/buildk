@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use manifest::config::Config;
 use manifest::dependencies::DependenciesTools;
+use manifest::manifest::Manifest;
 use process::java::Java;
 use util::buildk_output::BuildkOutput;
 
@@ -18,14 +19,17 @@ impl <'a> Command for Run<'a> {
     fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("run");
 
-        let runtime_deps = self.config.manifest.dependencies.src_deps();
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+
+        let runtime_deps = manifest.dependencies.src_deps();
         let runtime_paths = runtime_deps.iter().map(|dep| dep.jar_absolute_path()).collect::<Vec<PathBuf>>();
-        let platform_deps = self.config.manifest.dependencies.platform_deps();
+        let platform_deps = manifest.dependencies.platform_deps();
         let platform_paths = platform_deps.iter().map(|dep| dep.jar_absolute_path()).collect::<Vec<PathBuf>>();
 
         let mut classpath = vec![
-            &self.config.manifest.project.out.src,
-            &self.config.manifest.project.src,
+            &manifest.project.out.src,
+            &manifest.project.src,
         ];
 
         classpath.extend(runtime_paths.iter());
@@ -33,11 +37,11 @@ impl <'a> Command for Run<'a> {
 
         let main = match arg {
             Some(class) => class.to_string() + "Kt",
-            None => self.config.manifest.project.compiled_main_file()
+            None => manifest.project.compiled_main_file()
         };
 
         self.java.builder()
-            .workdir(&self.config.manifest.project.path)
+            .workdir(&manifest.project.path)
             .classpath(classpath)
             .main(main)
             .run(&mut output)

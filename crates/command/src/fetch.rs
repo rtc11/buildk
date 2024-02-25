@@ -5,8 +5,11 @@ use spinners::{Spinner, Spinners};
 
 use http::client::{Client, DownloadResult};
 use manifest::{config::Config, dependencies::Dependency};
+use manifest::dependencies::Kind;
+use manifest::manifest::Manifest;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
+use util::PartialConclusion;
 
 use crate::{Command, deps};
 
@@ -18,13 +21,47 @@ pub(crate) struct Fetch<'a> {
 }
 
 impl<'a> Command for Fetch<'a> {
-    type Item = ();
+    type Item = String;
 
-    fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
+    fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("fetch");
-        let client = Client;
 
-        let deps = &self.config.manifest.dependencies;
+        match arg {
+            Some(artifact) => {
+                println!("found some artifact: {artifact}");
+
+                let artifact = artifact.split(':').collect::<Vec<_>>();
+                if artifact.len() != 2 {
+                    panic!("artifact must be in format: <name>:<version>")
+                }
+
+                let dep = match Dependency::new(&Kind::Source, artifact[0], artifact[1]) {
+                    Ok(dep) => dep,
+                    Err(err) => return output
+                        .conclude(PartialConclusion::FAILED)
+                        .stderr(err.to_string())
+                        .to_owned(),
+                };
+                self.fetch_dep(dep, &mut output)
+            }
+            None => {
+                let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+                let deps = &manifest.dependencies;
+                self.fetch_deps(deps, &mut output)
+            }
+        }
+
+        output
+    }
+}
+
+impl<'a> Fetch<'a> {
+    fn fetch_dep(&mut self, dep: Dependency, output: &mut BuildkOutput) {
+        self.fetch_deps(&[dep], output)
+    }
+
+    fn fetch_deps(&mut self, deps: &[Dependency], output: &mut BuildkOutput) {
+        let client = Client;
 
         let downloads = task::block_on(async {
             let all_deps = deps::find_dependent_deps(
@@ -72,8 +109,6 @@ impl<'a> Command for Fetch<'a> {
         } else {
             output.conclude(util::PartialConclusion::CACHED);
         }
-
-        output
     }
 }
 

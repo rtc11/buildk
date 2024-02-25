@@ -54,7 +54,7 @@ fn parse(table: &toml_edit::Table) -> Vec<Repository> {
         .map(|(name, url)| {
             Repository { 
                 name: name.into(),
-                url: url.to_string().replace("\"", ""),
+                url: url.to_string().replace('"', ""),
             }
         })
         .collect()

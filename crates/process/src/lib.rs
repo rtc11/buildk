@@ -1,5 +1,3 @@
-use anyhow::{Context, Result};
-use manifest::config::Config;
 use core::fmt;
 use std::{
     collections::BTreeMap,
@@ -8,8 +6,12 @@ use std::{
     fmt::Formatter,
     io::{self, Write},
     path::{Path, PathBuf},
-    process::{Command, Output, Stdio, ExitStatus},
+    process::{Command, ExitStatus, Output, Stdio},
 };
+
+use anyhow::{Context, Result};
+
+use manifest::config::Config;
 
 pub mod java;
 pub mod kotlin;
@@ -132,7 +134,7 @@ impl ProcessBuilder {
     pub fn get_program(&self) -> &OsString {
         &self.program
     }
-    pub fn get_args(&self) -> impl Iterator<Item = &OsString> {
+    pub fn get_args(&self) -> impl Iterator<Item=&OsString> {
         self.args.iter()
     }
     pub fn get_cwd(&self) -> Option<&Path> {
@@ -322,7 +324,7 @@ fn try_from(
         status,
         code: output.status.code(),
         stdout,
-        stderr
+        stderr,
     })
 }
 

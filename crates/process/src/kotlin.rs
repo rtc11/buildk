@@ -1,32 +1,29 @@
-use std::{path::{PathBuf, Path}, fmt::Display, hash::{Hash, Hasher}};
+use std::{fmt::Display, hash::{Hash, Hasher}, path::{Path, PathBuf}};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+
 use cache::cache::{Cache, Cacheable, CacheResult};
 use manifest::config::Config;
-use util::{buildk_output::BuildkOutput, hasher::StableHasher, PartialConclusion, colorize::Colorize};
+use manifest::manifest::Manifest;
+use util::{buildk_output::BuildkOutput, colorize::Colorize, hasher::StableHasher, PartialConclusion};
 
-use crate::{ProcessBuilder, ProcessError, Process, try_from};
+use crate::{Process, ProcessBuilder, ProcessError, try_from};
 
 // // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-compiler-embeddable
 // runtimeOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.22")
 pub struct Kotlin<'a> {
-    config: &'a Config, 
+    config: &'a Config,
     pub version: String,
     pub home: PathBuf,
     pub bin: PathBuf,
 }
 
-impl <'a> Process<'a> for Kotlin<'a>  {
+impl<'a> Process<'a> for Kotlin<'a> {
     type Item = Kotlin<'a>;
 
     fn new(config: &'a Config) -> Result<Self::Item> {
-        let kotlin_home = match config.manifest.kotlin_home.as_ref() {
-            Some(kotlin_home) => kotlin_home.clone(),
-            None => match option_env!("KOTLIN_HOME") {
-                Some(dir) => PathBuf::from(dir),
-                None => PathBuf::from("/usr/local/Cellar/kotlin/1.9.22/"),
-            }
-        };
+        let manifest = config.clone().manifest.context("kotlin requires manifest")?;
+        let kotlin_home = Self::kotlin_home_from_manifest(&manifest);
 
         Ok(Kotlin {
             config,
@@ -34,6 +31,18 @@ impl <'a> Process<'a> for Kotlin<'a>  {
             bin: kotlin_home.join("bin"),
             home: kotlin_home.to_path_buf(),
         })
+    }
+}
+
+impl<'a> Kotlin<'a> {
+    fn kotlin_home_from_manifest(manifest: &Manifest) -> PathBuf {
+        match manifest.kotlin_home.as_ref() {
+            Some(kotlin_home) => kotlin_home.clone(),
+            None => match option_env!("KOTLIN_HOME") {
+                Some(dir) => PathBuf::from(dir),
+                None => PathBuf::from("/usr/local/Cellar/kotlin/1.9.22/"),
+            }
+        }
     }
 }
 
@@ -54,18 +63,20 @@ impl Kotlin<'_> {
     }
 }
 
-pub struct KotlinBuilder<'a>  {
+pub struct KotlinBuilder<'a> {
     kotlin: &'a Kotlin<'a>,
     cache: Cache,
     cache_key: u64,
     process: ProcessBuilder,
 }
 
-impl <'a> KotlinBuilder<'a> {
+impl<'a> KotlinBuilder<'a> {
     fn new(kotlin: &'a Kotlin<'a>) -> KotlinBuilder<'a> {
+        let manifest = <Option<Manifest> as Clone>::clone(&kotlin.config.manifest).expect("manifest");
+
         KotlinBuilder {
             kotlin,
-            cache: Cache::load(&kotlin.config.manifest.project.out.cache),
+            cache: Cache::load(&manifest.project.out.cache),
             cache_key: 0,
             process: ProcessBuilder::new(""),
         }
@@ -121,7 +132,7 @@ impl <'a> KotlinBuilder<'a> {
 
     fn execute_with_cache(&mut self, output: &mut BuildkOutput, cmd: &ProcessBuilder) -> BuildkOutput {
         match self.cache(&mut self.cache.clone(), cmd.clone()) {
-            Ok(cache_res) => output.apply(BuildkOutput::from(cache_res)), 
+            Ok(cache_res) => output.apply(BuildkOutput::from(cache_res)),
             Err(err) => {
                 println!("\r{:#}", err.to_string().as_red());
 
@@ -156,9 +167,9 @@ impl Cacheable for KotlinBuilder<'_> {
                     conclusion: partial_conclusion,
                     stdout: Some(output.stdout.clone()),
                     stderr: Some(output.stderr.clone()),
-                    status: output.code.unwrap_or(0)
+                    status: output.code.unwrap_or(0),
                 })
-            },
+            }
             false => {
                 Err(ProcessError::new_with_raw_output(
                     &format!("process didn't exit successfully (cache): {item}"),

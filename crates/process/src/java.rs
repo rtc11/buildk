@@ -56,7 +56,7 @@ impl<'a> JavaBuilder<'a> {
     fn new(java: &'a Java) -> JavaBuilder<'a> {
         JavaBuilder {
             java,
-            cache: Cache::load(&java.config.manifest.project.out.cache),
+            cache: Cache::load(&java.config.clone().manifest.expect("manifest").project.out.cache),
             cache_key: 0,
             process: ProcessBuilder::new(""),
         }

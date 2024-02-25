@@ -1,15 +1,18 @@
-use crate::Command;
-use anyhow::Result;
-use gryf::algo::TopoSort;
-use gryf::Graph;
-use manifest::config::Config;
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
+
+use anyhow::{Context, Result};
+use gryf::algo::TopoSort;
+use gryf::Graph;
+
+use manifest::config::Config;
+use util::{PartialConclusion, StringExtras};
 use util::buildk_output::BuildkOutput;
 use util::paths::all_files_recursive;
-use util::{PartialConclusion, StringExtras};
 
-pub (crate) struct Tree {
+use crate::Command;
+
+pub(crate) struct Tree {
     files: Vec<PathBuf>,
 }
 
@@ -48,11 +51,12 @@ impl Display for Tree {
     }
 }
 
-impl <'a> Tree {
-    pub fn new(config: &'a Config) -> Tree {
-        let src = config.manifest.project.src.clone();
+impl<'a> Tree {
+    pub fn new(config: &'a Config) -> Result<Tree> {
+        let manifest = config.clone().manifest.context("'tree' is missing manifest.")?;
+        let src = manifest.project.src.clone();
         let files = all_files_recursive(vec![], src).unwrap_or_default();
-        Tree { files }
+        Ok(Tree { files })
     }
 
     pub fn get_sorted_tree(&self) -> Result<Vec<PathBuf>> {
@@ -68,7 +72,7 @@ impl <'a> Tree {
                 graph.add_vertex(header);
             });
 
-        graph.connect_vertices(|u, v| 
+        graph.connect_vertices(|u, v|
             v.has_dependency(u).then_some(())
         );
 

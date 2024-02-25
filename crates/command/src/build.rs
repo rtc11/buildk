@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use cache::cache::Cache;
 use manifest::config::Config;
 use manifest::dependencies::DependenciesTools;
+use manifest::manifest::Manifest;
 use process::kotlin::Kotlin;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
@@ -36,7 +37,11 @@ impl <'a> Build<'_> {
 
     fn build_src(&mut self) -> BuildkOutput {
         let mut output = BuildkOutput::new("build src");
-        let mut cache = Cache::load(&self.config.manifest.project.out.cache);
+
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+
+        let mut cache = Cache::load(&manifest.project.out.cache);
         let build_tree = self.tree.get_sorted_tree().expect("Failed to get sorted build tree");
         let changed_files: Vec<&PathBuf> = build_tree.iter().filter(|file| cache.not_cached(file)).collect();
 
@@ -51,8 +56,8 @@ impl <'a> Build<'_> {
             .unwrap_or(0);
 
         self.kotlin.builder()
-            .workdir(&self.config.manifest.project.path)
-            .target(&self.config.manifest.project.out.src)
+            .workdir(&manifest.project.path)
+            .target(&manifest.project.out.src)
             .sources(changed_files)
             .cache_key(cache_key)
             .compile(&mut output)
@@ -60,13 +65,15 @@ impl <'a> Build<'_> {
     }
 
     fn build_test(&mut self) -> BuildkOutput {
-        let mut output = BuildkOutput::new("build test"); 
+        let mut output = BuildkOutput::new("build test");
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
 
-        if !self.config.manifest.project.test.is_dir(){
+        if !manifest.project.test.is_dir(){
             return output.to_owned()
         }
 
-        let project_test_libs = self.config.manifest.dependencies
+        let project_test_libs = manifest.dependencies
             .test_deps()
             .iter()
             .filter(|dependency| dependency.is_cached())
@@ -74,15 +81,15 @@ impl <'a> Build<'_> {
             .collect::<Vec<PathBuf>>();
 
         let test_libs = self.kotlin.test_libs();
-        let mut classpath = vec![&self.config.manifest.project.out.src];
+        let mut classpath = vec![&manifest.project.out.src];
         classpath.extend(project_test_libs.iter());
         classpath.extend(test_libs.iter());
 
         self.kotlin.builder()
-            .workdir(&self.config.manifest.project.path)
-            .sources(vec![&self.config.manifest.project.test])
+            .workdir(&manifest.project.path)
+            .sources(vec![&manifest.project.test])
             .classpath(classpath)
-            .target(&self.config.manifest.project.out.test)
+            .target(&manifest.project.out.test)
             .compile(&mut output)
             .to_owned()
     }

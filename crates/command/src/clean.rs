@@ -3,6 +3,7 @@ use std::path::Path;
 
 use cache::cache::Cache;
 use manifest::config::Config;
+use manifest::manifest::Manifest;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 
@@ -36,22 +37,31 @@ impl <'a> Clean<'_> {
     }
 
     fn clean_src(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
-        let path = &self.config.manifest.project.out.src;
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+
+        let path = &manifest.project.out.src;
         self.delete(output, path)
     }
 
     fn clean_test(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
-        let path = &self.config.manifest.project.out.test;
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let path = &manifest.project.out.test;
         self.delete(output, path)
     }
 
     fn clean_release(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
-        let path = &self.config.manifest.project.out.release;
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let path = &manifest.project.out.release;
         self.delete(output, path)
     }
 
     fn clean_all(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
-        let path = &self.config.manifest.project.out.path;
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let path = &manifest.project.out.path;
         self.delete(output, path) 
     }
 
@@ -64,7 +74,9 @@ impl <'a> Clean<'_> {
     }
 
     fn cleaned(&mut self, output: &mut BuildkOutput, dir: &Path) -> BuildkOutput {
-        let mut cache = Cache::load(&self.config.manifest.project.out.cache);
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let mut cache = Cache::load(&manifest.project.out.cache);
         cache.invalidate();
 
         output

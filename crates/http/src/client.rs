@@ -2,6 +2,7 @@ use anyhow::anyhow;
 use async_std::{fs::{create_dir_all, File, remove_file}, io, path::{Path, PathBuf}, task};
 
 use manifest::{config::Config, dependencies::Dependency};
+use manifest::dependencies::Kind;
 use manifest::repositories::Repository;
 
 #[derive(Default, Clone)]
@@ -15,6 +16,15 @@ pub enum DownloadResult {
 }
 
 impl Client {
+    pub async fn download<'a>(&'a self, name: &'a str, version: &'a str, config: Config) -> DownloadResult {
+        let dep = match Dependency::new(&Kind::Source, name, version) {
+            Ok(dep) => dep,
+            Err(err) => return DownloadResult::Failed(err.to_string()),
+        };
+
+        self.download_async(&dep, &config).await
+    }
+
     pub async fn download_async<'a>(&'a self, dep: &'a Dependency, config: &'a Config) -> DownloadResult {
         if let Err(err) = create_dir_all(&dep.target_dir).await {
             return DownloadResult::Failed(err.to_string());
@@ -23,7 +33,11 @@ impl Client {
         let (jar, pom) = task::block_on(async {
             let mut jar = DownloadResult::Failed("".into());
             let mut pom = DownloadResult::Failed("".into());
-            for repo in config.manifest.repositories.iter() {
+
+            // FIXME
+            let manifest = <Option<manifest::manifest::Manifest> as Clone>::clone(&config.manifest).expect("manifest");
+
+            for repo in manifest.repositories.iter() {
                 let repo = repo.clone();
                 (jar, pom) = Self::download_jar_and_pom(&dep, &repo).await;
                 if !jar.is_failed() && !pom.is_failed() {

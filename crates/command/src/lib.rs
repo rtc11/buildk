@@ -1,10 +1,11 @@
+use clap::{command, Parser, Subcommand, ValueEnum};
+
 use ::manifest::config::Config;
 use build::Build;
-use clap::{command, Parser, Subcommand, ValueEnum};
 use clean::Clean;
 use deps::Deps;
 use fetch::Fetch;
-use process::{kotlin::Kotlin, Process, java::Java};
+use process::{java::Java, kotlin::Kotlin, Process};
 use release::Release;
 use run::Run;
 use test::Test;
@@ -42,11 +43,11 @@ pub enum Commands {
     #[command(short_flag = 'b')]
     Build {
         #[arg(
-            value_name = "SET",
-            num_args = 0..=1,
-            default_missing_value = "always",
-            default_value_t = Set::All,
-            value_enum
+        value_name = "SET",
+        num_args = 0..=1,
+        default_missing_value = "always",
+        default_value_t = Set::All,
+        value_enum
         )]
         set: Set,
     },
@@ -55,14 +56,14 @@ pub enum Commands {
     #[command(short_flag = 'c')]
     Clean {
         #[arg(
-            value_name = "SET",
-            num_args = 0..=1,
-            default_missing_value = "always",
-            default_value_t = CleanSet::All,
-            value_enum
+        value_name = "SET",
+        num_args = 0..=1,
+        default_missing_value = "always",
+        default_value_t = CleanSet::All,
+        value_enum
         )]
         set: CleanSet,
-    }, 
+    },
 
     /// Show the project configuration
     Config,
@@ -71,7 +72,10 @@ pub enum Commands {
     Deps,
 
     /// Fetch the dependencies
-    Fetch,
+    Fetch {
+        #[arg(value_name = "ARTIFACT")]
+        artifact: Option<String>,
+    },
 
     /// Create a release (jar)
     Release,
@@ -106,7 +110,7 @@ pub enum CleanSet {
     All,
     Src,
     Test,
-    Release
+    Release,
 }
 
 
@@ -118,20 +122,50 @@ trait Command {
 
 impl Commands {
     pub fn apply(&mut self, config: &Config) -> BuildkOutput {
-        let mut tree = Tree::new(config);
-        let kotlin = Kotlin::new(config).expect("kotlin not found");
-        let java = Java::new(config).expect("java not found");
+        let kotlin = Kotlin::new(config);
+        let java = Java::new(config);
+        let tree = Tree::new(config);
 
         match self {
-            Commands::Build { set } => Build::new(config, &kotlin, &tree).execute(Some(*set)),
+            Commands::Build { set } => {
+                match kotlin {
+                    Ok(kotlin) => {
+                        match tree {
+                            Ok(tree) => Build::new(config, &kotlin, &tree).execute(Some(*set)),
+                            Err(e) => panic!("{}", e)
+                        }
+                    }
+                    Err(e) => panic!("{}", e)
+                }
+            }
             Commands::Clean { set } => Clean::new(config).execute(Some(*set)),
             Commands::Config => config::Config::new(config).execute(None),
             Commands::Deps => Deps::new(config).execute(None),
-            Commands::Fetch => Fetch::new(config).execute(None),
-            Commands::Release => Release::new(config, &kotlin).execute(None),
-            Commands::Run { name } => Run::new(config, &java).execute(name.clone()),
-            Commands::Test { name } => Test::new(config, &java).execute(name.clone()),
-            Commands::Tree => tree.execute(None),
+            Commands::Fetch{ artifact } => Fetch::new(config).execute(artifact.clone()),
+            Commands::Release => {
+                match kotlin {
+                    Ok(kotlin) => Release::new(config, &kotlin).execute(None),
+                    Err(e) => panic!("{}", e)
+                }
+            }
+            Commands::Run { name } => {
+                match java {
+                    Ok(java) => Run::new(config, &java).execute(name.clone()),
+                    Err(e) => panic!("{}", e)
+                }
+            }
+            Commands::Test { name } => {
+                match java {
+                    Ok(java) => Test::new(config, &java).execute(name.clone()),
+                    Err(e) => panic!("{}", e)
+                }
+            }
+            Commands::Tree => {
+                match tree {
+                    Ok(mut tree) => tree.execute(None),
+                    Err(e) => panic!("{}", e)
+                }
+            }
         }
     }
 }

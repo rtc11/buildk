@@ -4,9 +4,8 @@ use command::Cli;
 use manifest::config::Config;
 
 fn main() -> Result<()> {
-    let config = Config::default();
+    let config = Config::new();
     let mut terminal = Terminal::default();
-
 
     //terminal.start_spin(0, &option.to_string());
     let mut commands = Cli::commands();

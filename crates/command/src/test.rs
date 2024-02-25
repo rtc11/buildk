@@ -2,6 +2,7 @@ use std::path::Path;
 
 use manifest::config::Config;
 use manifest::dependencies::DependenciesTools;
+use manifest::manifest::Manifest;
 use process::java::Java;
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
@@ -20,7 +21,10 @@ impl <'a> Command for Test<'a> {
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("test");
 
-        let console_launcher = match self.config.manifest.dependencies.junit_platform() {
+        // FIXME
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+
+        let console_launcher = match manifest.dependencies.junit_platform() {
             Some(dep) => dep.jar_absolute_path(),
             None => {
                 return output
@@ -29,28 +33,28 @@ impl <'a> Command for Test<'a> {
             }
         };
 
-        let test_deps = self.config.manifest.dependencies.test_deps();
+        let test_deps = manifest.dependencies.test_deps();
         let test_deps_cp = test_deps.iter().map(|dep| dep.jar_absolute_path()).collect::<Vec<_>>();
-        let junit_cp = self.config.manifest.dependencies.junit_runner().map(|dep| dep.jar_absolute_path()).expect("missing junit");
+        let junit_cp = manifest.dependencies.junit_runner().map(|dep| dep.jar_absolute_path()).expect("missing junit");
 
         let mut classpath = vec![
-            &self.config.manifest.project.out.src,
-            &self.config.manifest.project.out.test,
+            &manifest.project.out.src,
+            &manifest.project.out.test,
             &junit_cp,
         ];
 
         classpath.extend(&test_deps_cp);
 
         let mut java = self.java.builder();
-        java.workdir(&self.config.manifest.project.path)
+        java.workdir(&manifest.project.path)
             .classpath(classpath)
             .jar(&console_launcher)
-            .test_report(&self.config.manifest.project.out.test_report)
+            .test_report(&manifest.project.out.test_report)
             .args(&["--details", "tree"])
             .args(&["--exclude-engine", "junit-vintage"])
             .args(&["--exclude-engine", "junit-platform-suite"]);
 
-        if let Ok(test_files) = util::paths::all_files_recursive(vec![], self.config.manifest.project.test.clone()){
+        if let Ok(test_files) = util::paths::all_files_recursive(vec![], manifest.project.test.clone()){
             let test_packages = test_files
                 .iter()
                 .map(Path::new)

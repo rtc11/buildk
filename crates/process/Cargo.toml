@@ -7,6 +7,7 @@ edition = "2021"
 manifest.workspace = true
 util.workspace = true
 cache.workspace = true
+http.workspace = true
 
 anyhow.workspace = true
 libc.workspace = true
