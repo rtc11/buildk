@@ -1,5 +1,8 @@
-use async_std::{path::{Path, PathBuf}, fs::{File, remove_file, create_dir_all}, io, task};
+use anyhow::anyhow;
+use async_std::{fs::{create_dir_all, File, remove_file}, io, path::{Path, PathBuf}, task};
+
 use manifest::{config::Config, dependencies::Dependency};
+use manifest::repositories::Repository;
 
 #[derive(Default, Clone)]
 pub struct Client;
@@ -12,31 +15,32 @@ pub enum DownloadResult {
 }
 
 impl Client {
-pub async fn download_async<'a>(&'a self, dep: &'a Dependency, config: &'a Config) -> DownloadResult {
+    pub async fn download_async<'a>(&'a self, dep: &'a Dependency, config: &'a Config) -> DownloadResult {
         if let Err(err) = create_dir_all(&dep.target_dir).await {
             return DownloadResult::Failed(err.to_string());
         }
 
         let (jar, pom) = task::block_on(async {
-            let repo = config.manifest.repositories[0].clone(); // TODO: support all repos  
-            let base_url = format!("{}/{}", &repo.url, &dep.path);
-            let target_dir = PathBuf::from(&dep.target_dir);
-            
-            let jar_res = create_target_and_download(&base_url, &target_dir, &dep.jar).await;
-            let pom_res = create_target_and_download(&base_url, &target_dir, &dep.pom).await;
-            let _optional = create_target_and_download(&base_url, &target_dir, &dep.sources).await;
-            let _optional = create_target_and_download(&base_url, &target_dir, &dep.module).await;
-            (jar_res, pom_res)
+            let mut jar = DownloadResult::Failed("".into());
+            let mut pom = DownloadResult::Failed("".into());
+            for repo in config.manifest.repositories.iter() {
+                let repo = repo.clone();
+                (jar, pom) = Self::download_jar_and_pom(&dep, &repo).await;
+                if !jar.is_failed() && !pom.is_failed() {
+                    break;
+                }
+            }
+            (jar, pom)
         });
-        
+
         if let DownloadResult::Failed(_) = jar {
             //println!("failed to download jar: {:?}", &jar);
-            return jar
+            return jar;
         }
 
         if let DownloadResult::Failed(_) = pom {
             //println!("failed to download pom: {:?}", &jar);
-            return pom
+            return pom;
         }
 
         if jar == DownloadResult::Downloaded || pom == DownloadResult::Downloaded {
@@ -47,13 +51,23 @@ pub async fn download_async<'a>(&'a self, dep: &'a Dependency, config: &'a Confi
         //println!("{} is cached", &dep.name);
         DownloadResult::Exist
     }
+
+    async fn download_jar_and_pom(dep: &&Dependency, repo: &Repository) -> (DownloadResult, DownloadResult) {
+        let base_url = format!("{}/{}", &repo.url, &dep.path);
+        let target_dir = PathBuf::from(&dep.target_dir);
+
+        let jar_res = create_target_and_download(&base_url, &target_dir, &dep.jar).await;
+        let pom_res = create_target_and_download(&base_url, &target_dir, &dep.pom).await;
+        let _optional = create_target_and_download(&base_url, &target_dir, &dep.sources).await;
+        let _optional = create_target_and_download(&base_url, &target_dir, &dep.module).await;
+        (jar_res, pom_res)
+    }
 }
 
 async fn create_target_and_download(base_url: &String, target_dir: &Path, filename: &String) -> DownloadResult {
     if target_exists(target_dir, filename).await {
         //println!("{} already exists", filename);
         return DownloadResult::Exist;
-
     }
 
     let target_file = match create_target_file(target_dir, filename).await {
@@ -77,6 +91,7 @@ async fn create_target_and_download(base_url: &String, target_dir: &Path, filena
         }
     }
 }
+
 async fn target_exists(dir: &Path, filename: &String) -> bool {
     let target = dir.join(filename);
     target.exists().await && target.metadata().await.unwrap().len() > 0
@@ -88,7 +103,7 @@ async fn create_target_file(target_dir: &Path, filename: &String) -> anyhow::Res
     Ok(file)
 }
 
-async fn delete_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<()> { 
+async fn delete_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<()> {
     let file_path = target_dir.join(filename);
     remove_file(file_path).await?;
     //println!("deleted {}", filename);
@@ -98,9 +113,14 @@ async fn delete_target_file(target_dir: &Path, filename: &String) -> anyhow::Res
 async fn download(mut file: &File, url: &str) -> anyhow::Result<()> {
     //println!("downloading {}...", url);
     let mut response = surf::get(url).await.map_err(|e| anyhow::anyhow!(e))?;
-    io::copy(&mut response, &mut file).await?;
     //println!("downloaded {:?}!", response);
-    Ok(())
+
+    if response.status().is_success() {
+        io::copy(&mut response, &mut file).await?;
+        Ok(())
+    } else {
+        Err(anyhow!(response.status().to_string()))
+    }
 }
 
 impl DownloadResult {

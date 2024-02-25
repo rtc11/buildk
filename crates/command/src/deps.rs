@@ -91,9 +91,13 @@ pub fn find_dependent_deps(
             .filter(|it| !traversed.contains(it))
             .collect::<Vec<_>>();
 
-        find_dependent_deps(transitives, traversed, depth + 1, print).await
-    }
-        .boxed()
+        find_dependent_deps(
+            transitives,
+            traversed,
+            depth + 1,
+            print,
+        ).await
+    }.boxed()
 }
 
 mod lsp {

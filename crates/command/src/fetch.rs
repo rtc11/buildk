@@ -8,7 +8,7 @@ use manifest::{config::Config, dependencies::Dependency};
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 
-use crate::Command;
+use crate::{Command, deps};
 
 const DEBUG: bool = false;
 const PRINT_DOWNLOADS: bool = false;
@@ -27,7 +27,12 @@ impl<'a> Command for Fetch<'a> {
         let deps = &self.config.manifest.dependencies;
 
         let downloads = task::block_on(async {
-            let all_deps = crate::deps::find_dependent_deps(deps.to_vec(), vec![], 0, false).await;
+            let all_deps = deps::find_dependent_deps(
+                deps.to_vec(),
+                vec![],
+                0,
+                false,
+            ).await;
 
             println!("\rtotal deps: {}", all_deps.len());
 
@@ -35,13 +40,14 @@ impl<'a> Command for Fetch<'a> {
                 .into_iter()
                 .filter(|dep| !dep.is_cached())
                 .map(|dep| {
-
-                    //let dep = dep.clone();
                     let config = self.config.clone();
                     let client = client.clone();
 
                     task::block_on(async {
-                        let mut spinner = Spinner::new(Spinners::Dots7, format!("\r          downloading {}:{}", dep.name, dep.version).to_string());
+                        let mut spinner = Spinner::new(
+                            Spinners::Dots7,
+                            format!("{:<10} {:<16}:{:<26}", "downloading", dep.name, dep.version).to_string(),
+                        );
                         let download_res = client.download_async(&dep, &config).await;
                         spinner.stop();
                         //println!("downloaded {}:{}", dep.name, dep.version);
