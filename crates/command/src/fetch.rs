@@ -28,21 +28,14 @@ impl<'a> Command for Fetch<'a> {
 
         match arg {
             Some(artifact) => {
-                println!("found some artifact: {artifact}");
-
                 let artifact = artifact.split(':').collect::<Vec<_>>();
                 if artifact.len() != 2 {
                     panic!("artifact must be in format: <name>:<version>")
                 }
 
-                let dep = match Dependency::new(&Kind::Source, artifact[0], artifact[1]) {
-                    Ok(dep) => dep,
-                    Err(err) => return output
-                        .conclude(PartialConclusion::FAILED)
-                        .stderr(err.to_string())
-                        .to_owned(),
-                };
-                self.fetch_dep(dep, &mut output)
+                if let Ok(dep) = Dependency::new(&Kind::Source, artifact[0], artifact[1]) {
+                    self.fetch_dep(dep, &mut output)
+                }
             }
             None => {
                 let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
@@ -103,11 +96,11 @@ impl<'a> Fetch<'a> {
         });
 
         if output.get_stderr().is_some() {
-            output.conclude(util::PartialConclusion::FAILED);
+            output.conclude(PartialConclusion::FAILED);
         } else if downloads.iter().any(|d| d.is_downloaded()) {
-            output.conclude(util::PartialConclusion::SUCCESS);
+            output.conclude(PartialConclusion::SUCCESS);
         } else {
-            output.conclude(util::PartialConclusion::CACHED);
+            output.conclude(PartialConclusion::CACHED);
         }
     }
 }

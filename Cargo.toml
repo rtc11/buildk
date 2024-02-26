@@ -44,6 +44,10 @@ toml_edit = "0.22.4"
 xml-rs = "0.8.19"
 roxmltree = "0.19.0"
 spinners = "4.1.1"
+termtree = "0.4.1"
+
+# todo: print messges and progress with prodash
+#prodash = "28.0.0"
 
 # graph lib - topological sort
 gryf = { git = "https://github.com/pnevyk/gryf.git" }

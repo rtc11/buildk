@@ -1,6 +1,6 @@
-use async_std::task;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use termtree::Tree;
 
 use manifest::config::Config;
 use manifest::dependencies::Dependency;
@@ -15,13 +15,48 @@ pub(crate) struct Deps<'a> {
     config: &'a Config,
 }
 
+fn termtree_display(status: &str, dep: &Dependency) -> String {
+    format!("{}{:<14}{}:{}", "", status, dep.name, dep.version)
+}
+
+pub fn build_termtree(
+    dependency: Dependency,
+    mut traversed: Vec<Dependency>,
+    depth: usize,
+) -> anyhow::Result<Tree<String>> {
+    traversed.push(dependency.clone());
+
+    let status = status(&dependency);
+    let display = termtree_display(status, &dependency);
+    let color = Color::get_index(depth);
+    let label = display.colorize(&color).to_string();
+
+    let res = dependency
+        .transitives()
+        .into_iter()
+        .filter(|it| !traversed.contains(it))
+        .fold(Tree::new(label), |mut root, entry| {
+            let tree = build_termtree(entry, traversed.clone(), depth + 1).unwrap();
+            root.push(tree);
+            root
+        });
+
+    Ok(res)
+}
+
 impl<'a> Command for Deps<'a> {
     type Item = ();
 
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("deps");
+
         // FIXME
         let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+
+        manifest.dependencies.iter().for_each(|dep| {
+            let tree = build_termtree(dep.clone(), vec![], 0).unwrap();
+            print!("{}", tree);
+        });
 
         match lsp::update_classpath(self.config) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),
@@ -29,12 +64,6 @@ impl<'a> Command for Deps<'a> {
                 .conclude(PartialConclusion::FAILED)
                 .stderr(err.to_string()),
         };
-
-        task::block_on(async {
-            let deps = manifest.dependencies.clone();
-            let deps = find_dependent_deps(deps, vec![], 0, true).await;
-            println!("deps contains: {:?}", deps.len());
-        });
 
         output.conclude(PartialConclusion::SUCCESS);
 
@@ -105,7 +134,9 @@ pub fn find_dependent_deps(
 
 mod lsp {
     use std::os::unix::fs::OpenOptionsExt;
+
     use anyhow::Context;
+
     use manifest::config::Config;
     use manifest::manifest::Manifest;
 

@@ -41,12 +41,7 @@ pub enum Kind {
 
 impl Display for Dependency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            Kind::Source => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
-            Kind::Test => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
-            Kind::Platform => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
-            Kind::PlatformTest => writeln!(f, "{:<26}{:?}:{}:{}", "dependency", self.kind, self.name, self.version),
-        }
+        write!(f, "{}:{}", self.name, self.version)
     }
 }
 
@@ -324,11 +319,13 @@ impl PomParser for PathBuf {
             let mut group = String::new();
             let mut artifact = String::new();
             let mut version = String::new();
+            let mut scope = String::new();
             let mut dependencies: Vec<Dependency> = Vec::new();
             let mut is_dependency = false;
             let mut is_group_id = false;
             let mut is_artifact_id = false;
             let mut is_version = false;
+            let mut is_scope = false;
 
             let mut is_properties = false;
             let mut properties_version = String::new();
@@ -352,7 +349,11 @@ impl PomParser for PathBuf {
                     Ok(XmlEvent::EndElement { name }) if name.local_name.eq("dependency") => {
                         let name = format!("{}.{}", &group, artifact);
                         if let Ok(dependency) = Dependency::new(kind, name.as_str(), version.as_str()) {
-                            dependencies.push(dependency);
+                            if !scope.eq("test") {
+                                dependencies.push(dependency);
+                            } else {
+                                scope = String::new();
+                            }
                         }
                         is_dependency = false;
                     }
@@ -387,6 +388,16 @@ impl PomParser for PathBuf {
                         is_version = false;
                     }
 
+                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("scope") => {
+                        if is_dependency {
+                            is_scope = true
+                        }
+                    }
+
+                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("scope") => {
+                        is_scope = false;
+                    }
+
                     Ok(XmlEvent::StartElement { name, .. }) => {
                         if is_properties {
                             properties_version = name.local_name.clone();
@@ -411,6 +422,9 @@ impl PomParser for PathBuf {
                             } else {
                                 version = content.clone();
                             }
+                        }
+                        if is_scope {
+                            scope = content.clone();
                         }
                     }
 

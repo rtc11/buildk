@@ -18,3 +18,4 @@ clap.workspace = true
 async-std.workspace = true
 futures.workspace = true
 spinners.workspace = true
+termtree.workspace = true
