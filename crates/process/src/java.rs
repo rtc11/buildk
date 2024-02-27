@@ -54,9 +54,12 @@ pub struct JavaBuilder<'a> {
 
 impl<'a> JavaBuilder<'a> {
     fn new(java: &'a Java) -> JavaBuilder<'a> {
+        let manifest = java.config.clone().manifest
+            .expect("no buildk.toml found.");
+
         JavaBuilder {
             java,
-            cache: Cache::load(&java.config.clone().manifest.expect("manifest").project.out.cache),
+            cache: Cache::load(&manifest.project.out.cache),
             cache_key: 0,
             process: ProcessBuilder::new(""),
         }

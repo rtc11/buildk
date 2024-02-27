@@ -20,7 +20,8 @@ impl <'a> Command for Run<'a> {
         let mut output = BuildkOutput::new("run");
 
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
 
         let runtime_deps = manifest.dependencies.src_deps();
         let runtime_paths = runtime_deps.iter().map(|dep| dep.jar_absolute_path()).collect::<Vec<PathBuf>>();

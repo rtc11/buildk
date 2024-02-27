@@ -22,7 +22,8 @@ impl <'a> Command for Test<'a> {
         let mut output = BuildkOutput::new("test");
 
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
 
         let console_launcher = match manifest.dependencies.junit_platform() {
             Some(dep) => dep.jar_absolute_path(),

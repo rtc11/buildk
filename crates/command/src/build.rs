@@ -39,7 +39,8 @@ impl <'a> Build<'_> {
         let mut output = BuildkOutput::new("build src");
 
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
 
         let mut cache = Cache::load(&manifest.project.out.cache);
         let build_tree = self.tree.get_sorted_tree().expect("Failed to get sorted build tree");
@@ -67,7 +68,8 @@ impl <'a> Build<'_> {
     fn build_test(&mut self) -> BuildkOutput {
         let mut output = BuildkOutput::new("build test");
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
 
         if !manifest.project.test.is_dir(){
             return output.to_owned()

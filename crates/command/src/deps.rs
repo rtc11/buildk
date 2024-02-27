@@ -58,7 +58,8 @@ impl<'a> Command for Deps<'a> {
         let mut output = BuildkOutput::new("deps");
 
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
 
         if !manifest.dependencies.is_empty() {
             println!("{} found   {} missing", "".as_green(), " " .as_red());
@@ -159,7 +160,8 @@ mod lsp {
         use std::io::prelude::*;
 
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&config.manifest)
+            .expect("no buildk.toml found.");
 
         let kls_classpath = home::home_dir()
             .map(|home| home.join(".config"))

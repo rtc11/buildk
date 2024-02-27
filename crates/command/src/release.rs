@@ -16,7 +16,8 @@ impl <'a> Command for Release<'a> {
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("release");
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
 
         self.kotlin.builder()
             .source(&manifest.project.src)

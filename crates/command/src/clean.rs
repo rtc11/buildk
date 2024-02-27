@@ -38,7 +38,8 @@ impl <'a> Clean<'_> {
 
     fn clean_src(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
 
         let path = &manifest.project.out.src;
         self.delete(output, path)
@@ -46,21 +47,27 @@ impl <'a> Clean<'_> {
 
     fn clean_test(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
+
         let path = &manifest.project.out.test;
         self.delete(output, path)
     }
 
     fn clean_release(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
+
         let path = &manifest.project.out.release;
         self.delete(output, path)
     }
 
     fn clean_all(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
+
         let path = &manifest.project.out.path;
         self.delete(output, path) 
     }
@@ -75,7 +82,9 @@ impl <'a> Clean<'_> {
 
     fn cleaned(&mut self, output: &mut BuildkOutput, dir: &Path) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+            .expect("no buildk.toml found.");
+
         let mut cache = Cache::load(&manifest.project.out.cache);
         cache.invalidate();
 

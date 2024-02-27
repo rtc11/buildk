@@ -50,7 +50,9 @@ impl<'a> Command for Fetch<'a> {
                 }
             }
             None => {
-                let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+                let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+                    .expect("no buildk.toml found.");
+
                 let deps = &manifest.dependencies;
                 self.fetch_deps(deps, &mut output)
             }

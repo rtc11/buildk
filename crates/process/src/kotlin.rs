@@ -72,7 +72,8 @@ pub struct KotlinBuilder<'a> {
 
 impl<'a> KotlinBuilder<'a> {
     fn new(kotlin: &'a Kotlin<'a>) -> KotlinBuilder<'a> {
-        let manifest = <Option<Manifest> as Clone>::clone(&kotlin.config.manifest).expect("manifest");
+        let manifest = <Option<Manifest> as Clone>::clone(&kotlin.config.manifest)
+            .expect("no buildk.toml found.");
 
         KotlinBuilder {
             kotlin,

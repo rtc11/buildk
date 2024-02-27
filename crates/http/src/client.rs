@@ -35,7 +35,8 @@ impl Client {
             let mut pom = DownloadResult::Failed("".into());
 
             // FIXME
-            let manifest = <Option<manifest::manifest::Manifest> as Clone>::clone(&config.manifest).expect("manifest");
+            let manifest = <Option<manifest::manifest::Manifest> as Clone>::clone(&config.manifest)
+                .expect("no buildk.toml found.");
 
             for repo in manifest.repositories.iter() {
                 let repo = repo.clone();
