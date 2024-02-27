@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -14,10 +14,10 @@ use crate::Section;
 
 // https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct Dependency {
-    pub name: String,
-    pub version: String,
+    pub name: Name,
+    pub version: Version,
     pub kind: Kind,
     pub target_dir: PathBuf,
     pub path: String,
@@ -31,7 +31,7 @@ pub struct Dependency {
     pub module: String, // Filename
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Kind {
     Source,
     Test,
@@ -39,9 +39,52 @@ pub enum Kind {
     PlatformTest,
 }
 
+
+#[derive(Clone, Hash, Eq, PartialEq)]
+pub struct Name(String);
+
+impl Display for Name {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for Name {
+    fn from(value: String) -> Self {
+        Name(value)
+    }
+}
+
+impl From<&str> for Name {
+    fn from(value: &str) -> Self {
+        Name(value.to_string())
+    }
+}
+
+#[derive(Clone, Hash, Eq, PartialEq)]
+pub struct Version(String);
+
 impl Display for Dependency {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.name, self.version)
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.name.0, self.version.0)
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for Version {
+    fn from(value: String) -> Self {
+        Version(value)
+    }
+}
+
+impl From<&str> for Version {
+    fn from(value: &str) -> Self {
+        Version(value.to_string())
     }
 }
 
@@ -74,19 +117,19 @@ impl DependenciesTools for Vec<Dependency> {
 
     fn junit_runner(&self) -> Option<Dependency> {
         self.platform_test_deps().iter()
-            .find(|dep| dep.name.eq("org.junit.platform.junit-platform-console-standalone"))
+            .find(|dep| dep.name.0.eq("org.junit.platform.junit-platform-console-standalone"))
             .cloned()
     }
 
     fn kotlin_stdlib(&self) -> Option<Dependency> {
         self.platform_deps().iter()
-            .find(|dep| dep.name.eq("org.jetbrains.kotlin.kotlin-stdlib"))
+            .find(|dep| dep.name.0.eq("org.jetbrains.kotlin.kotlin-stdlib"))
             .cloned()
     }
 
     fn junit_platform(&self) -> Option<Dependency> {
         self.platform_test_deps().iter()
-            .find(|dep| dep.name.eq("org.junit.jupiter.junit-jupiter-api"))
+            .find(|dep| dep.name.0.eq("org.junit.jupiter.junit-jupiter-api"))
             .cloned()
     }
 }
@@ -94,25 +137,23 @@ impl DependenciesTools for Vec<Dependency> {
 pub(crate) fn create_platform_deps() -> Vec<Dependency> {
     vec![
         Dependency::new(
-            &Kind::PlatformTest,
-            "org.junit.platform.junit-platform-console-standalone",
-            "1.10.1",
-        )
-            .unwrap(),
+            Kind::PlatformTest,
+            Name::from("org.junit.platform.junit-platform-console-standalone"),
+            Version::from("1.10.1"),
+        ).unwrap(),
         Dependency::new(
-            &Kind::Platform,
-            "org.jetbrains.kotlin.kotlin-stdlib",
-            "1.9.22",
-        )
-            .unwrap(),
+            Kind::Platform,
+            Name::from("org.jetbrains.kotlin.kotlin-stdlib"),
+            Version::from("1.9.22"),
+        ).unwrap(),
         Dependency::new(
-            &Kind::PlatformTest,
-            "org.junit.jupiter.junit-jupiter-api",
-            "5.5.2",
-        )
-            .unwrap(),
+            Kind::PlatformTest,
+            Name::from("org.junit.jupiter.junit-jupiter-api"),
+            Version::from("5.5.2"),
+        ).unwrap(),
     ]
 }
+
 
 impl Dependency {
     pub fn classpath(&self) -> String {
@@ -141,12 +182,12 @@ impl Dependency {
             && pom.metadata().unwrap().len() > 0
     }
 
-    pub fn new(kind: &Kind, name: &str, version: &str) -> anyhow::Result<Dependency> {
-        let dep = dependency_info(name, version)
+    pub fn new(kind: Kind, name: Name, version: Version) -> anyhow::Result<Dependency> {
+        let dep = dependency_info(&name, &version)
             .map(|info| Self {
-                name: name.into(),
-                version: version.into(),
-                kind: kind.clone(),
+                name,
+                version,
+                kind,
                 target_dir: info.target_dir.clone(),
                 path: info.path,
                 jar: format!("{}.jar", info.file_suffix),
@@ -158,22 +199,22 @@ impl Dependency {
         Ok(dep)
     }
 
-    pub fn from_toml(kind: &Kind, name: &str, item: &Value) -> anyhow::Result<Dependency> {
+    pub fn from_toml(kind: Kind, name: &str, item: &Value) -> anyhow::Result<Dependency> {
         let version = item.as_str().context("missing version")?;
-        Self::new(kind, name, version)
+        Self::new(kind, Name::from(name), Version::from(version))
     }
 
     pub fn transitives(&self) -> Vec<Dependency> {
         let pom = self.target_dir.join(&self.pom);
-        pom.parse_pom(&self.kind)
+        pom.parse_pom(self.kind)
     }
 }
 
 /// [name] "org.apache.kafka.kafka-clients"
 /// [version] "3.4.0"
-fn dependency_info(name: &str, version: &str) -> anyhow::Result<DependencyInfo> {
+fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyInfo> {
     let after_last_slash = Regex::new(r"([^/]+)$").unwrap();
-    let name = name.replace('.', "/");
+    let name = name.0.replace('.', "/");
     // todo: place this elsewhere
     let home = home::home_dir().unwrap().join(".buildk");
     let cache = home.join("cache");
@@ -185,7 +226,7 @@ fn dependency_info(name: &str, version: &str) -> anyhow::Result<DependencyInfo> 
             Some(relative_path) => Ok(DependencyInfo {
                 path: format!("{name}/{version}/"),
                 file_suffix: format!("{}-{version}", artifact_name.as_str()),
-                target_dir: cache.join(relative_path).join(version),
+                target_dir: cache.join(relative_path).join(version.clone().0),
             }),
         },
     }
@@ -277,7 +318,7 @@ fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
     });
 
     map.into_iter()
-        .filter_map(|(key, value)| Dependency::from_toml(&kind, &key, value).ok())
+        .filter_map(|(key, value)| Dependency::from_toml(kind, &key, value).ok())
         .collect()
 }
 
@@ -308,11 +349,11 @@ fn decend<'a>(
 }
 
 trait PomParser {
-    fn parse_pom(&self, kind: &Kind) -> Vec<Dependency>;
+    fn parse_pom(&self, kind: Kind) -> Vec<Dependency>;
 }
 
 impl PomParser for PathBuf {
-    fn parse_pom(&self, kind: &Kind) -> Vec<Dependency> {
+    fn parse_pom(&self, kind: Kind) -> Vec<Dependency> {
         if let Ok(file) = std::fs::File::open(self) {
             let file = BufReader::new(file); // increases performance
             let reader = EventReader::new(file);
@@ -348,7 +389,7 @@ impl PomParser for PathBuf {
 
                     Ok(XmlEvent::EndElement { name }) if name.local_name.eq("dependency") => {
                         let name = format!("{}.{}", &group, artifact);
-                        if let Ok(dependency) = Dependency::new(kind, name.as_str(), version.as_str()) {
+                        if let Ok(dependency) = Dependency::new(kind, Name::from(name.as_str()), Version::from(version.as_str())) {
                             if !scope.eq("test") {
                                 dependencies.push(dependency);
                             } else {
@@ -451,7 +492,7 @@ mod tests {
     impl Version for Vec<Dependency> {
         fn version_for(&self, lib: &str) -> Option<&str> {
             match self.into_iter().find(|dep| dep.name.eq(lib)) {
-                Some(dependency) => Some(&dependency.version),
+                Some(dependency) => Some(&dependency.version.0),
                 None => None,
             }
         }

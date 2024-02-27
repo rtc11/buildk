@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use async_std::{fs::{create_dir_all, File, remove_file}, io, path::{Path, PathBuf}, task};
 
 use manifest::{config::Config, dependencies::Dependency};
-use manifest::dependencies::Kind;
+use manifest::dependencies::{Kind, Name, Version};
 use manifest::repositories::Repository;
 
 #[derive(Default, Clone)]
@@ -17,7 +17,7 @@ pub enum DownloadResult {
 
 impl Client {
     pub async fn download<'a>(&'a self, name: &'a str, version: &'a str, config: Config) -> DownloadResult {
-        let dep = match Dependency::new(&Kind::Source, name, version) {
+        let dep = match Dependency::new(Kind::Source, Name::from(name), Version::from(version)) {
             Ok(dep) => dep,
             Err(err) => return DownloadResult::Failed(err.to_string()),
         };

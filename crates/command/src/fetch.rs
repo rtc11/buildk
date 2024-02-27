@@ -5,7 +5,7 @@ use spinners::{Spinner, Spinners};
 
 use http::client::{Client, DownloadResult};
 use manifest::{config::Config, dependencies::Dependency};
-use manifest::dependencies::Kind;
+use manifest::dependencies::{Kind, Name, Version};
 use manifest::manifest::Manifest;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
@@ -20,6 +20,21 @@ pub(crate) struct Fetch<'a> {
     config: &'a Config,
 }
 
+trait IntoNameAndVersion {
+    fn into_name_version_touple(self) -> (Name, Version);
+}
+
+impl IntoNameAndVersion for String {
+    fn into_name_version_touple(self) -> (Name, Version) {
+        let artifact = self.split(':').collect::<Vec<_>>();
+        if artifact.len() != 2 {
+            panic!("artifact must be in format: <name>:<version>")
+        }
+
+        (Name::from(artifact[0]), Version::from(artifact[1]))
+    }
+}
+
 impl<'a> Command for Fetch<'a> {
     type Item = String;
 
@@ -28,12 +43,9 @@ impl<'a> Command for Fetch<'a> {
 
         match arg {
             Some(artifact) => {
-                let artifact = artifact.split(':').collect::<Vec<_>>();
-                if artifact.len() != 2 {
-                    panic!("artifact must be in format: <name>:<version>")
-                }
+                let (name, version) = artifact.into_name_version_touple();
 
-                if let Ok(dep) = Dependency::new(&Kind::Source, artifact[0], artifact[1]) {
+                if let Ok(dep) = Dependency::new(Kind::Source, name, version) {
                     self.fetch_dep(dep, &mut output)
                 }
             }
