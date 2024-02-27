@@ -6,7 +6,7 @@ use manifest::config::Config;
 use manifest::dependencies::Dependency;
 use manifest::manifest::Manifest;
 use util::buildk_output::BuildkOutput;
-use util::colorize::{Color, Colors};
+use util::colorize::{Color, Colorize, Colors};
 use util::PartialConclusion;
 
 use crate::Command;
@@ -16,7 +16,14 @@ pub(crate) struct Deps<'a> {
 }
 
 fn termtree_display(status: &str, dep: &Dependency) -> String {
-    format!("{}{:<14}{}:{}", "", status, dep.name, dep.version)
+    format!("{}:{} {}", dep.name, dep.version, status)
+}
+
+fn termtree_status(dep: &Dependency) -> String {
+    match dep.is_cached() {
+        true => "".as_green(),
+        false => " " .as_red(),
+    }
 }
 
 pub fn build_termtree(
@@ -26,8 +33,8 @@ pub fn build_termtree(
 ) -> anyhow::Result<Tree<String>> {
     traversed.push(dependency.clone());
 
-    let status = status(&dependency);
-    let display = termtree_display(status, &dependency);
+    let status = termtree_status(&dependency);
+    let display = termtree_display(&status, &dependency);
     let color = Color::get_index(depth);
     let label = display.colorize(&color).to_string();
 
@@ -52,6 +59,10 @@ impl<'a> Command for Deps<'a> {
 
         // FIXME
         let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest).expect("manifest");
+
+        if !manifest.dependencies.is_empty() {
+            println!("{} found   {} missing", "".as_green(), " " .as_red());
+        }
 
         manifest.dependencies.iter().for_each(|dep| {
             let tree = build_termtree(dep.clone(), vec![], 0).unwrap();
