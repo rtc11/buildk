@@ -214,6 +214,7 @@ impl Dependency {
 /// [name] "org.apache.kafka:kafka-clients"
 /// [version] "3.4.0"
 fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyInfo> {
+    println!("name: {}", name);
     let group_id = resolve_group_id(name)?;
     let artifact_id = resolve_artifact_id(name)?;
 
@@ -229,39 +230,46 @@ fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyI
 
 /// [name] org.apache.kafka.kafka-clients   [return] org.apache.kafka
 /// [name] org.osgi."org.osgi.core"         [return] org.osgi
+/// [name] org.slf4j:slf4j-api              [return] org.slf4j
 fn resolve_group_id(name: &Name) -> anyhow::Result<String> {
-    let until_first_quote = |name: String| -> anyhow::Result<String> {
+    let until_first_quote = |name: String| -> String {
         let mut name = name.substr_before('"');
-        name.pop().context("empty string, expected a dot")?;
-        Ok(name)
+        name.pop().expect("empty string, expected a dot");
+        name
     };
 
-    let until_last_dot = |name: String| -> anyhow::Result<String> {
-        Ok(name.substr_before_last('.'))
+    let until_last_dot = |s: String| s.substr_before_last('.');
+    let before_colon = |s: String| s.substr_before(':');
+
+    let regex = match &name.0 {
+        name if name.contains('"') => until_first_quote,
+        name if name.contains(':') => before_colon,
+        _ => until_last_dot,
     };
 
-    let regex = match name.0.contains('"') {
-        true => until_first_quote,
-        false => until_last_dot
-    };
-
-    let group_id = regex(name.clone().0)?;
+    let group_id = regex(name.clone().0);
     Ok(group_id)
 }
 
 
 /// [name] org.apache.kafka.kafka-clients   [return] kafka-clients
 /// [name] org.osgi."org.osgi.core"         [return] org.osgi.core
+/// [name] org.slf4j:slf4j-api              [return] slf4j-api
 fn resolve_artifact_id(name: &Name) -> anyhow::Result<String> {
-    let between_double_quotes = |s: String| {
-        s.substr_after('"').substr_before('"')
-    };
+    let between_double_quotes = |s: String| s.substr_after('"').substr_before('"');
     let after_last_dot = |s: String| s.substr_after_last('.');
+    let after_colon = |s: String| s.substr_after(':');
 
-    let regex = match name.0.contains('"') {
-        true => between_double_quotes,
-        false => after_last_dot
+    let regex = match &name.0 {
+        name if name.contains('"') => between_double_quotes,
+        name if name.contains(':') => after_colon,
+        _ => after_last_dot,
     };
+    //
+    // let regex = match name.0.contains('"') {
+    //     true => between_double_quotes,
+    //     false => after_last_dot
+    // };
 
     let artifact_id = regex(name.clone().0);
 
@@ -736,6 +744,22 @@ splendid.test.lib = "3.2.1"
         let name = Name::from("org.apache.kafka.kafka-clients");
         let artifact_id = resolve_artifact_id(&name)?;
         assert_eq!(artifact_id, "kafka-clients");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_colon_group_id() -> anyhow::Result<()> {
+        let name = Name::from("org.slf4j:slf4j-api");
+        let group_id = resolve_group_id(&name)?;
+        assert_eq!(group_id, "org.slf4j");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_colon_artifact_id() -> anyhow::Result<()> {
+        let name = Name::from("org.slf4j:slf4j-api");
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(artifact_id, "slf4j-api");
         Ok(())
     }
 }

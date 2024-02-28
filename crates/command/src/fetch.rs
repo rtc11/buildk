@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
 use async_std::task;
-use spinners::{Spinner, Spinners};
-
 use http::client::{Client, DownloadResult};
 use manifest::{config::Config, dependencies::Dependency};
 use manifest::dependencies::{Kind, Name, Version};
@@ -85,12 +83,12 @@ impl<'a> Fetch<'a> {
                     let client = client.clone();
 
                     task::block_on(async {
-                        let mut spinner = Spinner::new(
-                            Spinners::Dots7,
-                            format!("{:<10} {:<16}:{:<26}", "downloading", dep.name, dep.version).to_string(),
-                        );
+                        // let mut spinner = Spinner::new(
+                        //     Spinners::Dots7,
+                            println!("{:<10} {:<16}:{:<26}", "downloading", dep.name, dep.version);
+                        // );
                         let download_res = client.download_async(&dep, &config).await;
-                        spinner.stop();
+                        // spinner.stop();
                         //println!("downloaded {}:{}", dep.name, dep.version);
                         download_res
                     })
