@@ -4,11 +4,12 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{bail, Context};
-use regex::Regex;
+use anyhow::Context;
 use toml_edit::{Document, Item, Table, Value};
 use xml::EventReader;
 use xml::reader::XmlEvent;
+
+use util::sub_strings::SubStrings;
 
 use crate::Section;
 
@@ -117,19 +118,19 @@ impl DependenciesTools for Vec<Dependency> {
 
     fn junit_runner(&self) -> Option<Dependency> {
         self.platform_test_deps().iter()
-            .find(|dep| dep.name.0.eq("org.junit.platform.junit-platform-console-standalone"))
+            .find(|dep| dep.name.0.eq("org.junit.platform:junit-platform-console-standalone"))
             .cloned()
     }
 
     fn kotlin_stdlib(&self) -> Option<Dependency> {
         self.platform_deps().iter()
-            .find(|dep| dep.name.0.eq("org.jetbrains.kotlin.kotlin-stdlib"))
+            .find(|dep| dep.name.0.eq("org.jetbrains.kotlin:kotlin-stdlib"))
             .cloned()
     }
 
     fn junit_platform(&self) -> Option<Dependency> {
         self.platform_test_deps().iter()
-            .find(|dep| dep.name.0.eq("org.junit.jupiter.junit-jupiter-api"))
+            .find(|dep| dep.name.0.eq("org.junit.jupiter:junit-jupiter-api"))
             .cloned()
     }
 }
@@ -138,17 +139,17 @@ pub(crate) fn create_platform_deps() -> Vec<Dependency> {
     vec![
         Dependency::new(
             Kind::PlatformTest,
-            Name::from("org.junit.platform.junit-platform-console-standalone"),
+            Name::from("org.junit.platform:junit-platform-console-standalone"),
             Version::from("1.10.1"),
         ).unwrap(),
         Dependency::new(
             Kind::Platform,
-            Name::from("org.jetbrains.kotlin.kotlin-stdlib"),
+            Name::from("org.jetbrains.kotlin:kotlin-stdlib"),
             Version::from("1.9.22"),
         ).unwrap(),
         Dependency::new(
             Kind::PlatformTest,
-            Name::from("org.junit.jupiter.junit-jupiter-api"),
+            Name::from("org.junit.jupiter:junit-jupiter-api"),
             Version::from("5.5.2"),
         ).unwrap(),
     ]
@@ -210,26 +211,61 @@ impl Dependency {
     }
 }
 
-/// [name] "org.apache.kafka.kafka-clients"
+/// [name] "org.apache.kafka:kafka-clients"
 /// [version] "3.4.0"
 fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyInfo> {
-    let after_last_slash = Regex::new(r"([^/]+)$").unwrap();
-    let name = name.0.replace('.', "/");
-    // todo: place this elsewhere
+    let group_id = resolve_group_id(name)?;
+    let artifact_id = resolve_artifact_id(name)?;
+
+    let path = group_id.replace('.', "/");
+    let path = format!("{path}/{artifact_id}/{version}/");
+    let file_suffix = format!("{artifact_id}-{version}");
     let home = home::home_dir().unwrap().join(".buildk");
     let cache = home.join("cache");
+    let target_dir = cache.join(&path);
 
-    match after_last_slash.find(&name) {
-        None => bail!("artifact not found for dependency"),
-        Some(artifact_name) => match name.split('/').map(PathBuf::from).reduce(|a, b| a.join(b)) {
-            None => bail!("relative path for dependency not deduced"),
-            Some(relative_path) => Ok(DependencyInfo {
-                path: format!("{name}/{version}/"),
-                file_suffix: format!("{}-{version}", artifact_name.as_str()),
-                target_dir: cache.join(relative_path).join(version.clone().0),
-            }),
-        },
-    }
+    Ok(DependencyInfo { path, file_suffix, target_dir })
+}
+
+/// [name] org.apache.kafka.kafka-clients   [return] org.apache.kafka
+/// [name] org.osgi."org.osgi.core"         [return] org.osgi
+fn resolve_group_id(name: &Name) -> anyhow::Result<String> {
+    let until_first_quote = |name: String| -> anyhow::Result<String> {
+        let mut name = name.substr_before('"');
+        name.pop().context("empty string, expected a dot")?;
+        Ok(name)
+    };
+
+    let until_last_dot = |name: String| -> anyhow::Result<String> {
+        Ok(name.substr_before_last('.'))
+    };
+
+    let regex = match name.0.contains('"') {
+        true => until_first_quote,
+        false => until_last_dot
+    };
+
+    let group_id = regex(name.clone().0)?;
+    Ok(group_id)
+}
+
+
+/// [name] org.apache.kafka.kafka-clients   [return] kafka-clients
+/// [name] org.osgi."org.osgi.core"         [return] org.osgi.core
+fn resolve_artifact_id(name: &Name) -> anyhow::Result<String> {
+    let between_double_quotes = |s: String| {
+        s.substr_after('"').substr_before('"')
+    };
+    let after_last_dot = |s: String| s.substr_after_last('.');
+
+    let regex = match name.0.contains('"') {
+        true => between_double_quotes,
+        false => after_last_dot
+    };
+
+    let artifact_id = regex(name.clone().0);
+
+    Ok(artifact_id)
 }
 
 struct DependencyInfo {
@@ -388,7 +424,7 @@ impl PomParser for PathBuf {
                     }
 
                     Ok(XmlEvent::EndElement { name }) if name.local_name.eq("dependency") => {
-                        let name = format!("{}.{}", &group, artifact);
+                        let name = format!("{}:{}", &group, artifact);
                         if let Ok(dependency) = Dependency::new(kind, Name::from(name.as_str()), Version::from(version.as_str())) {
                             if !scope.eq("test") {
                                 dependencies.push(dependency);
@@ -485,13 +521,13 @@ impl PomParser for PathBuf {
 mod tests {
     use super::*;
 
-    trait Version {
+    trait DependencyVersion {
         fn version_for(&self, lib: &str) -> Option<&str>;
     }
 
-    impl Version for Vec<Dependency> {
+    impl DependencyVersion for Vec<Dependency> {
         fn version_for(&self, lib: &str) -> Option<&str> {
-            match self.into_iter().find(|dep| dep.name.eq(lib)) {
+            match self.into_iter().find(|dep| dep.name.0.eq(lib)) {
                 Some(dependency) => Some(&dependency.version.0),
                 None => None,
             }
@@ -504,7 +540,7 @@ mod tests {
 
     impl DependencyKind for Vec<Dependency> {
         fn kind_for(&self, lib: &str) -> Option<&Kind> {
-            match self.into_iter().find(|dep| dep.name.eq(lib)) {
+            match self.into_iter().find(|dep| dep.name.0.eq(lib)) {
                 Some(dependency) => Some(&dependency.kind),
                 None => None,
             }
@@ -516,14 +552,14 @@ mod tests {
         let dependencies = dependencies(
             &r#"
         [dependencies]
-        splendid = "4.0.0"
+        splendid.lib = "4.0.0"
         "#
                 .parse()
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 1);
-        assert_eq!(dependencies.version_for("splendid"), Some("4.0.0"));
+        assert_eq!(dependencies.len(), 4); // +3 platform deps
+        assert_eq!(dependencies.version_for("splendid.lib"), Some("4.0.0"));
     }
 
     #[test]
@@ -537,7 +573,7 @@ mod tests {
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 1);
+        assert_eq!(dependencies.len(), 4); // +3 platform deps
         assert_eq!(dependencies.version_for("dotted.keys"), Some("1.1"));
     }
 
@@ -546,16 +582,16 @@ mod tests {
         let dependencies = dependencies(
             &r#"
 [dependencies]
-nice = "3.2.1"
-amazing = "2.0"
+nice.dep = "3.2.1"
+amazing.lib = "2.0"
 "#
                 .parse()
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 2);
-        assert_eq!(dependencies.version_for("nice"), Some("3.2.1"));
-        assert_eq!(dependencies.version_for("amazing"), Some("2.0"));
+        assert_eq!(dependencies.len(), 5); // +3 platform deps
+        assert_eq!(dependencies.version_for("nice.dep"), Some("3.2.1"));
+        assert_eq!(dependencies.version_for("amazing.lib"), Some("2.0"));
     }
 
     #[test]
@@ -563,14 +599,14 @@ amazing = "2.0"
         let dependencies = dependencies(
             &r#"
 [test-dependencies]
-awesome = "1.2.3"
+awesome.dep = "1.2.3"
 "#
                 .parse()
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 1);
-        assert_eq!(dependencies.version_for("awesome"), Some("1.2.3"));
+        assert_eq!(dependencies.len(), 4); // +3 platform deps
+        assert_eq!(dependencies.version_for("awesome.dep"), Some("1.2.3"));
     }
 
     #[test]
@@ -578,16 +614,16 @@ awesome = "1.2.3"
         let dependencies = dependencies(
             &r#"
 [test-dependencies]
-nice = "3.2.1"
-amazing = "2.0"
+nice.price = "3.2.1"
+amazing.ly = "2.0"
 "#
                 .parse()
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 2);
-        assert_eq!(dependencies.version_for("nice"), Some("3.2.1"));
-        assert_eq!(dependencies.version_for("amazing"), Some("2.0"));
+        assert_eq!(dependencies.len(), 5); // +3 platform deps
+        assert_eq!(dependencies.version_for("nice.price"), Some("3.2.1"));
+        assert_eq!(dependencies.version_for("amazing.ly"), Some("2.0"));
     }
 
     #[test]
@@ -600,17 +636,17 @@ another.amazing.dep = "2.4"
 
 [test-dependencies]
 splendid.test.lib = "3.2.1"
-amazing = "2.0"
+amazing.a = "2.0"
 "#
                 .parse()
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 4);
+        assert_eq!(dependencies.len(), 7); // +3 platform deps
         assert_eq!(dependencies.version_for("awesome.lib"), Some("3.0.0"));
         assert_eq!(dependencies.version_for("another.amazing.dep"), Some("2.4"));
         assert_eq!(dependencies.version_for("splendid.test.lib"), Some("3.2.1"));
-        assert_eq!(dependencies.version_for("amazing"), Some("2.0"));
+        assert_eq!(dependencies.version_for("amazing.a"), Some("2.0"));
     }
 
     #[test]
@@ -620,13 +656,12 @@ amazing = "2.0"
 [dependencies]
 awesome.lib.prod = "3.0.0"
 awesome.lib.test = "3.0.1"
-
 "#
                 .parse()
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 2);
+        assert_eq!(dependencies.len(), 5); // +3 platform deps
         assert_eq!(dependencies.version_for("awesome.lib.prod"), Some("3.0.0"));
         assert_eq!(dependencies.version_for("awesome.lib.test"), Some("3.0.1"));
     }
@@ -636,7 +671,7 @@ awesome.lib.test = "3.0.1"
         let dependencies = dependencies(
             &r#"
 [dependencies]
-awesome.lib = "3.0.0"
+"awesome.lib" = "3.0.0"
 
 [test-dependencies]
 splendid.test.lib = "3.2.1"
@@ -645,11 +680,62 @@ splendid.test.lib = "3.2.1"
                 .unwrap(),
         );
 
-        assert_eq!(dependencies.len(), 2);
+        assert_eq!(dependencies.len(), 5); // +3 platform deps
         assert_eq!(dependencies.kind_for("awesome.lib"), Some(&Kind::Source));
         assert_eq!(
             dependencies.kind_for("splendid.test.lib"),
             Some(&Kind::Test)
         );
+    }
+
+    #[test]
+    fn test_dependency_info() {
+        let name = Name::from("org.apache.kafka.kafka-clients");
+        let version = Version::from("3.4.0");
+        let info = dependency_info(&name, &version).unwrap();
+        assert_eq!(info.file_suffix, "kafka-clients-3.4.0");
+        assert_eq!(info.path, "org/apache/kafka/kafka-clients/3.4.0/");
+        assert_eq!(info.target_dir, PathBuf::from(home::home_dir().unwrap().join(".buildk/cache").join("org/apache/kafka/kafka-clients/3.4.0")));
+    }
+
+    #[test]
+    fn dep_with_dotted_artifact() {
+        let name = Name::from(r#"org.osgi."org.osgi.core""#);
+        let version = Version::from("6.0.0");
+        let info = dependency_info(&name, &version).unwrap();
+        assert_eq!(info.file_suffix, "org.osgi.core-6.0.0");
+        assert_eq!(info.path, "org/osgi/org.osgi.core/6.0.0/")
+    }
+
+    #[test]
+    fn resolve_quoted_group_id() -> anyhow::Result<()> {
+        let name = Name::from(r#"org.osgi."org.osgi.core""#);
+        let group_id = resolve_group_id(&name)?;
+        assert_eq!(group_id, "org.osgi");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_quoted_artifact_id() -> anyhow::Result<()> {
+        let name = Name::from(r#"org.osgi."org.osgi.core""#);
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(artifact_id, "org.osgi.core");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_dotted_group_id() -> anyhow::Result<()> {
+        let name = Name::from("org.apache.kafka.kafka-clients");
+        let group_id = resolve_group_id(&name)?;
+        assert_eq!(group_id, "org.apache.kafka");
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_dotted_artifact_id() -> anyhow::Result<()> {
+        let name = Name::from("org.apache.kafka.kafka-clients");
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(artifact_id, "kafka-clients");
+        Ok(())
     }
 }

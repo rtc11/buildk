@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+util.workspace = true
+
 async-std.workspace = true
 anyhow.workspace = true
 home.workspace = true
-regex.workspace = true
 toml_edit.workspace = true
 xml-rs.workspace = true

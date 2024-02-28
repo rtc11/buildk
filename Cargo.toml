@@ -31,7 +31,6 @@ retry = "2.0.0"
 filetime = "0.2.23"
 home = "0.5.9"
 libc = "0.2.153" # get exit codes from OS (SIGKILL, SIGINT etc)
-regex = "1.10.3"
 async-std = "1.12.0"
 async-recursion = "1.0.5"
 futures = "0.3.30"

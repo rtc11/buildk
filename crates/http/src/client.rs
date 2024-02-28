@@ -102,7 +102,7 @@ async fn create_target_and_download(base_url: &String, target_dir: &Path, filena
         Err(e) => {
             //println!("failed to downalod file: {}", e);
             delete_target_file(target_dir, filename).await.unwrap();
-            DownloadResult::Failed(format!("Failed to download file: {}", e))
+            DownloadResult::Failed(format!("Failed to download file from {} with err: {}", &url, e))
         }
     }
 }

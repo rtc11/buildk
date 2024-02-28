@@ -7,6 +7,7 @@ pub mod hasher;
 pub mod paths;
 pub mod terminal;
 pub mod timer;
+pub mod sub_strings;
 
 pub enum Conclusion {
     SUCCESS,
