@@ -155,7 +155,6 @@ pub(crate) fn create_platform_deps() -> Vec<Dependency> {
     ]
 }
 
-
 impl Dependency {
     pub fn classpath(&self) -> String {
         self.transitives()
@@ -214,7 +213,6 @@ impl Dependency {
 /// [name] "org.apache.kafka:kafka-clients"
 /// [version] "3.4.0"
 fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyInfo> {
-    println!("name: {}", name);
     let group_id = resolve_group_id(name)?;
     let artifact_id = resolve_artifact_id(name)?;
 
@@ -251,7 +249,6 @@ fn resolve_group_id(name: &Name) -> anyhow::Result<String> {
     Ok(group_id)
 }
 
-
 /// [name] org.apache.kafka.kafka-clients   [return] kafka-clients
 /// [name] org.osgi."org.osgi.core"         [return] org.osgi.core
 /// [name] org.slf4j:slf4j-api              [return] slf4j-api
@@ -265,11 +262,6 @@ fn resolve_artifact_id(name: &Name) -> anyhow::Result<String> {
         name if name.contains(':') => after_colon,
         _ => after_last_dot,
     };
-    //
-    // let regex = match name.0.contains('"') {
-    //     true => between_double_quotes,
-    //     false => after_last_dot
-    // };
 
     let artifact_id = regex(name.clone().0);
 
@@ -760,6 +752,59 @@ splendid.test.lib = "3.2.1"
         let name = Name::from("org.slf4j:slf4j-api");
         let artifact_id = resolve_artifact_id(&name)?;
         assert_eq!(artifact_id, "slf4j-api");
+        Ok(())
+    }
+
+    #[test]
+    fn test_several_dep_infos() -> anyhow::Result<()> {
+        let name = Name::from("org.apache.kafka.kafka-clients");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "org.apache.kafka");
+        assert_eq!(artifact_id, "kafka-clients");
+
+        let name = Name::from("org.junit.platform.junit-platform-console-standalone");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "org.junit.platform");
+        assert_eq!(artifact_id, "junit-platform-console-standalone");
+
+        let name = Name::from("org.jetbrains.kotlin.kotlin-stdlib");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "org.jetbrains.kotlin");
+        assert_eq!(artifact_id, "kotlin-stdlib");
+
+        let name = Name::from("org.junit.jupiter.junit-jupiter-api");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "org.junit.jupiter");
+        assert_eq!(artifact_id, "junit-jupiter-api");
+
+        let name = Name::from("com.github.luben:zstd-jni");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "com.github.luben");
+        assert_eq!(artifact_id, "zstd-jni");
+
+        let name = Name::from("org.lz4:lz4-java");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "org.lz4");
+        assert_eq!(artifact_id, "lz4-java");
+
+        let name = Name::from("org.xerial.snappy:snappy-java");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "org.xerial.snappy");
+        assert_eq!(artifact_id, "snappy-java");
+
+        let name = Name::from("org.slf4j:slf4j-api");
+        let group_id = resolve_group_id(&name)?;
+        let artifact_id = resolve_artifact_id(&name)?;
+        assert_eq!(group_id, "org.slf4j");
+        assert_eq!(artifact_id, "slf4j-api");
+
         Ok(())
     }
 }
