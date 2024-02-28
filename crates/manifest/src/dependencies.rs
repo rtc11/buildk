@@ -118,19 +118,19 @@ impl DependenciesTools for Vec<Dependency> {
 
     fn junit_runner(&self) -> Option<Dependency> {
         self.platform_test_deps().iter()
-            .find(|dep| dep.name.0.eq("org.junit.platform:junit-platform-console-standalone"))
+            .find(|dep| dep.name.0.eq("org.junit.platform.junit-platform-console-standalone"))
             .cloned()
     }
 
     fn kotlin_stdlib(&self) -> Option<Dependency> {
         self.platform_deps().iter()
-            .find(|dep| dep.name.0.eq("org.jetbrains.kotlin:kotlin-stdlib"))
+            .find(|dep| dep.name.0.eq("org.jetbrains.kotlin.kotlin-stdlib"))
             .cloned()
     }
 
     fn junit_platform(&self) -> Option<Dependency> {
         self.platform_test_deps().iter()
-            .find(|dep| dep.name.0.eq("org.junit.jupiter:junit-jupiter-api"))
+            .find(|dep| dep.name.0.eq("org.junit.jupiter.junit-jupiter-api"))
             .cloned()
     }
 }
@@ -139,17 +139,17 @@ pub(crate) fn create_platform_deps() -> Vec<Dependency> {
     vec![
         Dependency::new(
             Kind::PlatformTest,
-            Name::from("org.junit.platform:junit-platform-console-standalone"),
+            Name::from("org.junit.platform.junit-platform-console-standalone"),
             Version::from("1.10.1"),
         ).unwrap(),
         Dependency::new(
             Kind::Platform,
-            Name::from("org.jetbrains.kotlin:kotlin-stdlib"),
+            Name::from("org.jetbrains.kotlin.kotlin-stdlib"),
             Version::from("1.9.22"),
         ).unwrap(),
         Dependency::new(
             Kind::PlatformTest,
-            Name::from("org.junit.jupiter:junit-jupiter-api"),
+            Name::from("org.junit.jupiter.junit-jupiter-api"),
             Version::from("5.5.2"),
         ).unwrap(),
     ]
