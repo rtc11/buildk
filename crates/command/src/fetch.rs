@@ -87,10 +87,9 @@ impl<'a> Fetch<'a> {
                         //     Spinners::Dots7,
                             println!("{:<10} {:<16}:{:<26}", "downloading", dep.name, dep.version);
                         // );
-                        let download_res = client.download_async(&dep, &config).await;
+                        client.download_async(&dep, &config).await
                         // spinner.stop();
                         //println!("downloaded {}:{}", dep.name, dep.version);
-                        download_res
                     })
                 }).collect::<Vec<_>>()
         });

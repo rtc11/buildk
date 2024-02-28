@@ -22,7 +22,7 @@ fn termtree_display(status: &str, dep: &Dependency) -> String {
 fn termtree_status(dep: &Dependency) -> String {
     match dep.is_cached() {
         true => "".as_green(),
-        false => " " .as_red(),
+        false => " ".as_red(),
     }
 }
 
@@ -62,7 +62,7 @@ impl<'a> Command for Deps<'a> {
             .expect("no buildk.toml found.");
 
         if !manifest.dependencies.is_empty() {
-            println!("{} found   {} missing", "".as_green(), " " .as_red());
+            println!("{} found   {} missing", "".as_green(), " ".as_red());
         }
 
         manifest.dependencies.iter().for_each(|dep| {
