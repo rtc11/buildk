@@ -34,14 +34,14 @@ impl Color {
 
     fn all() -> Vec<Color> {
         vec![
-            Color::Gray,
-            Color::Yellow,
-            Color::White,
-            Color::Blue,
             Color::Purple,
+            Color::Yellow,
+            Color::Blue,
             Color::Turquoise,
-            Color::Red,
             Color::Green,
+            Color::Red,
+            Color::White,
+            Color::Gray,
             Color::Black,
         ]
     }

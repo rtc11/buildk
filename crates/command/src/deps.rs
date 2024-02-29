@@ -30,7 +30,7 @@ pub fn build_termtree(
     dependency: Dependency,
     mut traversed: Vec<Dependency>,
     depth: usize,
-) -> anyhow::Result<Tree<String>> {
+) -> anyhow::Result<(Tree<String>, Vec<Dependency>)> {
     traversed.push(dependency.clone());
 
     let status = termtree_status(&dependency);
@@ -38,17 +38,20 @@ pub fn build_termtree(
     let color = Color::get_index(depth);
     let label = display.colorize(&color).to_string();
 
-    let res = dependency
+    let (tree, traversed) = dependency
         .transitives()
         .into_iter()
         .filter(|it| !traversed.contains(it))
-        .fold(Tree::new(label), |mut root, entry| {
-            let tree = build_termtree(entry, traversed.clone(), depth + 1).unwrap();
-            root.push(tree);
-            root
-        });
+        .fold(
+            (Tree::new(label), traversed.clone()),
+            |(mut root, mut root_trav), entry| {
+                let (tree, traversed) = build_termtree(entry, root_trav, depth + 1).unwrap();
+                root.push(tree);
+                root_trav = traversed;
+                (root, root_trav)
+            });
 
-    Ok(res)
+    Ok((tree, traversed))
 }
 
 impl<'a> Command for Deps<'a> {
@@ -65,10 +68,17 @@ impl<'a> Command for Deps<'a> {
             println!("{} found   {} missing", "".as_green(), " ".as_red());
         }
 
-        manifest.dependencies.iter().for_each(|dep| {
-            let tree = build_termtree(dep.clone(), vec![], 0).unwrap();
+        let mut traversed = vec![];
+        for dep in manifest.dependencies.iter() {
+            let (tree, newly_traversed) = build_termtree(dep.clone(), traversed.clone(), 0).unwrap();
+            traversed = newly_traversed;
             print!("{}", tree);
-        });
+        }
+
+        // manifest.dependencies.iter().for_each(|dep| {
+        //     let (tree, traversed) = build_termtree(dep.clone(), vec![], 0).unwrap();
+        //     print!("{}", tree);
+        // });
 
         match lsp::update_classpath(self.config) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),
