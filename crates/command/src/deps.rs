@@ -30,6 +30,7 @@ pub fn build_termtree(
     dependency: Dependency,
     mut traversed: Vec<Dependency>,
     depth: usize,
+    limit: usize,
 ) -> anyhow::Result<(Tree<String>, Vec<Dependency>)> {
     traversed.push(dependency.clone());
 
@@ -38,31 +39,35 @@ pub fn build_termtree(
     let color = Color::get_index(depth);
     let label = display.colorize(&color).to_string();
 
-    let (tree, traversed) = dependency
-        .transitives()
-        .into_iter()
-        .filter(|it| !traversed.contains(it))
-        .fold(
-            (Tree::new(label), traversed.clone()),
-            |(mut root, mut root_trav), entry| {
-                let (tree, traversed) = build_termtree(entry, root_trav, depth + 1).unwrap();
-                root.push(tree);
-                root_trav = traversed;
-                (root, root_trav)
-            });
-
-    Ok((tree, traversed))
+    if depth < limit {
+        let (tree, traversed) = dependency
+            .transitives()
+            .into_iter()
+            .filter(|it| !traversed.contains(it))
+            .fold(
+                (Tree::new(label), traversed.clone()),
+                |(mut root, root_trav), entry| {
+                    let (tree, traversed) = build_termtree(entry, root_trav, depth + 1, limit).unwrap();
+                    root.push(tree);
+                    (root, traversed)
+                });
+        Ok((tree, traversed))
+    } else {
+        Ok((Tree::new(label), traversed))
+    }
 }
 
 impl<'a> Command for Deps<'a> {
-    type Item = ();
+    type Item = usize;
 
-    fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
+    fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput {
         let mut output = BuildkOutput::new("deps");
 
         // FIXME
         let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
             .expect("no buildk.toml found.");
+
+        let limit = arg.unwrap_or(999);
 
         if !manifest.dependencies.is_empty() {
             println!("{} found   {} missing", "".as_green(), " ".as_red());
@@ -70,7 +75,7 @@ impl<'a> Command for Deps<'a> {
 
         let mut traversed = vec![];
         for dep in manifest.dependencies.iter() {
-            let (tree, newly_traversed) = build_termtree(dep.clone(), traversed.clone(), 0).unwrap();
+            let (tree, newly_traversed) = build_termtree(dep.clone(), traversed.clone(), 0, limit).unwrap();
             traversed = newly_traversed;
             print!("{}", tree);
         }

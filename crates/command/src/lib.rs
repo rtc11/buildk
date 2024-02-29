@@ -69,7 +69,10 @@ pub enum Commands {
     Config,
 
     /// Print the dependencies
-    Deps,
+    Deps {
+        #[arg(value_name = "LIMIT")]
+        limit: Option<usize>,
+    },
 
     /// Fetch the dependencies
     Fetch {
@@ -140,8 +143,8 @@ impl Commands {
             }
             Commands::Clean { set } => Clean::new(config).execute(Some(*set)),
             Commands::Config => config::Config::new(config).execute(None),
-            Commands::Deps => Deps::new(config).execute(None),
-            Commands::Fetch{ artifact } => Fetch::new(config).execute(artifact.clone()),
+            Commands::Deps { limit } => Deps::new(config).execute(*limit),
+            Commands::Fetch { artifact } => Fetch::new(config).execute(artifact.clone()),
             Commands::Release => {
                 match kotlin {
                     Ok(kotlin) => Release::new(config, &kotlin).execute(None),
