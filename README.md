@@ -1,24 +1,34 @@
 # BuildK
 Simple build tool for Kotlin.
 
-## 📜 How
-- Create an empty `buildk.toml` file in your project root (cwd).
+## 📜 Manifest
+- Create an **empty** `buildk.toml` file in your project root.
 - Cofigure your project if it differs from the defaults.
 
 ##### Manifest defaults
 ```toml
 [project]
 main = "Main.kt"
-path = "<cwd>"
-src = "<cwd>/src"
-test = "<cwd>/test"
-out = "<cwd>/out"
+path = "<project>"
+src = "<project>/src"
+test = "<project>/test"
+out = "<project>/out"
 
 [dependencies]
+org.jetbrains.kotlin.kotlin-stdlib = "1.9.22"
 
 [test-dependencies]
+org.junit.platform.junit-platform-console-standalone = "1.10.1"
+org.junit.jupiter.junit-jupiter-api = "5.5.2"
+
+[repositories]
+mavenCentral = "https://repo1.maven.org/maven2"
+
+[kotlin]
+# Specify path to kotlin if not found on KOTLIN_HOME nor /usr/local/Cellar/kotlin/1.9.22/
 ```
-... which gives the following project structure:
+
+Which gives the following project structure:
 
 ```
 buildk.toml
@@ -26,30 +36,48 @@ src/
     Main.kt
 test/
 out/
+  cache.json
+  src/
+    MainKt.class
 ```
 
-###### Dependencies
-By default, maven repository is used to search for dependencies.
+See `buildk config` to see all the configuration.
 
+# Dependencies
 Dependencies are cached in $HOME/.buildk/cache/
 
-The following format is used in toml: 
-
-`<groupid>.<artifactid> = "<version>"`
-
-Add JUnit to your manifest for running tests:
-```toml
-[test-dependencies]
-org.junit.jupiter.junit-jupiter-api = "5.10.1"
-```
-
-Add a dependency:
-```toml
-[dependencies]
-com.google.code.gson.gson = "2.10.1"
-```
-
 # 🪄 Commands
+Build
+>  buildk build <br>
+>  buildk build src <br>
+>  buildk build test
+
+Clean output
+> buildk clean
+
+Configuration
+> buildk config
+
+Dependency tree
+> buildk deps <br>
+> buildk deps 3 (depth 3)
+
+Download missing dependencies
+> buildk fetch <br>
+> buildk fetch org.jetbrains.kotlin:kotlin-stdlib:1.9.22
+
+Build fat jar
+> buildk release
+
+Run program
+> buildk run <br>
+> buildk run Filename
+
+Test code
+> buildk test
+
+Show build tree
+> buildk tree
 
 | cmd | desc |
 | --- | ---- |

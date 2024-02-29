@@ -47,6 +47,10 @@ impl Display for Manifest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.project)?;
 
+        if self.kotlin_home.is_some() {
+            write!(f, "{}", self.kotlin_home.clone().unwrap().display())?;
+        }
+
         for repo in self.repositories.iter() {
             write!(f, "{}", repo)?;
         }
