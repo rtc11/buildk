@@ -89,6 +89,12 @@ Options:
   -V, --version  Print version
 ```
 
+## Dev
+Faster builds with rayon (currently only with nightly)
+```shell
+RUSTFLAGS="-Z threads=8" cargo +nightly build --release
+```
+
 ## 🚧 TODO
 - [ ] Java runtime dependency resolution
 - [ ] Java compile time dependency resolution
