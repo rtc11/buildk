@@ -1,97 +1,95 @@
-# BuildK
-Simple build tool for Kotlin.
+<p><h1 align="center">BuildK</h1></p>
+
+<p align="center">
+  <img src="logo.png" alt="Build K logo" title="BuildK Logo" /> 
+  <br>
+  Simple build tool for Kotlin.
+</p>
+
+## 🛠️ Install
+```shell
+cargo install --git https://github.com/rtc11/buildk
+```
 
 ## 📜 Manifest
-- Create an **empty** `buildk.toml` file in your project root.
-- Cofigure your project if it differs from the defaults.
+An empty `buildk.toml` is required in project root.
 
-##### Manifest defaults
+See default configurations:
+```shell
+buildk config
+```
+
+Override default with:
 ```toml
 [project]
-main = "Main.kt"
-path = "<project>"
-src = "<project>/src"
-test = "<project>/test"
-out = "<project>/out"
+main = "Main.kt"    # file with main()
+path = "<cwd>"      # current working dir
+src = "<cwd>/src"   # sources
+test = "<cwd>/test" # test sources
+out = "<cwd>/out"   # output dir
 
-[dependencies]
+[dependencies]      # compile and runtime dependencies
 org.jetbrains.kotlin.kotlin-stdlib = "1.9.22"
 
-[test-dependencies]
+[test-dependencies] # test dependencies
 org.junit.platform.junit-platform-console-standalone = "1.10.1"
 org.junit.jupiter.junit-jupiter-api = "5.5.2"
 
-[repositories]
+[repositories]      # repositories for artifacts
 mavenCentral = "https://repo1.maven.org/maven2"
 
-[kotlin]
+[kotlin]            # kotlin location
 # Specify path to kotlin if not found on KOTLIN_HOME nor /usr/local/Cellar/kotlin/1.9.22/
 ```
 
 Which gives the following project structure:
 
+```yaml
+project
+└── .buildk.toml                  # Manifest
+    ├── src                       
+    │   └── Main.kt               # Source code
+    ├── test                      
+    │   └── MainTest.kt           # Test code (JUnit 5)
+    └── out
+        ├── cache.json            # Build cache
+        ├── app.jar               # Release (fat-jar)
+        ├── src         
+        │   └── Mainkt.class      # Compiled sources
+        └── test
+            └── MainTestkt.class  # Compiled test sources
 ```
-buildk.toml
-src/
-    Main.kt
-test/
-out/
-  cache.json
-  src/
-    MainKt.class
+
+## 🪄 Commands
+
+Show commands
+```shell
+buildk help
 ```
 
-See `buildk config` to see all the configuration.
+```
+A Kotlin build tool for the 21st century
 
-# Dependencies
-Dependencies are cached in $HOME/.buildk/cache/
+Usage: buildk <COMMAND>
 
-# 🪄 Commands
-Build
->  buildk build <br>
->  buildk build src <br>
->  buildk build test
+Commands:
+  build, -b  Build the project
+  clean, -c  Clean the output directory
+  config     Show the project configuration
+  deps       Print the dependencies
+  fetch      Fetch the dependencies
+  release    Create a release (jar)
+  run, -r    Run the project
+  test, -t   Run JUnit tests
+  tree       Print the build tree
+  help       Print this message or the help of the given subcommand(s)
 
-Clean output
-> buildk clean
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
 
-Configuration
-> buildk config
-
-Dependency tree
-> buildk deps <br>
-> buildk deps 3 (depth 3)
-
-Download missing dependencies
-> buildk fetch <br>
-> buildk fetch org.jetbrains.kotlin:kotlin-stdlib:1.9.22
-
-Build fat jar
-> buildk release
-
-Run program
-> buildk run <br>
-> buildk run Filename
-
-Test code
-> buildk test
-
-Show build tree
-> buildk tree
-
-| cmd | desc |
-| --- | ---- |
-| clean   | clean the project      |
-| build   | build the project      |
-| test    | test the project       |
-| run     | run the project        |
-| release | release the project    |
-| fetch   | fetch the project      |
-| tree    | list the build tree    |
-| deps    | print the dependencies |
-| help    | print this help        |
-
-# 🚧 TODO
+## 🚧 TODO
 - [ ] Java runtime dependency resolution
 - [ ] Java compile time dependency resolution
 - [ ] AVL trees for dependency graph?
@@ -105,13 +103,16 @@ Show build tree
 - [ ] Shared cache 
   * Build once on one machine, share the result in the cloud
 - [ ] Platform libs must be configurable (e.g. junit or kotlin-std:1.9.22)
+  - [x] Kotlin std
+  - [ ] Test libs
 - [x] Tests are automatically found
 - [x] Manually create build-tree based on project package/imports
-- [ ] Resolve cyclic project package structure
 - [ ] KSP (kotlin compiler plugin) must be implemented in kotlin. Used for generating smarter build-trees
-- [x] Support repositories
+- [x] Configurable repositories
 - [ ] Add init command for setting up basic project
-- [ ] Kotlinc must be first looked up in manifest before trying to look for env-vars and default locations
-- [ ] When downloading deps and transitive deps fails, the imported dependency is cached and no transitive will be wodnloaded again
-- [ ] Check out crossbeam
-- [ ] Check out ripgrep
+- [x] Kotlinc must be first looked up in manifest before trying to look for env-vars and default locations
+- [x] When downloading deps and transitive deps fails, the imported dependency is cached and no transitive will be wodnloaded again
+- [ ] Use crossbeam for concurrency downloads?
+- [ ] Use Rayon for parallel compilation?
+- [ ] Use ripgrep for lexing/ksp/avl/build-tree?
+- [ ] Use prodash instead of stdout?

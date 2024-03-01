@@ -275,47 +275,27 @@ struct DependencyInfo {
 }
 
 pub trait DependenciesKind {
-    fn for_test_ref(&self) -> Vec<&Dependency>;
-    fn for_src_ref(&self) -> Vec<&Dependency>;
-    fn for_platform_ref(&self) -> Vec<&Dependency>;
-    fn for_test(self) -> Vec<Dependency>;
-    fn for_src(self) -> Vec<Dependency>;
-    fn for_platform(self) -> Vec<Dependency>;
+    fn for_test(&self) -> Vec<&Dependency>;
+    fn for_src(&self) -> Vec<&Dependency>;
+    fn for_platform(&self) -> Vec<&Dependency>;
 }
 
 impl DependenciesKind for Vec<Dependency> {
-    fn for_test_ref(&self) -> Vec<&Dependency> {
+    fn for_test(&self) -> Vec<&Dependency> {
         self.iter()
             .filter(|dep| dep.kind == Kind::Test)
             .collect()
     }
 
-    fn for_src_ref(&self) -> Vec<&Dependency> {
+    fn for_src(&self) -> Vec<&Dependency> {
         self.iter()
             .filter(|dep| dep.kind == Kind::Source)
             .collect()
     }
 
-    fn for_platform_ref(&self) -> Vec<&Dependency> {
+    fn for_platform(&self) -> Vec<&Dependency> {
         self.iter()
-            .filter(|dep| dep.kind == Kind::Platform)
-            .collect()
-    }
-    fn for_test(self) -> Vec<Dependency> {
-        self.into_iter()
-            .filter(|dep| dep.kind == Kind::Test)
-            .collect()
-    }
-
-    fn for_src(self) -> Vec<Dependency> {
-        self.into_iter()
-            .filter(|dep| dep.kind == Kind::Source)
-            .collect()
-    }
-
-    fn for_platform(self) -> Vec<Dependency> {
-        self.into_iter()
-            .filter(|dep| dep.kind == Kind::Platform)
+            .filter(|dep| [Kind::Platform, Kind::PlatformTest].contains(&dep.kind))
             .collect()
     }
 }

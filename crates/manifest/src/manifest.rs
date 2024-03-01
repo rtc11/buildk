@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
-use crate::dependencies::{dependencies, Dependency};
+use crate::dependencies::{dependencies, DependenciesKind, Dependency};
 use crate::modules::Module;
 use crate::project::project;
 use crate::project::Project;
@@ -55,9 +55,24 @@ impl Display for Manifest {
             write!(f, "{}", repo)?;
         }
 
-        for dep in self.dependencies.iter() {
-            write!(f, "{}", dep)?;
-        }
+        let plat_deps = self.dependencies.for_platform().iter()
+            .map(|dep| format!("{dep}"))
+            .collect::<Vec<_>>()
+            .join(":");
+        writeln!(f, "{:<26}{}", "Platform dependencies", plat_deps)?;
+
+        let src_deps = self.dependencies.for_src().iter()
+            .map(|dep| format!("{dep}"))
+            .collect::<Vec<_>>()
+            .join(":");
+        writeln!(f, "{:<26}{}", "Source dependencies", src_deps)?;
+
+        let test_deps = self.dependencies.for_test().iter()
+            .map(|dep| format!("{dep}"))
+            .collect::<Vec<_>>()
+            .join(":");
+
+        writeln!(f, "{:<26}{}", "Test dependencies", test_deps)?;
 
         for module in self.modules.iter() {
             write!(f, "{}", module)?;
