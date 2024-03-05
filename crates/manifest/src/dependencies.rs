@@ -15,7 +15,7 @@ use crate::Section;
 
 // https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Dependency {
     pub name: Name,
     pub version: Version,
@@ -41,7 +41,7 @@ pub enum Kind {
 }
 
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Name(String);
 
 impl Display for Name {
@@ -62,7 +62,7 @@ impl From<&str> for Name {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Version(String);
 
 impl Display for Dependency {

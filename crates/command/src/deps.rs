@@ -32,7 +32,10 @@ pub fn build_termtree(
     depth: usize,
     limit: usize,
 ) -> anyhow::Result<(Tree<String>, Vec<Dependency>)> {
-    traversed.push(dependency.clone());
+    match traversed.contains(&dependency) {
+        true => anyhow::bail!("already processed"),
+        false => traversed.push(dependency.clone())
+    }
 
     let status = termtree_status(&dependency);
     let display = termtree_display(&status, &dependency);
@@ -47,9 +50,15 @@ pub fn build_termtree(
             .fold(
                 (Tree::new(label), traversed.clone()),
                 |(mut root, root_trav), entry| {
-                    let (tree, traversed) = build_termtree(entry, root_trav, depth + 1, limit).unwrap();
-                    root.push(tree);
-                    (root, traversed)
+                    match build_termtree(entry, root_trav.clone(), depth + 1, limit) {
+                        Ok((tree, traversed)) => {
+                            root.push(tree);
+                            (root, traversed)
+                        }
+                        Err(_) => {
+                            (root, root_trav)
+                        }
+                    }
                 });
         Ok((tree, traversed))
     } else {
@@ -212,6 +221,23 @@ mod lsp {
             )
         })?;
 
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use manifest::dependencies::{Dependency, Kind, Name, Version};
+
+    use crate::deps::build_termtree;
+
+    #[test]
+    fn test_termtree() -> anyhow::Result<()> {
+        // let dep = Dependency::new(Kind::Source, Name::from("io.ktor.ktor-server-core"), Version::from("2.3.7"))?;
+        let dep = Dependency::new(Kind::Source, Name::from("org.jetbrains.kotlin.kotlin-stdlib"), Version::from("1.9.22"))?;
+        let (tree, _) = build_termtree(dep, vec![], 0, 1)?;
+
+        println!("{tree}");
         Ok(())
     }
 }

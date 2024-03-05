@@ -603,8 +603,9 @@ mod tests {
     
     #[test]
     fn dependencies() {
-        let artifact = Artifact::pom("io.ktor", "ktor-server-core", "2.3.7");
-        let parser = MavenParser {}; 
+        let artifact = Artifact::pom("org.jetbrains.kotlin", "kotlin-stdlib", "1.9.22");
+        // let artifact = Artifact::pom("io.ktor", "ktor-server-core", "2.3.7");
+        let parser = MavenParser {};
         let fetcher = DefaultUrlFetcher{};
 
         let resolver = Resolver::default();
