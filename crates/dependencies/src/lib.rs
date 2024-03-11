@@ -6,6 +6,7 @@ use gryf::{core::{marker::Directed, index::VertexIndex}, Graph};
 mod buildk_parser;
 mod gradle_parser;
 mod maven_parser;
+mod maven_parser2;
 
 pub trait DepGraphParser {
     fn parse(&self, input: String) -> Result<DepGraph>;
