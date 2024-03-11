@@ -1,10 +1,14 @@
 #![allow(dead_code)]
 
 use std::{collections::HashMap, fmt::{Display, Formatter}};
-use anyhow::{Result, Context};
-use async_std::task;
 
-use crate::{DepGraphParser, DepGraph, Dependency, Scope};
+use anyhow::{Context, Result};
+use async_std::task;
+use roxmltree::Node;
+
+use util::sub_strings::SubStrings;
+
+use crate::{Dependency, DepGraph, DepGraphParser, Scope};
 
 pub struct MavenParser;
 
@@ -14,13 +18,7 @@ impl DepGraphParser for MavenParser {
         let root_node = doc.root();
         let project_node = node(&root_node, "project").context("invalid pom, missing <project> tag")?;
 
-        let project = Project {
-            artifact: parse_artifact(&project_node),
-            parent: parse_parent(&project_node),
-            dependency_management: parse_dependency_management(&project_node),
-            dependencies: parse_dependencies(&project_node),
-            properties: parse_properties(&project_node),
-        };
+        let project = Project::new(project_node);
 
         let mut graph = DepGraph::default();
         let root_idx = graph.add(project.artifact.into());
@@ -29,7 +27,7 @@ impl DepGraphParser for MavenParser {
             let idx = graph.add(dep.clone().into());
             graph.connect(root_idx, idx);
         });
-        
+
         Ok(graph)
     }
 }
@@ -56,6 +54,31 @@ struct Project {
     properties: HashMap<String, String>,
 }
 
+impl Project {
+    pub fn new(node: Node) -> Self {
+        let artifact = parse_artifact(&node);
+        let parent = parse_parent(&node);
+        let properties = parse_properties(&node);
+
+        let dependencies = interpolate(parse_dependencies(&node), &properties);
+        let dependency_management = interpolate(parse_dependency_management(&node), &properties);
+
+        Self {
+            artifact,
+            parent,
+            dependency_management,
+            dependencies,
+            properties,
+        }
+    }
+}
+
+fn interpolate(artifacts: Vec<Artifact>, properties: &HashMap<String, String>) -> Vec<Artifact> {
+    artifacts.into_iter()
+        .map(|mut dep| dep.interpolate_version(&properties))
+        .collect::<Vec<_>>()
+}
+
 #[derive(Default, Debug, Clone, Eq, PartialEq, Hash)]
 struct Artifact {
     group_id: Option<String>,
@@ -65,9 +88,9 @@ struct Artifact {
     scope: Option<MavenScope>,
 
     // maven = pom, jar, war, ear, ejb, rar, par
-    packaging: Option<Packaging>, 
+    packaging: Option<Packaging>,
 
-    classifier: Option<Classifier>, 
+    classifier: Option<Classifier>,
 }
 
 impl From<Artifact> for Dependency {
@@ -162,10 +185,14 @@ impl From<Packaging> for String {
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum MavenScope {
-    Compile, // default, available at compile-time and runtime
-    Provided, // available at compile-time only, but is still required at runtime
-    Runtime, // only available at runtime
-    Test, // only available at test-compile-time and test-runtime
+    Compile,
+    // default, available at compile-time and runtime
+    Provided,
+    // available at compile-time only, but is still required at runtime
+    Runtime,
+    // only available at runtime
+    Test,
+    // only available at test-compile-time and test-runtime
     System, // required at compile-time and runtime, but is not included in the project
 }
 
@@ -228,27 +255,19 @@ impl Artifact {
         }
     }
 
-    fn interpolate(&self, properties: &HashMap<String, String>) -> Self {
-        // TODO other fields
-        Artifact {
-            version: self
-                .version
-                .clone()
-                .filter(|v| v.contains("${"))
-                .map(|mut s| {
-                    if let Some(start) = s.find("${") {
-                        if let Some(end) = s[start..].find("}") {
-                            let expr = s[start + 2..end].to_owned();
-                            if let Some(v) = properties.get(&expr) {
-                                s.replace_range(start..end + 1, v);
-                            }
-                        }
-                    }
-                    s
-                })
-                .or_else(|| self.version.clone()),
-            ..self.clone()
+    fn interpolate_version(&mut self, properties: &HashMap<String, String>) -> Self {
+        if let Some(version) = &self.version {
+            if version.contains("${") {
+                let property = version.clone()
+                    .substr_after('$')
+                    .remove_surrounding('{', '}');
+
+                if let Some(version) = properties.get(&property) {
+                    self.version = Some(version.to_owned());
+                }
+            }
         }
+        self.clone()
     }
 
     fn with_packaging(&self, packaging: Packaging) -> Self {
@@ -281,20 +300,20 @@ struct Parent {
 }
 
 fn node<'a, 'input: 'a>(
-    parent: &'input roxmltree::Node,
+    parent: &'input Node,
     tag_name: &'a str,
-) -> Option<roxmltree::Node<'a, 'input>> {
+) -> Option<Node<'a, 'input>> {
     parent
         .children()
         .find(|child| child.is_element() && child.has_tag_name(tag_name))
 }
 
-fn node_text<'a, 'input: 'a>(parent: &'input roxmltree::Node, tag_name: &'a str) -> Option<String> {
+fn node_text<'a, 'input: 'a>(parent: &'input Node, tag_name: &'a str) -> Option<String> {
     let n = node(parent, tag_name)?;
     n.text().map(|t| t.to_owned())
 }
 
-fn parse_artifact(n: &roxmltree::Node) -> Artifact {
+fn parse_artifact(n: &Node) -> Artifact {
     Artifact {
         group_id: node_text(n, "groupId"),
         artifact_id: node_text(n, "artifactId"),
@@ -305,14 +324,14 @@ fn parse_artifact(n: &roxmltree::Node) -> Artifact {
     }
 }
 
-fn parse_parent(n: &roxmltree::Node) -> Option<Parent> {
+fn parse_parent(n: &Node) -> Option<Parent> {
     let n = node(n, "parent")?;
     Some(Parent {
         artifact: parse_artifact(&n),
     })
 }
 
-fn parse_dependencies(n: &roxmltree::Node) -> Vec<Artifact> {
+fn parse_dependencies(n: &Node) -> Vec<Artifact> {
     match node(n, "dependencies") {
         Some(n) => n
             .children()
@@ -323,14 +342,14 @@ fn parse_dependencies(n: &roxmltree::Node) -> Vec<Artifact> {
     }
 }
 
-fn parse_dependency_management(n: &roxmltree::Node) -> Vec<Artifact> {
+fn parse_dependency_management(n: &Node) -> Vec<Artifact> {
     match node(n, "dependencyManagement") {
         Some(dm) => parse_dependencies(&dm),
-        _=> vec![] 
+        _ => vec![]
     }
 }
 
-fn parse_properties(n: &roxmltree::Node) -> HashMap<String, String> {
+fn parse_properties(n: &Node) -> HashMap<String, String> {
     match node(n, "properties") {
         Some(n) => n
             .children()
@@ -377,13 +396,14 @@ impl Default for Resolver {
         }
     }
 }
+
 impl Resolver {
     fn create_url(&self, id: &Artifact) -> Result<String> {
         // a little helper
         fn require<'a, F, D>(id: &'a Artifact, f: F, field_name: &D) -> Result<&'a String>
-        where
-            F: Fn(&Artifact) -> Option<&String>,
-            D: std::fmt::Debug,
+            where
+                F: Fn(&Artifact) -> Option<&String>,
+                D: std::fmt::Debug,
         {
             Ok(f(id).context(format!("missing parameter {:?} {:?}", id, field_name))?)
         }
@@ -600,13 +620,13 @@ impl Resolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn dependencies() {
         let artifact = Artifact::pom("org.jetbrains.kotlin", "kotlin-stdlib", "1.9.22");
         // let artifact = Artifact::pom("io.ktor", "ktor-server-core", "2.3.7");
         let parser = MavenParser {};
-        let fetcher = DefaultUrlFetcher{};
+        let fetcher = DefaultUrlFetcher {};
 
         let resolver = Resolver::default();
         let url = resolver.create_url(&artifact).unwrap();
@@ -615,6 +635,28 @@ mod tests {
         let graph = parser.parse(text).unwrap();
 
         println!("{}", graph);
+    }
+
+    #[test]
+    fn interpolation() {
+        let artifact = Artifact::pom("org.jetbrains.kotlin", "kotlin-stdlib", "1.9.22");
+        let fetcher = DefaultUrlFetcher {};
+        let resolver = Resolver::default();
+        let url = resolver.create_url(&artifact).unwrap();
+        let text = fetcher.fetch(&url).unwrap();
+
+        let doc = roxmltree::Document::parse(&text).unwrap();
+        let root_node = doc.root();
+        let project_node = node(&root_node, "project").unwrap();
+
+        let project = Project::new(project_node);
+
+        for dep in project.dependencies {
+            println!{"{dep:?}"}
+        }
+        for dep in project.dependency_management {
+            println!{"{dep:?}"}
+        }
     }
 }
 
