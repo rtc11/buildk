@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 util.workspace = true
+dependencies.workspace = true
 
 async-std.workspace = true
 anyhow.workspace = true

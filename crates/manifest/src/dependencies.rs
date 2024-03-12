@@ -1,21 +1,19 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
-use std::io::BufReader;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::Context;
 use toml_edit::{Document, Item, Table, Value};
-use xml::EventReader;
-use xml::reader::XmlEvent;
 
+use dependencies::maven_parser::{Artifact, MavenParser, Scope};
 use util::sub_strings::SubStrings;
 
 use crate::Section;
 
 // https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct Dependency {
     pub name: Name,
     pub version: Version,
@@ -32,7 +30,7 @@ pub struct Dependency {
     pub module: String, // Filename
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Ord, PartialOrd, Debug, Eq, PartialEq, Hash)]
 pub enum Kind {
     Source,
     Test,
@@ -41,7 +39,7 @@ pub enum Kind {
 }
 
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Ord, PartialOrd, Hash, Eq, PartialEq, Debug)]
 pub struct Name(String);
 
 impl Display for Name {
@@ -62,7 +60,7 @@ impl From<&str> for Name {
     }
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Ord, PartialOrd, Hash, Eq, PartialEq, Debug)]
 pub struct Version(String);
 
 impl Display for Dependency {
@@ -204,9 +202,9 @@ impl Dependency {
         Self::new(kind, Name::from(name), Version::from(version))
     }
 
-    pub fn transitives(&self) -> Vec<Dependency> {
+    pub fn transitives(&self) -> BTreeSet<Dependency> {
         let pom = self.target_dir.join(&self.pom);
-        pom.parse_pom(self.kind)
+        MavenParser::parse_pom(pom, Dependency::try_from)
     }
 }
 
@@ -364,135 +362,23 @@ fn decend<'a>(
     map
 }
 
-trait PomParser {
-    fn parse_pom(&self, kind: Kind) -> Vec<Dependency>;
+impl TryFrom<Artifact> for Dependency {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Artifact) -> Result<Self, Self::Error> {
+        Dependency::new(
+            value.scope.into(),
+            Name::from(format!("{}.{}", value.group_id, value.artifact_id)),
+            Version::from(value.version.unwrap()),
+        )
+    }
 }
 
-impl PomParser for PathBuf {
-    fn parse_pom(&self, kind: Kind) -> Vec<Dependency> {
-        if let Ok(file) = std::fs::File::open(self) {
-            let file = BufReader::new(file); // increases performance
-            let reader = EventReader::new(file);
-            let mut group = String::new();
-            let mut artifact = String::new();
-            let mut version = String::new();
-            let mut scope = String::new();
-            let mut dependencies: Vec<Dependency> = Vec::new();
-            let mut is_dependency = false;
-            let mut is_group_id = false;
-            let mut is_artifact_id = false;
-            let mut is_version = false;
-            let mut is_scope = false;
-
-            let mut is_properties = false;
-            let mut properties_version = String::new();
-            let mut properties: HashMap<String, String> = HashMap::new();
-
-            reader.into_iter().for_each(|element| {
-                match &element {
-                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("properties") => {
-                        is_properties = true
-                    }
-                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("properties") => {
-                        is_properties = false
-                    }
-                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("dependency") => {
-                        group.clear();
-                        artifact.clear();
-                        version.clear();
-                        is_dependency = true;
-                    }
-
-                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("dependency") => {
-                        let name = format!("{}:{}", &group, artifact);
-                        if let Ok(dependency) = Dependency::new(kind, Name::from(name.as_str()), Version::from(version.as_str())) {
-                            if !scope.eq("test") {
-                                dependencies.push(dependency);
-                            } else {
-                                scope = String::new();
-                            }
-                        }
-                        is_dependency = false;
-                    }
-
-                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("groupId") => {
-                        if is_dependency {
-                            is_group_id = true
-                        }
-                    }
-
-                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("groupId") => {
-                        is_group_id = false;
-                    }
-
-                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("artifactId") => {
-                        if is_dependency {
-                            is_artifact_id = true
-                        }
-                    }
-
-                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("artifactId") => {
-                        is_artifact_id = false;
-                    }
-
-                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("version") => {
-                        if is_dependency {
-                            is_version = true
-                        }
-                    }
-
-                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("version") => {
-                        is_version = false;
-                    }
-
-                    Ok(XmlEvent::StartElement { name, .. }) if name.local_name.eq("scope") => {
-                        if is_dependency {
-                            is_scope = true
-                        }
-                    }
-
-                    Ok(XmlEvent::EndElement { name }) if name.local_name.eq("scope") => {
-                        is_scope = false;
-                    }
-
-                    Ok(XmlEvent::StartElement { name, .. }) => {
-                        if is_properties {
-                            properties_version = name.local_name.clone();
-                        }
-                    }
-                    Ok(XmlEvent::Characters(content)) => {
-                        if is_properties {
-                            properties.insert(properties_version.clone(), content.clone());
-                        }
-                        if is_group_id {
-                            group = content.clone()
-                        }
-                        if is_artifact_id {
-                            artifact = content.clone()
-                        }
-                        if is_version {
-                            let content = content.clone();
-
-                            // version is defined in <properties> or directly in <version>
-                            if properties.get(&content).is_some() {
-                                version = properties.get(&content).unwrap().clone();
-                            } else {
-                                version = content.clone();
-                            }
-                        }
-                        if is_scope {
-                            scope = content.clone();
-                        }
-                    }
-
-                    Err(_) => {}
-                    _ => {}
-                };
-            });
-
-            dependencies
-        } else {
-            vec![]
+impl From<Scope> for Kind {
+    fn from(value: Scope) -> Self {
+        match value {
+            Scope::Test => Kind::Test,
+            _ => Kind::Source
         }
     }
 }
