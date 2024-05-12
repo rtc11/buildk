@@ -24,7 +24,7 @@ impl<'a> Command for DepPath<'a> {
             .find(|dep| dep.name == arg)
             .expect("no dep found.");
 
-        println!("\r{}/{}", dep.target_dir.display(), dep.jar);
+        println!("\r{}{}", dep.target_dir.display(), dep.jar);
         output
     }
 }
