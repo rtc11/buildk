@@ -54,6 +54,12 @@ impl From<String> for Name {
     }
 }
 
+impl Into<String> for Name {
+    fn into(self) -> String {
+        self.0
+    }
+}
+
 impl From<&str> for Name {
     fn from(value: &str) -> Self {
         Name(value.to_string())

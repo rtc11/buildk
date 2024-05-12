@@ -3,6 +3,7 @@ use clap::{command, Parser, Subcommand, ValueEnum};
 use ::manifest::config::Config;
 use build::Build;
 use clean::Clean;
+use dep_path::DepPath;
 use deps::Deps;
 use fetch::Fetch;
 use process::{java::Java, kotlin::Kotlin, Process};
@@ -15,6 +16,7 @@ use util::buildk_output::BuildkOutput;
 mod build;
 mod clean;
 mod config;
+mod dep_path;
 mod deps;
 mod fetch;
 mod release;
@@ -28,12 +30,19 @@ mod tree;
 #[command(about = "A Kotlin build tool for the 21st century")]
 pub struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    pub command: Commands,
+
+    #[arg(short = 'q')]
+    quiet: bool,
 }
 
 impl Cli {
-    pub fn commands() -> Commands {
-        Cli::parse().command
+    pub fn init() -> Cli {
+        Cli::parse()
+    }
+
+    pub fn is_quiet(&self) -> bool {
+        self.quiet
     }
 }
 
@@ -99,6 +108,11 @@ pub enum Commands {
 
     /// Print the build tree
     Tree,
+
+    Path {
+        #[arg(value_name = "DEP")]
+        dep: String,
+    },
 }
 
 #[derive(ValueEnum, Copy, Clone, PartialEq, Eq)]
@@ -116,7 +130,6 @@ pub enum CleanSet {
     Release,
 }
 
-
 trait Command {
     type Item;
 
@@ -130,46 +143,34 @@ impl Commands {
         let tree = Tree::new(config);
 
         match self {
-            Commands::Build { set } => {
-                match kotlin {
-                    Ok(kotlin) => {
-                        match tree {
-                            Ok(tree) => Build::new(config, &kotlin, &tree).execute(Some(*set)),
-                            Err(e) => panic!("{}", e)
-                        }
-                    }
-                    Err(e) => panic!("{}", e)
-                }
-            }
+            Commands::Build { set } => match kotlin {
+                Ok(kotlin) => match tree {
+                    Ok(tree) => Build::new(config, &kotlin, &tree).execute(Some(*set)),
+                    Err(e) => panic!("{}", e),
+                },
+                Err(e) => panic!("{}", e),
+            },
             Commands::Clean { set } => Clean::new(config).execute(Some(*set)),
             Commands::Config => config::Config::new(config).execute(None),
             Commands::Deps { limit } => Deps::new(config).execute(*limit),
             Commands::Fetch { artifact } => Fetch::new(config).execute(artifact.clone()),
-            Commands::Release => {
-                match kotlin {
-                    Ok(kotlin) => Release::new(config, &kotlin).execute(None),
-                    Err(e) => panic!("{}", e)
-                }
-            }
-            Commands::Run { name } => {
-                match java {
-                    Ok(java) => Run::new(config, &java).execute(name.clone()),
-                    Err(e) => panic!("{}", e)
-                }
-            }
-            Commands::Test { name } => {
-                match java {
-                    Ok(java) => Test::new(config, &java).execute(name.clone()),
-                    Err(e) => panic!("{}", e)
-                }
-            }
-            Commands::Tree => {
-                match tree {
-                    Ok(mut tree) => tree.execute(None),
-                    Err(e) => panic!("{}", e)
-                }
-            }
+            Commands::Release => match kotlin {
+                Ok(kotlin) => Release::new(config, &kotlin).execute(None),
+                Err(e) => panic!("{}", e),
+            },
+            Commands::Run { name } => match java {
+                Ok(java) => Run::new(config, &java).execute(name.clone()),
+                Err(e) => panic!("{}", e),
+            },
+            Commands::Test { name } => match java {
+                Ok(java) => Test::new(config, &java).execute(name.clone()),
+                Err(e) => panic!("{}", e),
+            },
+            Commands::Tree => match tree {
+                Ok(mut tree) => tree.execute(None),
+                Err(e) => panic!("{}", e),
+            },
+            Commands::Path { dep } => DepPath::new(config).execute(Some(dep.to_owned())),
         }
     }
 }
-
