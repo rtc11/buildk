@@ -98,6 +98,23 @@ pub fn build_termtree(
     }
 }
 
+pub fn acc_transitive_unique(dep: Dependency, mut traversed: Vec<Dependency>) -> Vec<Dependency> {
+    match traversed.contains(&dep) {
+        true => return traversed,
+        false => traversed.push(dep.clone()),
+    }
+
+    let traversed = dep
+        .transitives()
+        .into_iter()
+        .filter(|it| !traversed.contains(it))
+        .fold(traversed.clone(), |acc, entry| {
+            acc_transitive_unique(entry, acc)
+        });
+
+    traversed
+}
+
 impl<'a> Command for Deps<'a> {
     type Item = usize;
 
@@ -210,12 +227,16 @@ mod lsp {
     use manifest::config::Config;
     use manifest::manifest::Manifest;
 
+    use crate::deps::acc_transitive_unique;
+
     /**
      * This function is used to update the classpath for the kotlin language server.
      **/
     pub(crate) fn update_classpath(config: &Config) -> anyhow::Result<()> {
         use std::fs::OpenOptions;
         use std::io::prelude::*;
+
+        // TODO: add transitive dependencies to kls classpath
 
         // FIXME
         let manifest =
@@ -225,10 +246,23 @@ mod lsp {
             .map(|home| home.join(".config"))
             .expect("Failed to get home dir")
             .join("kotlin-language-server")
-            .join("kls-classpath");
+            .join("classpath"); // see https://github.com/fwcd/kotlin-language-server?tab=readme-ov-file#figuring-out-the-dependencies
 
-        let classpath = manifest
+        let deps = manifest
             .dependencies
+            .iter()
+            .fold(vec![], |acc, dep| acc_transitive_unique(dep.clone(), acc));
+
+        /*
+                let classpath = manifest
+                    .dependencies
+                    .iter()
+                    .map(|dep| dep.jar_absolute_path().display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(":");
+        */
+
+        let classpath = deps
             .iter()
             .map(|dep| dep.jar_absolute_path().display().to_string())
             .collect::<Vec<_>>()

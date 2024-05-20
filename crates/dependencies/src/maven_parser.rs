@@ -223,7 +223,7 @@ mod tests {
                 "{}:{}:{}",
                 art.group,
                 art.artifact,
-                art.to_owned().version()
+                art.to_owned().version
             );
         });
     }
