@@ -33,17 +33,11 @@ pub struct Counter {
 
 impl Counter {
     fn hit() -> Self {
-        Self {
-            hit: 1,
-            miss: 0,
-        }
+        Self { hit: 1, miss: 0 }
     }
 
     fn miss() -> Self {
-        Self {
-            hit: 0,
-            miss: 1,
-        }
+        Self { hit: 0, miss: 1 }
     }
 
     fn apply(&mut self, other: Counter) {
@@ -60,7 +54,7 @@ pub fn build_termtree(
 ) -> anyhow::Result<(Tree<String>, Vec<Dependency>, Counter)> {
     match traversed.contains(&dep) {
         true => anyhow::bail!("already processed"),
-        false => traversed.push(dep.clone())
+        false => traversed.push(dep.clone()),
     }
 
     let mut counter_acc = match dep.is_cached() {
@@ -80,23 +74,20 @@ pub fn build_termtree(
             .filter(|it| !traversed.contains(it))
             .fold(
                 (Tree::new(label), traversed.clone()),
-                |(mut tree_acc, trav_acc), entry| {
-                    match build_termtree(
-                        entry,
-                        trav_acc.clone(),
-                        depth + 1,
-                        limit,
-                    ) {
-                        Ok((tree, traversed, counter)) => {
-                            tree_acc.push(tree);
-                            counter_acc.apply(counter);
-                            (tree_acc, traversed)
-                        }
-                        Err(_) => {
-                            (tree_acc, trav_acc)
-                        }
+                |(mut tree_acc, trav_acc), entry| match build_termtree(
+                    entry,
+                    trav_acc.clone(),
+                    depth + 1,
+                    limit,
+                ) {
+                    Ok((tree, traversed, counter)) => {
+                        tree_acc.push(tree);
+                        counter_acc.apply(counter);
+                        (tree_acc, traversed)
                     }
-                });
+                    Err(_) => (tree_acc, trav_acc),
+                },
+            );
         Ok((tree, traversed, counter_acc))
     } else {
         Ok((Tree::new(label), traversed, counter_acc))
@@ -118,20 +109,22 @@ impl<'a> Command for Deps<'a> {
         let mut traversed = vec![];
         let mut counter_acc = Counter { hit: 0, miss: 0 };
         for dep in manifest.dependencies.iter() {
-            let (tree, newly_traversed, counter) = build_termtree(dep.clone(), traversed.clone(), 0, limit).unwrap();
+            let (tree, newly_traversed, counter) =
+                build_termtree(dep.clone(), traversed.clone(), 0, limit).unwrap();
             traversed = newly_traversed;
             counter_acc.apply(counter);
             print!("{}", tree);
         }
 
         if !manifest.dependencies.is_empty() {
-            println!("found {} {}  missing {}{}", "".as_green(), counter_acc.hit, " ".as_red(), counter_acc.miss);
+            if counter_acc.hit > 0 {
+                print!("found {} {}", "".as_green(), counter_acc.hit)
+            }
+            if counter_acc.miss > 0 {
+                print!("miss {} {}", " ".as_green(), counter_acc.hit)
+            }
+            println!("");
         }
-
-        // manifest.dependencies.iter().for_each(|dep| {
-        //     let (tree, traversed) = build_termtree(dep.clone(), vec![], 0).unwrap();
-        //     print!("{}", tree);
-        // });
 
         match lsp::update_classpath(self.config) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),
@@ -141,7 +134,6 @@ impl<'a> Command for Deps<'a> {
         };
 
         output.conclude(PartialConclusion::SUCCESS);
-
         output.to_owned()
     }
 }
@@ -189,7 +181,10 @@ pub fn find_dependent_deps(
             if print {
                 println!("{}", stdout);
             }
-            traversed.push(dep.clone());
+
+            if !traversed.contains(dep) {
+                traversed.push(dep.clone());
+            }
         });
 
         let transitives = dependencies
@@ -198,13 +193,9 @@ pub fn find_dependent_deps(
             .filter(|it| !traversed.contains(it))
             .collect::<Vec<_>>();
 
-        find_dependent_deps(
-            transitives,
-            traversed,
-            depth + 1,
-            print,
-        ).await
-    }.boxed()
+        find_dependent_deps(transitives, traversed, depth + 1, print).await
+    }
+    .boxed()
 }
 
 mod lsp {
@@ -223,8 +214,8 @@ mod lsp {
         use std::io::prelude::*;
 
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&config.manifest)
-            .expect("no buildk.toml found.");
+        let manifest =
+            <Option<Manifest> as Clone>::clone(&config.manifest).expect("no buildk.toml found.");
 
         let kls_classpath = home::home_dir()
             .map(|home| home.join(".config"))
@@ -232,7 +223,8 @@ mod lsp {
             .join("kotlin-language-server")
             .join("kls-classpath");
 
-        let classpath = manifest.dependencies
+        let classpath = manifest
+            .dependencies
             .iter()
             .map(|dep| dep.jar_absolute_path().display().to_string())
             .collect::<Vec<_>>()
@@ -273,7 +265,11 @@ mod tests {
     #[test]
     fn test_termtree() -> anyhow::Result<()> {
         // let dep = Dependency::new(Kind::Source, Name::from("io.ktor.ktor-server-core"), Version::from("2.3.7"))?;
-        let dep = Dependency::new(Kind::Source, Name::from("org.jetbrains.kotlin.kotlin-stdlib"), Version::from("1.9.22"))?;
+        let dep = Dependency::new(
+            Kind::Source,
+            Name::from("org.jetbrains.kotlin.kotlin-stdlib"),
+            Version::from("1.9.22"),
+        )?;
         let (tree, _, counter) = build_termtree(dep, vec![], 0, 1)?;
 
         println!("{tree}");

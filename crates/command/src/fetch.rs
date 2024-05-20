@@ -2,14 +2,14 @@ use std::collections::HashSet;
 
 use async_std::task;
 use http::client::{Client, DownloadResult};
-use manifest::{config::Config, dependencies::Dependency};
 use manifest::dependencies::{Kind, Name, Version};
 use manifest::manifest::Manifest;
+use manifest::{config::Config, dependencies::Dependency};
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colors};
 use util::PartialConclusion;
 
-use crate::{Command, deps};
+use crate::{deps, Command};
 
 const DEBUG: bool = false;
 const PRINT_DOWNLOADS: bool = false;
@@ -66,41 +66,36 @@ impl<'a> Fetch<'a> {
         let client = Client;
 
         let downloads = task::block_on(async {
-            let all_deps = deps::find_dependent_deps(
-                deps.to_vec(),
-                vec![],
-                0,
-                false,
-            ).await;
+            let all_deps = deps::find_dependent_deps(deps.to_vec(), vec![], 0, false).await;
 
             println!("\rtotal deps: {}", all_deps.len());
 
             all_deps
                 .into_iter()
-                .filter(|dep| !dep.is_cached())
+                .filter(|dep| {
+                    match dep.is_cached() {
+                        true => print_status(dep, "[cached]", Color::Green, 0),
+                        false => print_status(dep, "[missing]", Color::Red, 0),
+                    }
+                    !dep.is_cached()
+                })
                 .map(|dep| {
                     let config = self.config.clone();
                     let client = client.clone();
 
                     task::block_on(async {
-                        // let mut spinner = Spinner::new(
-                        //     Spinners::Dots7,
-                            println!("{:<10} {:<16}:{:<26}", "downloading", dep.name, dep.version);
-                        // );
+                        println!("{:<10} {:<16}:{:<26}", "downloading", dep.name, dep.version);
                         client.download_async(&dep, &config).await
-                        // spinner.stop();
-                        //println!("downloaded {}:{}", dep.name, dep.version);
                     })
-                }).collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
         });
 
         downloads
             .iter()
-            .filter_map(|download| {
-                match download {
-                    DownloadResult::Failed(err) => Some(err.to_owned()),
-                    _ => None,
-                }
+            .filter_map(|download| match download {
+                DownloadResult::Failed(err) => Some(err.to_owned()),
+                _ => None,
             })
             .for_each(|err| {
                 eprintln!("\n{}", &err);
@@ -178,4 +173,3 @@ fn print_status(dep: &Dependency, status: &str, color: Color, depth: usize) {
     );
     println!("\r{}", display.colorize(&color))
 }
-
