@@ -9,6 +9,8 @@ pub mod terminal;
 pub mod timer;
 pub mod sub_strings;
 
+pub const DEBUG: bool = false;
+
 pub enum Conclusion {
     SUCCESS,
     FAILED,

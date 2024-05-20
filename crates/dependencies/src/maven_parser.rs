@@ -10,22 +10,11 @@ use crate::Parser;
 
 pub struct MavenParser;
 
-impl MavenParser {
-    pub fn parse_pom<FN, OUT: Ord>(pom: PathBuf, from: FN) -> BTreeSet<OUT>
-        where FN: Fn(Artifact) -> anyhow::Result<OUT>
-    {
-        Self::parse(pom)
-            .into_iter()
-            .filter_map(|artifact| from(artifact).ok())
-            .collect()
-    }
-}
-
-impl Parser<Artifact> for MavenParser {
-    fn parse(pom: PathBuf) -> BTreeSet<Artifact> {
-        let content = match fs::read_to_string(pom) {
+impl Parser<crate::Dependency> for MavenParser {
+    fn parse(path: PathBuf) -> BTreeSet<crate::Dependency> {
+        let content = match fs::read_to_string(path) {
             Ok(content) => content,
-            Err(_) => return BTreeSet::default()
+            Err(_) => return BTreeSet::default(),
         };
 
         let doc = roxmltree::Document::parse(&content).unwrap();
@@ -46,20 +35,37 @@ impl Parser<Artifact> for MavenParser {
                 unique_deps.insert(it);
             });
 
-        managed.into_iter()
+        managed
+            .into_iter()
             .filter(|it| it.version.is_some())
             .for_each(|it| {
                 unique_deps.insert(it);
             });
 
         unique_deps
+            .into_iter()
+            //.filter(|it| !it.artifact_id.ends_with("-bom"))
+            .map(|a| crate::Dependency::from(a))
+            .collect()
     }
 }
 
 fn interpolate(artifacts: Vec<Artifact>, properties: &HashMap<String, String>) -> Vec<Artifact> {
-    artifacts.into_iter()
+    artifacts
+        .into_iter()
         .map(|mut dep| dep.interpolate(properties))
         .collect::<Vec<_>>()
+}
+
+impl From<Artifact> for crate::Dependency {
+    fn from(artifact: Artifact) -> Self {
+        crate::Dependency::new(
+            artifact.group_id,
+            artifact.artifact_id,
+            artifact.version.unwrap(),
+            artifact.scope.into(),
+        )
+    }
 }
 
 #[derive(Clone, Ord, PartialOrd, PartialEq, Eq)]
@@ -74,7 +80,8 @@ impl Artifact {
     fn interpolate(&mut self, properties: &HashMap<String, String>) -> Self {
         if let Some(version) = &self.version {
             if version.contains("${") {
-                let property = version.clone()
+                let property = version
+                    .clone()
                     .substr_after('$')
                     .remove_surrounding('{', '}');
 
@@ -100,6 +107,15 @@ pub enum Scope {
     Test,
     /// required at compile-time and runtime, but is not included in the project
     System,
+}
+
+impl Into<crate::Kind> for Scope {
+    fn into(self) -> crate::Kind {
+        match self {
+            Scope::Test => crate::Kind::Test,
+            _ => crate::Kind::Compile,
+        }
+    }
 }
 
 impl From<String> for Scope {
@@ -137,7 +153,12 @@ impl MavenXmlParser for Node<'_, '_> {
             Some(properties) => properties
                 .children()
                 .filter(|node| node.is_element())
-                .map(|node| (node.tag_name().name().to_owned(), node.text().unwrap().to_owned()))
+                .map(|node| {
+                    (
+                        node.tag_name().name().to_owned(),
+                        node.text().unwrap().to_owned(),
+                    )
+                })
                 .collect(),
             _ => HashMap::new(),
         }
@@ -148,7 +169,9 @@ impl MavenXmlParser for Node<'_, '_> {
             group_id: node_text(self, "groupId").expect("groupId"),
             artifact_id: node_text(self, "artifactId").expect("artifactId"),
             version: node_text(self, "version"),
-            scope: node_text(self, "scope").map(|scope| scope.into()).unwrap_or_default(),
+            scope: node_text(self, "scope")
+                .map(|scope| scope.into())
+                .unwrap_or_default(),
         }
     }
 
@@ -166,15 +189,12 @@ impl MavenXmlParser for Node<'_, '_> {
     fn parse_managed_deps(&self) -> Vec<Artifact> {
         match node(self, "dependencyManagement") {
             Some(node) => node.parse_deps(),
-            _ => vec![]
+            _ => vec![],
         }
     }
 }
 
-fn node<'a, 'input: 'a>(
-    parent: &'input Node,
-    tag_name: &'a str,
-) -> Option<Node<'a, 'input>> {
+fn node<'a, 'input: 'a>(parent: &'input Node, tag_name: &'a str) -> Option<Node<'a, 'input>> {
     parent
         .children()
         .find(|child| child.is_element() && child.has_tag_name(tag_name))
@@ -187,18 +207,24 @@ fn node_text<'a, 'input: 'a>(parent: &'input Node, tag_name: &'a str) -> Option<
 
 #[cfg(test)]
 mod tests {
-    use crate::maven_parser::MavenParser;
+    use crate::{maven_parser::MavenParser, Parser};
 
     #[test]
     fn dependencies() {
-        let pom = home::home_dir().unwrap()
+        let pom = home::home_dir()
+            .unwrap()
             .join(".buildk/cache")
             .join("org/jetbrains/kotlin/kotlin-stdlib/1.9.22")
             .join("kotlin-stdlib-1.9.22.pom");
-        let parsed = MavenParser::parse_pom(pom, |art|Ok(art) );
+        let parsed = MavenParser::parse(pom);
 
         parsed.iter().for_each(|art| {
-            println!("{}:{}:{}", art.group_id, art.artifact_id, art.to_owned().version.unwrap());
+            println!(
+                "{}:{}:{}",
+                art.group,
+                art.artifact,
+                art.to_owned().version()
+            );
         });
     }
 }

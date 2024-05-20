@@ -57,6 +57,10 @@ pub fn build_termtree(
         false => traversed.push(dep.clone()),
     }
 
+    if dep.name.to_string().contains("-bom") {
+        anyhow::bail!("bom not supported yet");
+    }
+
     let mut counter_acc = match dep.is_cached() {
         true => Counter::hit(),
         false => Counter::miss(),
@@ -121,7 +125,7 @@ impl<'a> Command for Deps<'a> {
                 print!("found {} {}", "".as_green(), counter_acc.hit)
             }
             if counter_acc.miss > 0 {
-                print!("miss {} {}", " ".as_green(), counter_acc.hit)
+                print!(" miss {} {}", " ".as_red(), counter_acc.miss)
             }
             println!("");
         }

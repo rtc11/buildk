@@ -11,4 +11,7 @@ surf.workspace = true
 async-std.workspace = true
 gryf.workspace = true
 home.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_derive.workspace = true
 

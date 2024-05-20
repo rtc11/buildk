@@ -30,9 +30,10 @@ impl Client {
             return DownloadResult::Failed(err.to_string());
         }
 
-        let (jar, pom) = task::block_on(async {
+        let (jar, pom, module) = task::block_on(async {
             let mut jar = DownloadResult::Failed("".into());
             let mut pom = DownloadResult::Failed("".into());
+            let mut module = DownloadResult::Failed("".into());
 
             // FIXME
             let manifest = <Option<manifest::manifest::Manifest> as Clone>::clone(&config.manifest)
@@ -40,26 +41,27 @@ impl Client {
 
             for repo in manifest.repositories.iter() {
                 let repo = repo.clone();
-                (jar, pom) = Self::download_jar_and_pom(&dep, &repo).await;
-                if !jar.is_failed() && !pom.is_failed() {
+                (jar, pom, module) = Self::download_jar_and_pom(&dep, &repo).await;
+                if !jar.is_failed() && (!pom.is_failed() || !module.is_failed()) {
                     break;
                 }
             }
-            (jar, pom)
+            (jar, pom, module)
         });
 
         if let DownloadResult::Failed(_) = jar {
-            //println!("failed to download jar: {:?}", &jar);
             return jar;
         }
 
         if let DownloadResult::Failed(_) = pom {
-            //println!("failed to download pom: {:?}", &jar);
             return pom;
         }
 
-        if jar == DownloadResult::Downloaded || pom == DownloadResult::Downloaded {
-            //println!("downloaded either {} or {}", &dep.name, &dep.version);
+        if let DownloadResult::Failed(_) = module {
+            return module;
+        }
+
+        if jar == DownloadResult::Downloaded || pom == DownloadResult::Downloaded || module == DownloadResult::Downloaded {
             return DownloadResult::Downloaded;
         }
 
@@ -67,15 +69,19 @@ impl Client {
         DownloadResult::Exist
     }
 
-    async fn download_jar_and_pom(dep: &&Dependency, repo: &Repository) -> (DownloadResult, DownloadResult) {
+    async fn download_jar_and_pom(dep: &&Dependency, repo: &Repository) -> (DownloadResult, DownloadResult, DownloadResult) {
         let base_url = format!("{}/{}", &repo.url, &dep.path);
         let target_dir = PathBuf::from(&dep.target_dir);
 
+        let pom = format!("{}.pom", &dep.file_prefix);
+        let module = format!("{}.module", &dep.file_prefix);
+
+
         let jar_res = create_target_and_download(&base_url, &target_dir, &dep.jar).await;
-        let pom_res = create_target_and_download(&base_url, &target_dir, &dep.pom).await;
+        let pom_res = create_target_and_download(&base_url, &target_dir, &pom).await;
         let _optional = create_target_and_download(&base_url, &target_dir, &dep.sources).await;
-        let _optional = create_target_and_download(&base_url, &target_dir, &dep.module).await;
-        (jar_res, pom_res)
+        let module_res = create_target_and_download(&base_url, &target_dir, &module).await;
+        (jar_res, pom_res, module_res)
     }
 }
 

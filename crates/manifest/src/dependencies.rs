@@ -5,8 +5,6 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use toml_edit::{Document, Item, Table, Value};
-
-use dependencies::maven_parser::{Artifact, MavenParser, Scope};
 use util::sub_strings::SubStrings;
 
 use crate::Section;
@@ -24,10 +22,7 @@ pub struct Dependency {
     pub jar: String,
     // Filename
     pub sources: String,
-    // Filename
-    pub pom: String,
-    // Filename
-    pub module: String, // Filename
+    pub file_prefix: String,
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Debug, Eq, PartialEq, Hash)]
@@ -37,7 +32,6 @@ pub enum Kind {
     Platform,
     PlatformTest,
 }
-
 
 #[derive(Clone, Ord, PartialOrd, Hash, Eq, PartialEq, Debug)]
 pub struct Name(String);
@@ -105,35 +99,54 @@ pub trait DependenciesTools {
 
 impl DependenciesTools for Vec<Dependency> {
     fn platform_deps(&self) -> Vec<Dependency> {
-        self.iter().filter(|dep| dep.kind == Kind::Platform).cloned().collect()
+        self.iter()
+            .filter(|dep| dep.kind == Kind::Platform)
+            .cloned()
+            .collect()
     }
 
     fn platform_test_deps(&self) -> Vec<Dependency> {
-        self.iter().filter(|dep| dep.kind == Kind::PlatformTest).cloned().collect()
+        self.iter()
+            .filter(|dep| dep.kind == Kind::PlatformTest)
+            .cloned()
+            .collect()
     }
 
     fn src_deps(&self) -> Vec<Dependency> {
-        self.iter().filter(|dep| dep.kind == Kind::Source).cloned().collect()
+        self.iter()
+            .filter(|dep| dep.kind == Kind::Source)
+            .cloned()
+            .collect()
     }
 
     fn test_deps(&self) -> Vec<Dependency> {
-        self.iter().filter(|dep| dep.kind == Kind::Test).cloned().collect()
+        self.iter()
+            .filter(|dep| dep.kind == Kind::Test)
+            .cloned()
+            .collect()
     }
 
     fn junit_runner(&self) -> Option<Dependency> {
-        self.platform_test_deps().iter()
-            .find(|dep| dep.name.0.eq("org.junit.platform.junit-platform-console-standalone"))
+        self.platform_test_deps()
+            .iter()
+            .find(|dep| {
+                dep.name
+                    .0
+                    .eq("org.junit.platform.junit-platform-console-standalone")
+            })
             .cloned()
     }
 
     fn kotlin_stdlib(&self) -> Option<Dependency> {
-        self.platform_deps().iter()
+        self.platform_deps()
+            .iter()
             .find(|dep| dep.name.0.eq("org.jetbrains.kotlin.kotlin-stdlib"))
             .cloned()
     }
 
     fn junit_platform(&self) -> Option<Dependency> {
-        self.platform_test_deps().iter()
+        self.platform_test_deps()
+            .iter()
             .find(|dep| dep.name.0.eq("org.junit.jupiter.junit-jupiter-api"))
             .cloned()
     }
@@ -145,17 +158,20 @@ pub(crate) fn create_platform_deps() -> Vec<Dependency> {
             Kind::PlatformTest,
             Name::from("org.junit.platform.junit-platform-console-standalone"),
             Version::from("1.10.1"),
-        ).unwrap(),
+        )
+        .unwrap(),
         Dependency::new(
             Kind::Platform,
             Name::from("org.jetbrains.kotlin.kotlin-stdlib"),
             Version::from("1.9.22"),
-        ).unwrap(),
+        )
+        .unwrap(),
         Dependency::new(
             Kind::PlatformTest,
             Name::from("org.junit.jupiter.junit-jupiter-api"),
             Version::from("5.5.2"),
-        ).unwrap(),
+        )
+        .unwrap(),
     ]
 }
 
@@ -178,27 +194,24 @@ impl Dependency {
     // todo: if one transitive dep has previously failed, this is not good enough for a check
     pub fn is_cached(&self) -> bool {
         let jar = self.target_dir.join(&self.jar);
-        let pom = self.target_dir.join(&self.pom);
 
-        jar.exists()
-            && pom.exists()
-            && jar.metadata().unwrap().len() > 0
-            && pom.metadata().unwrap().len() > 0
+        // TODO check that at least one file descriptor exists with length > 0
+        jar.exists() && jar.metadata().unwrap().len() > 0
+            //&& pom.exists()
+            //&& pom.metadata().unwrap().len() > 0
     }
 
     pub fn new(kind: Kind, name: Name, version: Version) -> anyhow::Result<Dependency> {
-        let dep = dependency_info(&name, &version)
-            .map(|info| Self {
-                name,
-                version,
-                kind,
-                target_dir: info.target_dir.clone(),
-                path: info.path,
-                jar: format!("{}.jar", info.file_suffix),
-                sources: format!("{}-sources.jar", info.file_suffix),
-                pom: format!("{}.pom", info.file_suffix),
-                module: format!("{}.module", info.file_suffix),
-            })?;
+        let dep = dependency_info(&name, &version).map(|info| Self {
+            name,
+            version,
+            kind,
+            target_dir: info.target_dir.clone(),
+            path: info.path,
+            jar: format!("{}.jar", info.file_prefix),
+            sources: format!("{}-sources.jar", info.file_prefix),
+            file_prefix: info.file_prefix,
+        })?;
 
         Ok(dep)
     }
@@ -209,8 +222,10 @@ impl Dependency {
     }
 
     pub fn transitives(&self) -> BTreeSet<Dependency> {
-        let pom = self.target_dir.join(&self.pom);
-        MavenParser::parse_pom(pom, Dependency::try_from)
+        dependencies::resolve(&self.target_dir.join(&self.jar))
+            .into_iter()
+            .map(|dep| Dependency::try_from(dep).unwrap())
+            .collect()
     }
 }
 
@@ -222,12 +237,16 @@ fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyI
 
     let path = group_id.replace('.', "/");
     let path = format!("{path}/{artifact_id}/{version}/");
-    let file_suffix = format!("{artifact_id}-{version}");
+    let file_prefix = format!("{artifact_id}-{version}");
     let home = home::home_dir().unwrap().join(".buildk");
     let cache = home.join("cache");
     let target_dir = cache.join(&path);
 
-    Ok(DependencyInfo { path, file_suffix, target_dir })
+    Ok(DependencyInfo {
+        path,
+        file_prefix,
+        target_dir,
+    })
 }
 
 /// [name] org.apache.kafka.kafka-clients   [return] org.apache.kafka
@@ -274,7 +293,7 @@ fn resolve_artifact_id(name: &Name) -> anyhow::Result<String> {
 
 struct DependencyInfo {
     pub path: String,
-    pub file_suffix: String,
+    pub file_prefix: String,
     pub target_dir: PathBuf,
 }
 
@@ -286,15 +305,11 @@ pub trait DependenciesKind {
 
 impl DependenciesKind for Vec<Dependency> {
     fn for_test(&self) -> Vec<&Dependency> {
-        self.iter()
-            .filter(|dep| dep.kind == Kind::Test)
-            .collect()
+        self.iter().filter(|dep| dep.kind == Kind::Test).collect()
     }
 
     fn for_src(&self) -> Vec<&Dependency> {
-        self.iter()
-            .filter(|dep| dep.kind == Kind::Source)
-            .collect()
+        self.iter().filter(|dep| dep.kind == Kind::Source).collect()
     }
 
     fn for_platform(&self) -> Vec<&Dependency> {
@@ -368,23 +383,23 @@ fn decend<'a>(
     map
 }
 
-impl TryFrom<Artifact> for Dependency {
+impl TryFrom<dependencies::Dependency> for Dependency {
     type Error = anyhow::Error;
 
-    fn try_from(value: Artifact) -> Result<Self, Self::Error> {
+    fn try_from(value: dependencies::Dependency) -> Result<Self, Self::Error> {
         Dependency::new(
-            value.scope.into(),
-            Name::from(format!("{}.{}", value.group_id, value.artifact_id)),
-            Version::from(value.version.unwrap()),
+            value.kind.into(),
+            Name::from(format!("{}.{}", value.group, value.artifact)),
+            Version::from(value.version),
         )
     }
 }
 
-impl From<Scope> for Kind {
-    fn from(value: Scope) -> Self {
+impl From<dependencies::Kind> for Kind {
+    fn from(value: dependencies::Kind) -> Self {
         match value {
-            Scope::Test => Kind::Test,
-            _ => Kind::Source
+            dependencies::Kind::Compile => Kind::Source,
+            dependencies::Kind::Test => Kind::Test,
         }
     }
 }
@@ -426,8 +441,8 @@ mod tests {
         [dependencies]
         splendid.lib = "4.0.0"
         "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 4); // +3 platform deps
@@ -441,8 +456,8 @@ mod tests {
         [dependencies]
         dotted.keys = "1.1"
         "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 4); // +3 platform deps
@@ -457,8 +472,8 @@ mod tests {
 nice.dep = "3.2.1"
 amazing.lib = "2.0"
 "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 5); // +3 platform deps
@@ -473,8 +488,8 @@ amazing.lib = "2.0"
 [test-dependencies]
 awesome.dep = "1.2.3"
 "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 4); // +3 platform deps
@@ -489,8 +504,8 @@ awesome.dep = "1.2.3"
 nice.price = "3.2.1"
 amazing.ly = "2.0"
 "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 5); // +3 platform deps
@@ -510,8 +525,8 @@ another.amazing.dep = "2.4"
 splendid.test.lib = "3.2.1"
 amazing.a = "2.0"
 "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 7); // +3 platform deps
@@ -529,8 +544,8 @@ amazing.a = "2.0"
 awesome.lib.prod = "3.0.0"
 awesome.lib.test = "3.0.1"
 "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 5); // +3 platform deps
@@ -548,8 +563,8 @@ awesome.lib.test = "3.0.1"
 [test-dependencies]
 splendid.test.lib = "3.2.1"
 "#
-                .parse()
-                .unwrap(),
+            .parse()
+            .unwrap(),
         );
 
         assert_eq!(dependencies.len(), 5); // +3 platform deps
@@ -565,9 +580,17 @@ splendid.test.lib = "3.2.1"
         let name = Name::from("org.apache.kafka.kafka-clients");
         let version = Version::from("3.4.0");
         let info = dependency_info(&name, &version).unwrap();
-        assert_eq!(info.file_suffix, "kafka-clients-3.4.0");
+        assert_eq!(info.file_prefix, "kafka-clients-3.4.0");
         assert_eq!(info.path, "org/apache/kafka/kafka-clients/3.4.0/");
-        assert_eq!(info.target_dir, PathBuf::from(home::home_dir().unwrap().join(".buildk/cache").join("org/apache/kafka/kafka-clients/3.4.0")));
+        assert_eq!(
+            info.target_dir,
+            PathBuf::from(
+                home::home_dir()
+                    .unwrap()
+                    .join(".buildk/cache")
+                    .join("org/apache/kafka/kafka-clients/3.4.0")
+            )
+        );
     }
 
     #[test]
@@ -575,7 +598,7 @@ splendid.test.lib = "3.2.1"
         let name = Name::from(r#"org.osgi."org.osgi.core""#);
         let version = Version::from("6.0.0");
         let info = dependency_info(&name, &version).unwrap();
-        assert_eq!(info.file_suffix, "org.osgi.core-6.0.0");
+        assert_eq!(info.file_prefix, "org.osgi.core-6.0.0");
         assert_eq!(info.path, "org/osgi/org.osgi.core/6.0.0/")
     }
 
