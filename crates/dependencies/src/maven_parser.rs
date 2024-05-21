@@ -147,6 +147,7 @@ trait MavenXmlParser {
     fn parse_managed_deps(&self) -> Vec<Artifact>;
 }
 
+/// A property may include a reference to another property
 impl MavenXmlParser for Node<'_, '_> {
     fn parse_props(&self) -> HashMap<String, String> {
         match node(self, "properties") {
@@ -154,10 +155,12 @@ impl MavenXmlParser for Node<'_, '_> {
                 .children()
                 .filter(|node| node.is_element())
                 .map(|node| {
-                    (
-                        node.tag_name().name().to_owned(),
-                        node.text().unwrap().to_owned(),
-                    )
+                    let key = node.tag_name().name().to_owned();
+                    let value_or_ref = node.text().expect("property value missing").to_owned();
+                    //println!("resolving property: {}:{}", key, value_or_ref);
+                    let value = find_property_recursive(properties, value_or_ref)
+                        .expect("property value missing");
+                    (key, value)
                 })
                 .collect(),
             _ => HashMap::new(),
@@ -194,6 +197,39 @@ impl MavenXmlParser for Node<'_, '_> {
     }
 }
 
+fn find_property_recursive(properties: Node, prop_value: String) -> Option<String> {
+    if prop_value.contains("${") {
+        let reference = prop_value
+            .clone()
+            .substr_after('$')
+            .remove_surrounding('{', '}');
+
+        if let Some(value) = properties
+            .children()
+            .find(|n| n.tag_name().name() == reference)
+        {
+            let value = value.text().expect("property value missing").to_owned();
+            return find_property_recursive(properties, value);
+        }
+    }
+
+    Some(prop_value)
+
+    /*
+    let value = properties
+        .children()
+        .find(|n| {
+            let tag = n.tag_name().name().to_owned();
+            println!("prop {} == {}", tag, property);
+            tag == property
+        })
+        .map(|n| n.text().unwrap().to_owned())
+        .expect("property value missing");
+
+    Some(value)
+    */
+}
+
 fn node<'a, 'input: 'a>(parent: &'input Node, tag_name: &'a str) -> Option<Node<'a, 'input>> {
     parent
         .children()
@@ -219,12 +255,7 @@ mod tests {
         let parsed = MavenParser::parse(pom);
 
         parsed.iter().for_each(|art| {
-            println!(
-                "{}:{}:{}",
-                art.group,
-                art.artifact,
-                art.to_owned().version
-            );
+            println!("{}:{}:{}", art.group, art.artifact, art.to_owned().version);
         });
     }
 }
