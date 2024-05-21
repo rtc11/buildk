@@ -7,7 +7,7 @@ use manifest::dependencies::Dependency;
 use manifest::manifest::Manifest;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colorize, Colors};
-use util::PartialConclusion;
+use util::{PartialConclusion, DEBUG};
 
 use crate::Command;
 
@@ -108,6 +108,7 @@ pub fn acc_transitive_unique(dep: Dependency, mut traversed: Vec<Dependency>) ->
         .transitives()
         .into_iter()
         .filter(|it| !traversed.contains(it))
+        .filter(|it| it.jar_absolute_path().exists())
         .fold(traversed.clone(), |acc, entry| {
             acc_transitive_unique(entry, acc)
         });
@@ -199,7 +200,7 @@ pub fn find_dependent_deps(
             let display = display(status, dep, depth);
             let color = Color::get_index(depth);
             let stdout = display.colorize(&color).to_string();
-            if print {
+            if DEBUG {
                 println!("{}", stdout);
             }
 

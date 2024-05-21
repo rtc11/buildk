@@ -154,6 +154,7 @@ impl MavenXmlParser for Node<'_, '_> {
             Some(properties) => properties
                 .children()
                 .filter(|node| node.is_element())
+                .filter(|node| node.text().is_some())
                 .map(|node| {
                     let key = node.tag_name().name().to_owned();
                     let value_or_ref = node.text().expect("property value missing").to_owned();

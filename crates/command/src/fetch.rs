@@ -73,9 +73,11 @@ impl<'a> Fetch<'a> {
             all_deps
                 .into_iter()
                 .filter(|dep| {
-                    match dep.is_cached() {
-                        true => print_status(dep, "[cached]", Color::Green, 0),
-                        false => print_status(dep, "[missing]", Color::Red, 0),
+                    if DEBUG {
+                        match dep.is_cached() {
+                            true => print_status(dep, "[cached]", Color::Green, 0),
+                            false => print_status(dep, "[missing]", Color::Red, 0),
+                        }
                     }
                     !dep.is_cached()
                 })
