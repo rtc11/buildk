@@ -19,27 +19,32 @@ See default configurations:
 buildk config
 ```
 
-Override default with:
+Properties with defaults:
 ```toml
 [project]
-main = "Main.kt"    # file with main()
-path = "<cwd>"      # current working dir
-src = "<cwd>/src"   # sources
-test = "<cwd>/test" # test sources
-out = "<cwd>/out"   # output dir
+path = "<cwd>"
+src  = "<cwd>/src"
+test = "<cwd>/test"
+main = "Main.kt"
+out  = "<cwd>/out"
 
-[dependencies]      # compile and runtime dependencies
+[compile]
 org.jetbrains.kotlin.kotlin-stdlib = "1.9.22"
 
-[test-dependencies] # test dependencies
+[runtime]
+
+[test]
 org.junit.platform.junit-platform-console-standalone = "1.10.1"
 org.junit.jupiter.junit-jupiter-api = "5.5.2"
 
-[repositories]      # repositories for artifacts
+[repos]
 mavenCentral = "https://repo1.maven.org/maven2"
 
-[kotlin]            # kotlin location
-# Specify path to kotlin if not found on KOTLIN_HOME nor /usr/local/Cellar/kotlin/1.9.22/
+[kotlin]
+path = "/usr/local/Cellar/kotlin/1.9.22/"
+
+[java]
+path = "/usr/local/Cellar/openjdk/17.0.1/"
 ```
 
 Which gives the following project structure:
@@ -70,7 +75,7 @@ buildk help
 ```
 A Kotlin build tool for the 21st century
 
-Usage: buildk <COMMAND>
+Usage: buildk [OPTIONS] <COMMAND>
 
 Commands:
   build, -b  Build the project
@@ -82,9 +87,11 @@ Commands:
   run, -r    Run the project
   test, -t   Run JUnit tests
   tree       Print the build tree
+  path       
   help       Print this message or the help of the given subcommand(s)
 
 Options:
+  -q             
   -h, --help     Print help
   -V, --version  Print version
 ```
@@ -99,6 +106,13 @@ RUSTFLAGS="-Z threads=8" cargo +nightly build --release
 - [ ] Java runtime dependency resolution
 - [ ] Java compile time dependency resolution
 - [ ] AVL trees for dependency graph?
+- [x] Resolve maven artifacts
+- [x] Resolve gradle dependencies
+- [x] Resolve buildk packages
+- [ ] Resolve local packages
+- [ ] Resolve git packages
+- [ ] Publish buildk packages
+- [ ] Buildk published packages can be stored on github package registry?
 - [ ] Resolve conflicting dependency versions
 - [x] Resolve cyclic transitive dependencies
 - [ ] Cache classpath (complete dependency graph per used dependency)
@@ -111,6 +125,7 @@ RUSTFLAGS="-Z threads=8" cargo +nightly build --release
 - [ ] Platform libs must be configurable (e.g. junit or kotlin-std:1.9.22)
   - [x] Kotlin std
   - [ ] Test libs
+  - [ ] Java std
 - [x] Tests are automatically found
 - [x] Manually create build-tree based on project package/imports
 - [ ] KSP (kotlin compiler plugin) must be implemented in kotlin. Used for generating smarter build-trees
