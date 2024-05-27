@@ -5,6 +5,7 @@ use clean::Clean;
 use dep_path::DepPath;
 use deps::Deps;
 use fetch::Fetch;
+use init::Init;
 use manifest::config::BuildK;
 use process::{java::Java, kotlin::Kotlin, Process};
 use release::Release;
@@ -19,6 +20,7 @@ mod config;
 mod dep_path;
 mod deps;
 mod fetch;
+mod init;
 mod release;
 mod run;
 mod test;
@@ -89,6 +91,9 @@ pub enum Commands {
         artifact: Option<String>,
     },
 
+    /// Initialize the project
+    Init, 
+
     /// Create a release (jar)
     Release,
 
@@ -154,6 +159,7 @@ impl Commands {
             Commands::Config => config::Config::new(buildk).execute(None),
             Commands::Deps { limit } => Deps::new(buildk).execute(*limit),
             Commands::Fetch { artifact } => Fetch::new(buildk).execute(artifact.clone()),
+            Commands::Init => Init::new().execute(None),
             Commands::Release => match kotlin {
                 Ok(kotlin) => Release::new(buildk, &kotlin).execute(None),
                 Err(e) => panic!("{}", e),
