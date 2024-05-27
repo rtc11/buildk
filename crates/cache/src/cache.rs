@@ -4,8 +4,8 @@ use std::io::Write;
 use std::path::{PathBuf, Path};
 
 use anyhow::Result;
-use manifest::dependencies::Dependency;
 
+use dependency::Package;
 use util::buildk_output::{BuildkOutput, WithBKOutput};
 use util::{PartialConclusion, paths};
 
@@ -110,15 +110,15 @@ impl Cache {
 
     pub fn cache_dependency(
         &mut self,
-        dep: &Dependency,
+        pkg: &Package,
     ) -> Result<PartialConclusion> {
-        let key = dependency_fingerprint(dep)?;
+        let key = dependency_fingerprint(pkg)?;
         match self.data.contains_key(&key) {
             true => Ok(PartialConclusion::CACHED),
             false => {
                 let mut output = Output::default();
-                output.set_action(dep.target_dir.to_string_lossy().to_string());
-                output.set_stdout(dep.classpath());
+                output.set_action(pkg.location.to_string_lossy().to_string());
+                output.set_stdout(pkg.classpath());
                 self.data.insert(key, output);
                 Ok(PartialConclusion::SUCCESS)
             }

@@ -1,9 +1,9 @@
 use anyhow::anyhow;
 use async_std::{fs::{create_dir_all, File, remove_file}, io, path::{Path, PathBuf}, task};
 
-use manifest::{config::Config, dependencies::Dependency};
-use manifest::dependencies::{Kind, Name, Version};
-use manifest::repositories::Repository;
+use dependency::Package;
+use manifest::{config::BuildK, repos::Repo};
+use util::DEBUG;
 
 #[derive(Default, Clone)]
 pub struct Client;
@@ -16,17 +16,8 @@ pub enum DownloadResult {
 }
 
 impl Client {
-    pub async fn download<'a>(&'a self, name: &'a str, version: &'a str, config: Config) -> DownloadResult {
-        let dep = match Dependency::new(Kind::Source, Name::from(name), Version::from(version)) {
-            Ok(dep) => dep,
-            Err(err) => return DownloadResult::Failed(err.to_string()),
-        };
-
-        self.download_async(&dep, &config).await
-    }
-
-    pub async fn download_async<'a>(&'a self, dep: &'a Dependency, config: &'a Config) -> DownloadResult {
-        if let Err(err) = create_dir_all(&dep.target_dir).await {
+    pub async fn download_async<'a>(&'a self, pkg: &'a Package, buildk: &'a BuildK) -> DownloadResult {
+        if let Err(err) = create_dir_all(&pkg.location).await {
             return DownloadResult::Failed(err.to_string());
         }
 
@@ -35,14 +26,16 @@ impl Client {
             let mut pom = DownloadResult::Failed("".into());
 
             // FIXME
-            let manifest = <Option<manifest::manifest::Manifest> as Clone>::clone(&config.manifest)
+            let manifest = <Option<manifest::Manifest> as Clone>::clone(&buildk.manifest)
                 .expect("no buildk.toml found.");
 
-            for repo in manifest.repositories.iter() {
+            for repo in manifest.repos.repos.iter() {
                 let repo = repo.clone();
-                (jar, pom) = Self::download_jar_and_pom(&dep, &repo).await;
+                (jar, pom) = Self::download_jar_and_pom(&pkg, &repo).await;
                 if !jar.is_failed() && !pom.is_failed() {
                     break;
+                } else {
+                    println!("\rfrom {} failed, trying", &repo.url);
                 }
             }
             (jar, pom)
@@ -64,71 +57,107 @@ impl Client {
         DownloadResult::Exist
     }
 
-    async fn download_jar_and_pom(dep: &&Dependency, repo: &Repository) -> (DownloadResult, DownloadResult) {
-        let base_url = format!("{}/{}", &repo.url, &dep.path);
-        let target_dir = PathBuf::from(&dep.target_dir);
+    fn resolve_url(pkg: &&Package, repo: &Repo) -> String {
+        let name = &pkg.name;
+        let version = &pkg.version;
+        let path = pkg.namespace.clone().unwrap().replace('.', "/"); // TODO: support no namespace
+        let path = format!("{path}/{name}/{version}");
+        let file_prefix = format!("{name}-{version}");
+        format!("{}/{}/{}", &repo.url, &path, &file_prefix)
+    }
 
-        let pom = format!("{}.pom", &dep.file_prefix);
-        let module = format!("{}.module", &dep.file_prefix);
+    async fn download_jar_and_pom(pkg: &&Package, repo: &Repo) -> (DownloadResult, DownloadResult) {
+        let url = Self::resolve_url(&pkg, &repo);
+        let target_dir = PathBuf::from(&pkg.location);
+        let pom = target_dir.join("pom.xml");
+        let module = target_dir.join("gradle.module");
+        let sources = target_dir.join("sources.jar");
+        let jar = target_dir.join(&pkg.name).with_extension("jar");
 
-        let jar_res = create_target_and_download(&base_url, &target_dir, &dep.jar).await;
-        let pom_res = create_target_and_download(&base_url, &target_dir, &pom).await;
-        let _optional = create_target_and_download(&base_url, &target_dir, &dep.sources).await;
-        let _optional = create_target_and_download(&base_url, &target_dir, &module).await;
+        let jar_res = create_target_and_download(&format!{"{}.jar", &url}, &jar).await;
+        let pom_res = create_target_and_download(&format!{"{}.pom", &url}, &pom).await;
+        let _optional = create_target_and_download(&format!{"{}-sources.jar", &url}, &sources).await;
+        let _optional = create_target_and_download(&format!{"{}.module", &url}, &module).await;
+
+        if !jar_res.is_failed() && !pom_res.is_failed() {
+            return (jar_res, pom_res);
+        }
+
+        println!("jar or pom failed to download. Try to resolve download url differently?");
+
+        // trying alternative names
+        // let alt_prefix = format!("{}", &pkg.path).replace("/", ".").substr_before_last('.');
+        // let pom = format!("{}.pom", &alt_prefix);
+        // let module = format!("{}.module", &alt_prefix);
+        // let jar = format!("{}.jar", &alt_prefix);
+        // let sources = format!("{}-sources.jar", &alt_prefix);
+        // if DEBUG {
+        //     println!("trying alternative names: {} {} {} {}", &jar, &pom, &sources, &module);
+        // }
+        // let jar_res = create_target_and_download(&base_url, &target_dir, &jar).await;
+        // let pom_res = create_target_and_download(&base_url, &target_dir, &pom).await;
+        // let _optional = create_target_and_download(&base_url, &target_dir, &sources).await;
+        // let _optional = create_target_and_download(&base_url, &target_dir, &module).await;
+
         (jar_res, pom_res)
     }
 }
 
-async fn create_target_and_download(base_url: &String, target_dir: &Path, filename: &String) -> DownloadResult {
-    if target_exists(target_dir, filename).await {
-        //println!("{} already exists", filename);
+async fn create_target_and_download(url: &String, target: &Path) -> DownloadResult {
+    if target_exists(&target).await {
+        if DEBUG {
+            println!("{} already exists", target.display());
+        }
         return DownloadResult::Exist;
     }
 
-    let target_file = match create_target_file(target_dir, filename).await {
+    let target_file = match create_target_file(target).await {
         Ok(file) => file,
         Err(e) => {
-            //println!("failed to create target file: {}", e);
+            if DEBUG {
+                println!("failed to create target file: {}", e);
+            }
             return DownloadResult::Failed(format!("Failed to create target file: {}", e));
         }
     };
 
-    let url = format!("{base_url}{filename}");
-
-    //println!("whole url: {}", url);
-
     match download(&target_file, &url).await {
         Ok(_) => DownloadResult::Downloaded,
         Err(e) => {
-            //println!("failed to downalod file: {}", e);
-            delete_target_file(target_dir, filename).await.unwrap();
+            // if DEBUG {
+            //     println!("failed to downalod file: {}", e);
+            // }
+            delete_target_file(target).await.unwrap();
             DownloadResult::Failed(format!("Failed to download file from {} with err: {}", &url, e))
         }
     }
 }
 
-async fn target_exists(dir: &Path, filename: &String) -> bool {
-    let target = dir.join(filename);
-    target.exists().await && target.metadata().await.unwrap().len() > 0
+async fn target_exists(file: &Path) -> bool {
+    file.exists().await && file.metadata().await.unwrap().len() > 0
 }
 
-async fn create_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<File> {
-    let file_path = target_dir.join(filename);
-    let file = File::create(file_path).await?;
+async fn create_target_file(file: &Path) -> anyhow::Result<File> {
+    let file = File::create(file).await?;
     Ok(file)
 }
 
-async fn delete_target_file(target_dir: &Path, filename: &String) -> anyhow::Result<()> {
-    let file_path = target_dir.join(filename);
-    remove_file(file_path).await?;
-    //println!("deleted {}", filename);
+async fn delete_target_file(file: &Path) -> anyhow::Result<()> {
+    remove_file(file).await?;
+    // if DEBUG {
+    //     println!("deleted {}", file.display());
+    // }
     Ok(())
 }
 
 async fn download(mut file: &File, url: &str) -> anyhow::Result<()> {
-    //println!("downloading {}...", url);
+    if DEBUG {
+        println!("downloading {}", url);
+    }
     let mut response = surf::get(url).await.map_err(|e| anyhow::anyhow!(e))?;
-    //println!("downloaded {:?}!", response);
+    /* if DEBUG {
+        println!("downloaded {:?}!", response);
+    } */
 
     if response.status().is_success() {
         io::copy(&mut response, &mut file).await?;

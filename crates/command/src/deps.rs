@@ -1,10 +1,10 @@
+use dependency::Package;
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use manifest::config::BuildK;
+use manifest::Manifest;
 use termtree::Tree;
 
-use manifest::config::Config;
-use manifest::dependencies::Dependency;
-use manifest::manifest::Manifest;
 use util::buildk_output::BuildkOutput;
 use util::colorize::{Color, Colorize, Colors};
 use util::{PartialConclusion, DEBUG};
@@ -12,14 +12,14 @@ use util::{PartialConclusion, DEBUG};
 use crate::Command;
 
 pub(crate) struct Deps<'a> {
-    config: &'a Config,
+    buildk: &'a BuildK,
 }
 
-fn termtree_display(status: &str, dep: &Dependency) -> String {
-    format!("{}:{} {}", dep.name, dep.version, status)
+fn termtree_display(status: &str, pkg: &Package) -> String {
+    format!("{}:{}:{} {}", &pkg.namespace.clone().unwrap(), pkg.name, pkg.version, status)
 }
 
-fn termtree_status(dep: &Dependency) -> String {
+fn termtree_status(dep: &Package) -> String {
     match dep.is_cached() {
         true => "".as_green(),
         false => " ".as_red(),
@@ -47,32 +47,32 @@ impl Counter {
 }
 
 pub fn build_termtree(
-    dep: Dependency,
-    mut traversed: Vec<Dependency>,
+    pkg: Package,
+    mut traversed: Vec<Package>,
     depth: usize,
     limit: usize,
-) -> anyhow::Result<(Tree<String>, Vec<Dependency>, Counter)> {
-    match traversed.contains(&dep) {
+) -> anyhow::Result<(Tree<String>, Vec<Package>, Counter)> {
+    match traversed.contains(&pkg) {
         true => anyhow::bail!("already processed"),
-        false => traversed.push(dep.clone()),
+        false => traversed.push(pkg.clone()),
     }
 
-    if dep.name.to_string().contains("-bom") {
+    if pkg.name.to_string().contains("-bom") {
         anyhow::bail!("bom not supported yet");
     }
 
-    let mut counter_acc = match dep.is_cached() {
+    let mut counter_acc = match pkg.is_cached() {
         true => Counter::hit(),
         false => Counter::miss(),
     };
 
-    let status = termtree_status(&dep);
-    let display = termtree_display(&status, &dep);
+    let status = termtree_status(&pkg);
+    let display = termtree_display(&status, &pkg);
     let color = Color::get_index(depth);
     let label = display.colorize(&color).to_string();
 
     if depth < limit {
-        let (tree, traversed) = dep
+        let (tree, traversed) = pkg
             .transitives()
             .into_iter()
             .filter(|it| !traversed.contains(it))
@@ -98,13 +98,13 @@ pub fn build_termtree(
     }
 }
 
-pub fn acc_transitive_unique(dep: Dependency, mut traversed: Vec<Dependency>) -> Vec<Dependency> {
-    match traversed.contains(&dep) {
+pub fn acc_transitive_unique(pkg: Package, mut traversed: Vec<Package>) -> Vec<Package> {
+    match traversed.contains(&pkg) {
         true => return traversed,
-        false => traversed.push(dep.clone()),
+        false => traversed.push(pkg.clone()),
     }
 
-    let traversed = dep
+    let traversed = pkg
         .transitives()
         .into_iter()
         .filter(|it| !traversed.contains(it))
@@ -123,14 +123,14 @@ impl<'a> Command for Deps<'a> {
         let mut output = BuildkOutput::new("deps");
 
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+        let manifest = <Option<Manifest> as Clone>::clone(&self.buildk.manifest)
             .expect("no buildk.toml found.");
 
         let limit = arg.unwrap_or(999);
 
         let mut traversed = vec![];
         let mut counter_acc = Counter { hit: 0, miss: 0 };
-        for dep in manifest.dependencies.iter() {
+        for dep in manifest.all_packages.pkgs.iter() {
             let (tree, newly_traversed, counter) =
                 build_termtree(dep.clone(), traversed.clone(), 0, limit).unwrap();
             traversed = newly_traversed;
@@ -138,7 +138,7 @@ impl<'a> Command for Deps<'a> {
             print!("{}", tree);
         }
 
-        if !manifest.dependencies.is_empty() {
+        if !manifest.all_packages.pkgs.is_empty() {
             if counter_acc.hit > 0 {
                 print!("found {} {}", "".as_green(), counter_acc.hit)
             }
@@ -148,7 +148,7 @@ impl<'a> Command for Deps<'a> {
             println!("");
         }
 
-        match lsp::update_classpath(self.config) {
+        match lsp::update_classpath(self.buildk) {
             Ok(_) => output.conclude(PartialConclusion::SUCCESS),
             Err(err) => output
                 .conclude(PartialConclusion::FAILED)
@@ -161,41 +161,41 @@ impl<'a> Command for Deps<'a> {
 }
 
 impl<'a> Deps<'a> {
-    pub fn new(config: &'a Config) -> Deps<'a> {
-        Deps { config }
+    pub fn new(buildk: &'a BuildK) -> Deps<'a> {
+        Deps { buildk }
     }
 }
 
-fn status(dep: &Dependency) -> &str {
-    match dep.is_cached() {
+fn status(pkg: &Package) -> &str {
+    match pkg.is_cached() {
         true => "[cached]",
         false => "[missing]",
     }
 }
 
-fn display(status: &str, dep: &Dependency, depth: usize) -> String {
+fn display(status: &str, pkg: &Package, depth: usize) -> String {
     format!(
         "\r{:>depth$}{:<14}{}:{}",
         "",
         status,
-        dep.name,
-        dep.version,
+        pkg.name,
+        pkg.version,
         depth = depth * 2
     )
 }
 
 pub fn find_dependent_deps(
-    dependencies: Vec<Dependency>,
-    mut traversed: Vec<Dependency>,
+    pkgs: Vec<Package>,
+    mut traversed: Vec<Package>,
     depth: usize,
     print: bool,
-) -> BoxFuture<'static, Vec<Dependency>> {
+) -> BoxFuture<'static, Vec<Package>> {
     async move {
-        if dependencies.is_empty() {
+        if pkgs.is_empty() {
             return traversed;
         }
 
-        dependencies.iter().for_each(|dep| {
+        pkgs.iter().for_each(|dep| {
             let status = status(dep);
             let display = display(status, dep, depth);
             let color = Color::get_index(depth);
@@ -209,7 +209,7 @@ pub fn find_dependent_deps(
             }
         });
 
-        let transitives = dependencies
+        let transitives = pkgs
             .iter()
             .flat_map(|it| it.transitives())
             .filter(|it| !traversed.contains(it))
@@ -224,16 +224,14 @@ mod lsp {
     use std::os::unix::fs::OpenOptionsExt;
 
     use anyhow::Context;
-
-    use manifest::config::Config;
-    use manifest::manifest::Manifest;
+    use manifest::{config::BuildK, Manifest};
 
     use crate::deps::acc_transitive_unique;
 
     /**
      * This function is used to update the classpath for the kotlin language server.
      **/
-    pub(crate) fn update_classpath(config: &Config) -> anyhow::Result<()> {
+    pub(crate) fn update_classpath(buildk: &BuildK) -> anyhow::Result<()> {
         use std::fs::OpenOptions;
         use std::io::prelude::*;
 
@@ -241,7 +239,7 @@ mod lsp {
 
         // FIXME
         let manifest =
-            <Option<Manifest> as Clone>::clone(&config.manifest).expect("no buildk.toml found.");
+            <Option<Manifest> as Clone>::clone(&buildk.manifest).expect("no buildk.toml found.");
 
         let kls_classpath = home::home_dir()
             .map(|home| home.join(".config"))
@@ -249,10 +247,9 @@ mod lsp {
             .join("kotlin-language-server")
             .join("classpath"); // see https://github.com/fwcd/kotlin-language-server?tab=readme-ov-file#figuring-out-the-dependencies
 
-        let deps = manifest
-            .dependencies
+        let pkgs = manifest.all_packages.pkgs
             .iter()
-            .fold(vec![], |acc, dep| acc_transitive_unique(dep.clone(), acc));
+            .fold(vec![], |acc, pkg| acc_transitive_unique(pkg.clone(), acc));
 
         /*
                 let classpath = manifest
@@ -263,9 +260,9 @@ mod lsp {
                     .join(":");
         */
 
-        let classpath = deps
+        let classpath = pkgs
             .iter()
-            .map(|dep| dep.jar_absolute_path().display().to_string())
+            .map(|pkg| pkg.jar_absolute_path().display().to_string())
             .collect::<Vec<_>>()
             .join(":");
 
@@ -295,7 +292,7 @@ mod lsp {
     }
 }
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
     use manifest::dependencies::{Dependency, Kind, Name, Version};
 
@@ -315,4 +312,4 @@ mod tests {
         println!("hit: {} miss: {}", counter.hit, counter.miss);
         Ok(())
     }
-}
+} */

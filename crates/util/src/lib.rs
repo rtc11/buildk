@@ -9,7 +9,7 @@ pub mod terminal;
 pub mod timer;
 pub mod sub_strings;
 
-pub const DEBUG: bool = false;
+pub const DEBUG: bool = true;
 
 pub enum Conclusion {
     SUCCESS,

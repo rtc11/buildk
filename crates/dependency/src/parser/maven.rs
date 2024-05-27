@@ -6,12 +6,12 @@ use roxmltree::Node;
 
 use util::sub_strings::SubStrings;
 
-use crate::Parser;
+use crate::{Package, PackageKind, Parser};
 
 pub struct MavenParser;
 
-impl Parser<crate::Dependency> for MavenParser {
-    fn parse(path: PathBuf) -> BTreeSet<crate::Dependency> {
+impl Parser<Package> for MavenParser {
+    fn parse(path: PathBuf) -> BTreeSet<Package> {
         let content = match fs::read_to_string(path) {
             Ok(content) => content,
             Err(_) => return BTreeSet::default(),
@@ -42,11 +42,28 @@ impl Parser<crate::Dependency> for MavenParser {
                 unique_deps.insert(it);
             });
 
-        unique_deps
-            .into_iter()
-            //.filter(|it| !it.artifact_id.ends_with("-bom"))
-            .map(|a| crate::Dependency::from(a))
-            .collect()
+        unique_deps.into_iter().map(Package::from).collect()
+    }
+}
+
+// we need an internal state to keep track of the properties
+#[derive(Ord, PartialOrd, Eq, PartialEq, Default, Debug, Clone)]
+pub struct Artifact {
+    group: String,
+    artifact: String,
+    version: Option<String>, // version may be a property, managed (defined elsewhere), or direct
+    scope: String,
+    location: PathBuf,
+}
+
+impl From<Artifact> for Package {
+    fn from(artifact: Artifact) -> Self {
+        Package::new(
+            artifact.artifact,
+            Some(artifact.group),
+            artifact.version.expect("version missing"),
+            artifact.scope.into(),
+        )
     }
 }
 
@@ -55,25 +72,6 @@ fn interpolate(artifacts: Vec<Artifact>, properties: &HashMap<String, String>) -
         .into_iter()
         .map(|mut dep| dep.interpolate(properties))
         .collect::<Vec<_>>()
-}
-
-impl From<Artifact> for crate::Dependency {
-    fn from(artifact: Artifact) -> Self {
-        crate::Dependency::new(
-            artifact.group_id,
-            artifact.artifact_id,
-            artifact.version.unwrap(),
-            artifact.scope.into(),
-        )
-    }
-}
-
-#[derive(Clone, Ord, PartialOrd, PartialEq, Eq)]
-pub struct Artifact {
-    pub group_id: String,
-    pub artifact_id: String,
-    pub version: Option<String>,
-    pub scope: Scope,
 }
 
 impl Artifact {
@@ -94,48 +92,21 @@ impl Artifact {
     }
 }
 
-#[derive(Default, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub enum Scope {
-    /// default, available at compile-time and runtime
-    #[default]
-    Compile,
-    /// available at compile-time only, but is still required at runtime
-    Provided,
-    /// only available at runtime
-    Runtime,
-    /// only available at test-compile-time and test-runtime
-    Test,
-    /// required at compile-time and runtime, but is not included in the project
-    System,
-}
-
-impl Into<crate::Kind> for Scope {
-    fn into(self) -> crate::Kind {
-        match self {
-            Scope::Test => crate::Kind::Test,
-            _ => crate::Kind::Compile,
-        }
-    }
-}
-
-impl From<String> for Scope {
+impl From<String> for PackageKind {
     fn from(value: String) -> Self {
+        // TODO: provided scopes must be handled differently
+        // If a package is provided, it must be added to a set of provided packages,
+        // where a package higher up in the hierachy (closer to the manifested packages) are
+        // defining it. Here the provided package is exposing its true scope. If missing, the
+        // buildsystem should notify the user that this package must be included as either
+        // compile, runtime or test in the manifest
         match value.as_str() {
-            "compile" => Scope::Compile,
-            "provided" => Scope::Provided,
-            "runtime" => Scope::Runtime,
-            "test" => Scope::Test,
-            "system" => Scope::System,
-            _ => Scope::default(),
-        }
-    }
-}
-
-impl From<Scope> for String {
-    fn from(value: Scope) -> Self {
-        match value {
-            Scope::Runtime => "runtime".to_owned(),
-            _ => "compile".to_owned(),
+            "compile" => PackageKind::Compile,
+            "provided" => PackageKind::Runtime,
+            "runtime" => PackageKind::Runtime,
+            "test" => PackageKind::Test,
+            "system" => PackageKind::Compile,
+            _ => PackageKind::default(),
         }
     }
 }
@@ -170,12 +141,11 @@ impl MavenXmlParser for Node<'_, '_> {
 
     fn parse_artifact(&self) -> Artifact {
         Artifact {
-            group_id: node_text(self, "groupId").expect("groupId"),
-            artifact_id: node_text(self, "artifactId").expect("artifactId"),
+            group: node_text(self, "groupId").expect("group_id"),
+            artifact: node_text(self, "artifactId").expect("artifact_id"),
             version: node_text(self, "version"),
-            scope: node_text(self, "scope")
-                .map(|scope| scope.into())
-                .unwrap_or_default(),
+            scope: node_text(self, "scope").unwrap_or_else(|| "compile".to_owned()),
+            ..Default::default()
         }
     }
 
@@ -215,20 +185,6 @@ fn find_property_recursive(properties: Node, prop_value: String) -> Option<Strin
     }
 
     Some(prop_value)
-
-    /*
-    let value = properties
-        .children()
-        .find(|n| {
-            let tag = n.tag_name().name().to_owned();
-            println!("prop {} == {}", tag, property);
-            tag == property
-        })
-        .map(|n| n.text().unwrap().to_owned())
-        .expect("property value missing");
-
-    Some(value)
-    */
 }
 
 fn node<'a, 'input: 'a>(parent: &'input Node, tag_name: &'a str) -> Option<Node<'a, 'input>> {
@@ -244,19 +200,21 @@ fn node_text<'a, 'input: 'a>(parent: &'input Node, tag_name: &'a str) -> Option<
 
 #[cfg(test)]
 mod tests {
-    use crate::{maven_parser::MavenParser, Parser};
+    use crate::{parser::maven::MavenParser, Parser};
 
     #[test]
-    fn dependencies() {
+    fn transitive_pkgs() {
         let pom = home::home_dir()
             .unwrap()
             .join(".buildk/cache")
             .join("org/jetbrains/kotlin/kotlin-stdlib/1.9.22")
             .join("kotlin-stdlib-1.9.22.pom");
-        let parsed = MavenParser::parse(pom);
+        let pkgs = MavenParser::parse(pom);
 
-        parsed.iter().for_each(|art| {
-            println!("{}:{}:{}", art.group, art.artifact, art.to_owned().version);
+        pkgs.iter().for_each(|pkg| {
+            println!("name: {}", pkg.name);
+            println!("namespace: {}", pkg.namespace.clone().unwrap());
+            println!("version: {}", pkg.version);
         });
     }
 }

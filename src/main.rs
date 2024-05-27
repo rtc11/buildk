@@ -1,17 +1,13 @@
 use anyhow::Result;
 use command::Cli;
-use manifest::config::Config;
+use manifest::config::BuildK;
 use util::terminal::Terminal;
 
 fn main() -> Result<()> {
-    let config = Config::new();
+    let buildk = BuildK::new();
     let mut terminal = Terminal::default();
-
-    //terminal.start_spin(0, &option.to_string());
     let mut cli = Cli::init();
-    let output = cli.command.apply(&config);
-
-    //terminal.stop_spin(0);
+    let output = cli.command.apply(&buildk);
 
     if !cli.is_quiet() {
         terminal.print_row(

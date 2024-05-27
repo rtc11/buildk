@@ -3,8 +3,7 @@ use std::{fmt::Display, hash::{Hash, Hasher}, path::{Path, PathBuf}};
 use anyhow::{Context, Result};
 
 use cache::cache::{Cache, Cacheable, CacheResult};
-use manifest::config::Config;
-use manifest::manifest::Manifest;
+use manifest::{config::BuildK, Manifest};
 use util::{buildk_output::BuildkOutput, colorize::Colorize, hasher::StableHasher, PartialConclusion};
 
 use crate::{Process, ProcessBuilder, ProcessError, try_from};
@@ -12,7 +11,7 @@ use crate::{Process, ProcessBuilder, ProcessError, try_from};
 // // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-compiler-embeddable
 // runtimeOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.22")
 pub struct Kotlin<'a> {
-    config: &'a Config,
+    buildk: &'a BuildK,
     pub version: String,
     pub home: PathBuf,
     pub bin: PathBuf,
@@ -21,13 +20,13 @@ pub struct Kotlin<'a> {
 impl<'a> Process<'a> for Kotlin<'a> {
     type Item = Kotlin<'a>;
 
-    fn new(config: &'a Config) -> Result<Self::Item> {
-        let manifest = config.clone().manifest.context("kotlin requires manifest")?;
+    fn new(buildk: &'a BuildK) -> Result<Self::Item> {
+        let manifest = buildk.clone().manifest.context("manifest missing")?;
         let kotlin_home = Self::kotlin_home_from_manifest(&manifest);
 
         Ok(Kotlin {
-            config,
-            version: version(config, &kotlin_home)?,
+            buildk,
+            version: version(buildk, &kotlin_home)?,
             bin: kotlin_home.join("bin"),
             home: kotlin_home.to_path_buf(),
         })
@@ -72,12 +71,12 @@ pub struct KotlinBuilder<'a> {
 
 impl<'a> KotlinBuilder<'a> {
     fn new(kotlin: &'a Kotlin<'a>) -> KotlinBuilder<'a> {
-        let manifest = <Option<Manifest> as Clone>::clone(&kotlin.config.manifest)
+        let manifest = <Option<Manifest> as Clone>::clone(&kotlin.buildk.manifest)
             .expect("no buildk.toml found.");
 
         KotlinBuilder {
             kotlin,
-            cache: Cache::load(&manifest.project.out.cache),
+            cache: Cache::load(&manifest.project.out_paths().cache),
             cache_key: 0,
             process: ProcessBuilder::new(""),
         }
@@ -200,7 +199,7 @@ impl Display for Kotlin<'_> {
     }
 }
 
-fn version(_config: &Config, kotlin_home: &Path) -> Result<String> {
+fn version(_buildk: &BuildK, kotlin_home: &Path) -> Result<String> {
     let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
     runner.arg("-version");
 

@@ -2,11 +2,31 @@
 
 use std::{collections::BTreeSet, fs, path::PathBuf};
 
-use crate::{Dependency, Parser};
+use crate::{Package, PackageKind, Parser};
 pub struct GradleParser;
 
-impl Parser<crate::Dependency> for GradleParser {
-    fn parse(path: PathBuf) -> BTreeSet<crate::Dependency> {
+#[derive(Ord, PartialOrd, Eq, PartialEq, Default, Debug)]
+pub struct GradlePackage {
+    group: String,
+    module: String,
+    version: String,
+    versions: Vec<String>, // sometimes defined with range, e.g. [1.0, 2.0)
+    variant: GradleVariant,
+    location: PathBuf,
+}
+
+#[derive(Ord, PartialOrd, Eq, PartialEq, Default, Debug)]
+pub enum GradleVariant {
+    #[default]
+    Implementation,
+    TestImplementation,
+    Api,
+    Runtime,
+}
+
+// https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
+impl Parser<Package> for GradleParser {
+    fn parse(path: PathBuf) -> BTreeSet<Package> {
         let content = match fs::read_to_string(path) {
             Ok(content) => content,
             Err(_) => return BTreeSet::default(),
@@ -30,23 +50,41 @@ impl Parser<crate::Dependency> for GradleParser {
     }
 }
 
-impl From<gradle::Descriptor> for BTreeSet<crate::Dependency> {
+impl From<gradle::Descriptor> for BTreeSet<Package> {
     fn from(value: gradle::Descriptor) -> Self {
         let mut deps = BTreeSet::new();
 
+        // self
         if let Some(component) = value.component {
-            deps.insert(Dependency::from(component));
+            deps.insert(component.into());
         }
 
+        // dependencies
         for variant in value.variants {
             if let Some(dependencies) = variant.dependencies {
                 for dep in dependencies {
-                    deps.insert(Dependency::from(dep));
+                    deps.insert(dep.into());
                 }
             }
         }
 
         deps
+    }
+}
+
+impl From<GradlePackage> for Package {
+    fn from(value: GradlePackage) -> Self {
+        Package::new(
+            value.module,
+            Some(value.group),
+            value.version,
+            match value.variant {
+                GradleVariant::Api => PackageKind::Compile,
+                GradleVariant::Runtime => PackageKind::Runtime,
+                GradleVariant::Implementation => PackageKind::Compile,
+                GradleVariant::TestImplementation => PackageKind::Test,
+            },
+        )
     }
 }
 
@@ -57,6 +95,8 @@ impl From<gradle::Descriptor> for BTreeSet<crate::Dependency> {
 mod gradle {
     use serde::{Deserialize, Serialize};
     use std::collections::BTreeMap;
+
+    use crate::Package;
 
     #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -75,13 +115,13 @@ mod gradle {
         url: Option<String>, // URL to the component's metadata file
     }
 
-    impl From<Component> for crate::Dependency {
+    impl From<Component> for Package {
         fn from(value: Component) -> Self {
-            crate::Dependency::new(
-                value.group,
+            Package::new(
                 value.module,
+                Some(value.group),
                 value.version,
-                crate::Kind::Compile,
+                Default::default(), // TODO: resolve variant
             )
         }
     }
@@ -158,49 +198,77 @@ mod gradle {
         module: String,
     }
 
-    impl From<Dep> for crate::Dependency {
+    impl From<Dep> for Package {
         fn from(value: Dep) -> Self {
-            crate::Dependency::new(
-                value.group,
-                value.module,
-                value.version.into(),
-                crate::Kind::Compile,
+            Package::new(
+                value.module.clone(),
+                Some(value.group.clone()),
+                value.version().clone(),
+                Default::default(), // TODO: resolve variant
             )
         }
     }
 
-    impl From<Version> for String {
-        fn from(value: Version) -> Self {
-
-            // if single required, use it
-            if let Some(val) = &value.requires {
-                match val {
-                    VersionKind::Single(val) => return val.to_owned(),
-                    _ => {}
+    impl Dep {
+        fn version(&self) -> String {
+            if let Some(version) = &self.version.requires {
+                match version {
+                    VersionKind::Single(version) => return version.to_owned(),
+                    VersionKind::Array(versions) => {
+                        // TODO: skip last while self.version.rejects.contains(last)
+                        if let Some(last) = versions.last() {
+                            return last.to_owned();
+                        }
+                    }
                 }
             }
 
-            if let Some(val) = value.prefers {
-                return match val {
-                    VersionKind::Single(val) => val,
-                    VersionKind::Array(val) => val[0].clone(),
+            if let Some(version) = &self.version.prefers {
+                match version {
+                    VersionKind::Single(version) => return version.to_owned(),
+                    VersionKind::Array(versions) => {
+                        // TODO: skip last while self.version.rejects.contains(last)
+                        if let Some(last) = versions.last() {
+                            return last.to_owned();
+                        }
+                    }
                 }
             }
 
-            /*
-            if let Some(val) = value.requires {
-                return val;
+            if let Some(version) = &self.version.strictly {
+                match version {
+                    VersionKind::Single(version) => return version.to_owned(),
+                    VersionKind::Array(versions) => {
+                        // TODO: skip last while self.version.rejects.contains(last)
+                        if let Some(last) = versions.last() {
+                            return last.to_owned();
+                        }
+                    }
+                }
             }
 
-            if let Some(val) = value.prefers {
-                return val;
-            }
-            if let Some(val) = value.strictly {
-                return val;
-            }
-            */
+            panic!("unable to determine version at this time")
+        }
 
-            panic!("unable to determine version at this time. Found following: {:?}", &value)
+        fn versions(&self) -> Vec<String> {
+            if let Some(version) = &self.version.requires {
+                if let VersionKind::Array(versions) = version {
+                    return versions.to_owned();
+                }
+            }
+
+            if let Some(version) = &self.version.prefers {
+                if let VersionKind::Array(versions) = version {
+                    return versions.to_owned();
+                }
+            }
+            if let Some(version) = &self.version.strictly {
+                if let VersionKind::Array(versions) = version {
+                    return versions.to_owned();
+                }
+            }
+
+            vec![]
         }
     }
 
@@ -234,6 +302,8 @@ mod gradle {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
+
+    use crate::Package;
 
     use super::gradle::Descriptor;
 
@@ -322,7 +392,7 @@ mod tests {
         let descriptor: Descriptor =
             serde_json::from_str(content).expect("unable to parse gradle module descriptor");
 
-        let dependencies: BTreeSet<crate::Dependency> = descriptor.into();
+        let dependencies: BTreeSet<Package> = descriptor.into();
 
         assert_eq!(dependencies.len(), 3);
     }

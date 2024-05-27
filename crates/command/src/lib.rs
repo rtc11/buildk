@@ -1,11 +1,11 @@
 use clap::{command, Parser, Subcommand, ValueEnum};
 
-use ::manifest::config::Config;
 use build::Build;
 use clean::Clean;
 use dep_path::DepPath;
 use deps::Deps;
 use fetch::Fetch;
+use manifest::config::BuildK;
 use process::{java::Java, kotlin::Kotlin, Process};
 use release::Release;
 use run::Run;
@@ -137,40 +137,40 @@ trait Command {
 }
 
 impl Commands {
-    pub fn apply(&mut self, config: &Config) -> BuildkOutput {
-        let kotlin = Kotlin::new(config);
-        let java = Java::new(config);
-        let tree = Tree::new(config);
+    pub fn apply(&mut self, buildk: &BuildK) -> BuildkOutput {
+        let kotlin = Kotlin::new(buildk);
+        let java = Java::new(buildk);
+        let tree = Tree::new(buildk);
 
         match self {
             Commands::Build { set } => match kotlin {
                 Ok(kotlin) => match tree {
-                    Ok(tree) => Build::new(config, &kotlin, &tree).execute(Some(*set)),
+                    Ok(tree) => Build::new(buildk, &kotlin, &tree).execute(Some(*set)),
                     Err(e) => panic!("{}", e),
                 },
                 Err(e) => panic!("{}", e),
             },
-            Commands::Clean { set } => Clean::new(config).execute(Some(*set)),
-            Commands::Config => config::Config::new(config).execute(None),
-            Commands::Deps { limit } => Deps::new(config).execute(*limit),
-            Commands::Fetch { artifact } => Fetch::new(config).execute(artifact.clone()),
+            Commands::Clean { set } => Clean::new(buildk).execute(Some(*set)),
+            Commands::Config => config::Config::new(buildk).execute(None),
+            Commands::Deps { limit } => Deps::new(buildk).execute(*limit),
+            Commands::Fetch { artifact } => Fetch::new(buildk).execute(artifact.clone()),
             Commands::Release => match kotlin {
-                Ok(kotlin) => Release::new(config, &kotlin).execute(None),
+                Ok(kotlin) => Release::new(buildk, &kotlin).execute(None),
                 Err(e) => panic!("{}", e),
             },
             Commands::Run { name } => match java {
-                Ok(java) => Run::new(config, &java).execute(name.clone()),
+                Ok(java) => Run::new(buildk, &java).execute(name.clone()),
                 Err(e) => panic!("{}", e),
             },
             Commands::Test { name } => match java {
-                Ok(java) => Test::new(config, &java).execute(name.clone()),
+                Ok(java) => Test::new(buildk, &java).execute(name.clone()),
                 Err(e) => panic!("{}", e),
             },
             Commands::Tree => match tree {
                 Ok(mut tree) => tree.execute(None),
                 Err(e) => panic!("{}", e),
             },
-            Commands::Path { dep } => DepPath::new(config).execute(Some(dep.to_owned())),
+            Commands::Path { dep } => DepPath::new(buildk).execute(Some(dep.to_owned())),
         }
     }
 }

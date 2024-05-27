@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use gryf::algo::TopoSort;
 use gryf::Graph;
 
-use manifest::config::Config;
+use manifest::config::BuildK;
 use util::{PartialConclusion, StringExtras};
 use util::buildk_output::BuildkOutput;
 use util::paths::all_files_recursive;
@@ -52,8 +52,8 @@ impl Display for Tree {
 }
 
 impl<'a> Tree {
-    pub fn new(config: &'a Config) -> Result<Tree> {
-        let manifest = config.clone().manifest.context("'tree' is missing manifest.")?;
+    pub fn new(buildk: &'a BuildK) -> Result<Tree> {
+        let manifest = buildk.clone().manifest.context("'tree' is missing manifest.")?;
         let src = manifest.project.src.clone();
         let files = all_files_recursive(vec![], src).unwrap_or_default();
         Ok(Tree { files })

@@ -4,7 +4,7 @@ use crate::Command;
 
 
 pub (crate) struct Config<'a> {
-    config: &'a manifest::config::Config,
+    buildk: &'a manifest::config::BuildK,
 }
 
 impl <'a> Command for Config<'a> {
@@ -13,14 +13,14 @@ impl <'a> Command for Config<'a> {
     fn execute(&mut self, _arg: Option<Self::Item>) -> BuildkOutput {
         let output = BuildkOutput::new("config");
 
-        println!("\r{}", self.config);
+        println!("\r{}", self.buildk);
 
         output
     }
 }
 
 impl <'a> Config<'_> {
-    pub fn new(config: &'a manifest::config::Config) -> Config<'a> {
-        Config { config }
+    pub fn new(buildk: &'a manifest::config::BuildK) -> Config<'a> {
+        Config { buildk }
     }
 }

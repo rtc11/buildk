@@ -3,14 +3,14 @@ use std::{ffi::OsStr, hash::{Hash, Hasher}, path::PathBuf};
 use anyhow::Result;
 
 use cache::cache::{Cache, Cacheable, CacheResult};
-use manifest::config::Config;
+use manifest::config::BuildK;
 use util::{buildk_output::BuildkOutput, hasher::StableHasher, PartialConclusion};
 use util::buildk_output::WithBKOutput;
 
 use crate::{Process, ProcessBuilder, ProcessError, try_from};
 
 pub struct Java<'a> {
-    config: &'a Config,
+    buildk: &'a BuildK,
     pub version: String,
     pub home: PathBuf,
     pub bin: PathBuf,
@@ -19,11 +19,11 @@ pub struct Java<'a> {
 impl<'a> Process<'a> for Java<'a> {
     type Item = Java<'a>;
 
-    fn new(config: &'a Config) -> Result<Self::Item> {
+    fn new(buildk: &'a BuildK) -> Result<Self::Item> {
         Ok(
             Java {
-                config,
-                version: "17.0.1".to_string(),
+                buildk,
+                version: "17.0.1".to_string(), // TODO: add version to buildk.toml
                 home: PathBuf::from("/usr/local/Cellar/openjdk/17.0.1/"),
                 bin: PathBuf::from("/usr/bin/"),
             }
@@ -54,12 +54,12 @@ pub struct JavaBuilder<'a> {
 
 impl<'a> JavaBuilder<'a> {
     fn new(java: &'a Java) -> JavaBuilder<'a> {
-        let manifest = java.config.clone().manifest
+        let manifest = java.buildk.clone().manifest
             .expect("no buildk.toml found.");
 
         JavaBuilder {
             java,
-            cache: Cache::load(&manifest.project.out.cache),
+            cache: Cache::load(&manifest.project.out_paths().cache),
             cache_key: 0,
             process: ProcessBuilder::new(""),
         }

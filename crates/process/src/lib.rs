@@ -10,8 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-
-use manifest::config::Config;
+use manifest::config::BuildK;
 
 pub mod java;
 pub mod kotlin;
@@ -19,7 +18,7 @@ pub mod kotlin;
 pub trait Process<'a> {
     type Item;
 
-    fn new(config: &'a Config) -> Result<Self::Item>;
+    fn new(buildk: &'a BuildK) -> Result<Self::Item>;
 }
 
 #[derive(Clone, Debug)]

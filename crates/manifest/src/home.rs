@@ -8,18 +8,19 @@ pub struct Home {
 
 impl Default for Home {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Home {
-    pub fn new() -> Self {
         Self {
             path: home::home_dir()
                 .map(|it| it.join(".buildk"))
-                .expect("buildk could not find its home directory $HOME/.buildk")
+                .expect("buildk could not find its home directory $HOME/.buildk"),
         }
     }
+}
+
+pub fn cache_location() -> PathBuf {
+    home::home_dir()
+        .expect("home directory")
+        .join(".buildk")
+        .join("cache")
 }
 
 impl Display for Home {

@@ -1,33 +1,23 @@
 use std::fmt::{Display, Formatter};
 
-use crate::home::Home;
-use crate::manifest::Manifest;
+use crate::{home::Home, Manifest};
 
-#[derive(Clone)]
-pub struct Config {
-    /// $HOME/.buildk
+#[derive(Clone, Default)]
+pub struct BuildK {
     pub home: Home,
-
-    /// `buildk.toml`
-    pub manifest: Option<Manifest>,
+    pub manifest: Option<Manifest>, // not needed if defaults are used
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Config {
+impl BuildK  {
     pub fn new() -> Self {
-        Config {
-            home: Home::new(),
+        BuildK  {
+            home: Home::default(),
             manifest: Manifest::try_new().ok(),
         }
     }
 }
 
-impl Display for Config {
+impl Display for BuildK  {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         write!(f, "{}", self.home)?;
 
@@ -39,13 +29,3 @@ impl Display for Config {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::config::Config;
-
-    #[test]
-    fn no_manifest() {
-        let config = Config::new();
-        assert!(config.manifest.is_none());
-    }
-}

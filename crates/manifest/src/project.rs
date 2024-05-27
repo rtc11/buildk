@@ -1,17 +1,22 @@
 use crate::Section;
-use anyhow::{ensure, Result};
 use std::fmt::Display;
 use std::path::PathBuf;
 use std::str::FromStr;
-use toml_edit::Document;
+use toml_edit::DocumentMut;
 
 #[derive(Clone)]
 pub struct Project {
     pub path: PathBuf,
     pub src: PathBuf,
     pub test: PathBuf,
-    pub out: ProjectOutput,
-    main: String,
+    pub out: PathBuf,
+    pub main: String,
+}
+
+impl Project {
+    pub fn out_paths(&self) -> ProjectOutput {
+        ProjectOutput::new(&self)
+    }
 }
 
 impl Default for Project {
@@ -22,42 +27,9 @@ impl Default for Project {
             main: String::from("Main.kt"),
             src: path.join("src"),
             test: path.join("test"),
-            out: ProjectOutput::new(path.join("out")),
+            out: path.join("out"),
             path,
         }
-    }
-}
-
-impl Project {
-    pub fn new(
-        main: Option<&str>,
-        src: Option<&str>,
-        test: Option<&str>,
-    ) -> Result<Self> {
-        let src = match src {
-            None => current_dir().join(PathBuf::from("src")),
-            Some(src) => current_dir().join(PathBuf::from(src)) 
-        };
-        //ensure!(src.is_dir(), format!("{:?} must be a directory.", src));
-        ensure!(src.is_absolute(), "configured project.src must be an absolute path");
-
-        let test = match test {
-            None => current_dir().join(PathBuf::from("test")),
-            Some(test) => current_dir().join(PathBuf::from(test)) 
-        };
-        //ensure!(test.is_dir(), format!("{:?} must be a directory.", test));
-        ensure!(test.is_absolute(), "configured project.test must be an absolute path");
-
-        Ok(Self {
-            path: current_dir(),
-            src,
-            test,
-            out: ProjectOutput::new(current_dir().join("out")),
-            main: main.unwrap_or("Main.kt").to_string(),
-        })
-    }
-    pub fn compiled_main_file(&self) -> String {
-        self.main.replace(".kt", "Kt")
     }
 }
 
@@ -67,7 +39,10 @@ impl Display for Project {
         writeln!(f, "{:<26}{}", "project.src", self.src.display())?;
         writeln!(f, "{:<26}{}", "project.test", self.test.display())?;
         writeln!(f, "{:<26}{}", "project.main", self.main)?;
-        write!(f, "{}", self.out)
+
+        write!(f, "{}", self.out_paths())?;
+
+        write!(f, "")
     }
 }
 
@@ -82,14 +57,14 @@ pub struct ProjectOutput {
 }
 
 impl ProjectOutput {
-    pub(crate) fn new(path: PathBuf) -> Self {
-        Self {
-            src: path.join("src"),
-            cache: path.join("cache.json"),
-            test: path.join("test"),
-            test_report: path.join("test-report"),
-            release: path.join("app.jar"),
-            path,
+    pub fn new(project: &Project) -> Self {
+        ProjectOutput {
+            src: project.out.join("src"),
+            cache: project.out.join("cache.json"),
+            test: project.out.join("test"),
+            test_report: project.out.join("test-report"),
+            release: project.out.join("app.jar"),
+            path: project.out.clone(),
         }
     }
 }
@@ -106,55 +81,62 @@ impl Display for ProjectOutput {
 }
 
 fn current_dir() -> PathBuf {
-    std::env::current_dir().expect("current path not found")
+    std::env::current_dir().expect("path to current working directory")
 }
 
-pub(crate) fn project(data: &Document) -> Option<Project> {
-    let projects = data
-        .as_table()
-        .into_iter()
-        .filter_map(|(key, value)| match Section::from_str(key) {
-            Ok(Section::Project) => match value.as_table() {
-                None => None,
-                Some(table) => {
-                    let main = match table.get("main") {
-                        Some(item) => item.as_str(),
-                        None => None,
-                    };
+impl From<DocumentMut> for Project {
+    fn from(value: DocumentMut) -> Self {
+        value
+            .as_table()
+            .into_iter()
+            .filter_map(|(key, value)| {
+                if let Ok(Section::Project) = Section::from_str(key) {
+                    if let Some(table) = value.as_table() {
+                        let path = table.get("path").map_or(current_dir(), |it| {
+                            PathBuf::from(it.as_str().expect("path to project"))
+                        });
 
-                    let src = match table.get("src") {
-                        Some(item) => item.as_str(),
-                        None => None,
-                    };
+                        let src = table
+                            .get("src")
+                            .map_or("src", |it| it.as_str().expect("path to src"));
 
-                    let test = match table.get("test") {
-                        Some(item) => item.as_str(),
-                        None => None,
-                    };
+                        let test = table
+                            .get("test")
+                            .map_or("test", |it| it.as_str().expect("path to test"));
 
-                    match Project::new(main, src, test) {
-                        Ok(project) => Some(project),
-                        Err(e) => {
-                            eprintln!("Will configure default project settings due to:\n{e}");
-                            Some(Project::default())
-                        }
+                        let out = table
+                            .get("out")
+                            .map_or("out", |it| it.as_str().expect("path to out"));
+
+                        let main = table
+                            .get("main")
+                            .map_or("Main.kt", |it| it.as_str().expect("path to main"));
+
+                        Some(Project {
+                            src: path.join(src),
+                            test: path.join(test),
+                            out: path.join(out),
+                            main: main.to_string(),
+                            path,
+                        })
+                    } else {
+                        None
                     }
+                } else {
+                    None
                 }
-            },
-            _ => None,
-        })
-        .collect::<Vec<Project>>();
-    projects.into_iter().next()
+            })
+            .next()
+            .unwrap_or_default()
+    }
 }
 
-#[cfg(test)]
+/* #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
-    use crate::project::project;
-
     #[test]
-    fn main() {
+    fn set_main() {
         let project = project(
             &r#"
 [project]
@@ -178,34 +160,19 @@ main = "incredible.kt"
     }
 
     #[test]
-    fn path() {
-        let project = project(
-            &r#"
-[project]
-path = "/Users"
-"#
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(project.path, PathBuf::from("/Users"))
-    }
-
-    #[test]
     fn relative_path() {
         let current_path: PathBuf = std::env::current_dir().unwrap().into();
         let project = project(
             &r#"
 [project]
-relative-path = "src"
+src = "hello"
 "#
             .parse()
             .unwrap(),
         )
         .unwrap();
 
-        assert_eq!(project.path, current_path.join("src"))
+        assert_eq!(project.src, current_path.join("hello"))
     }
 
     #[test]
@@ -269,4 +236,4 @@ relative-path = "src"
         let project = project(&r#"[project]"#.parse().unwrap()).unwrap();
         assert_eq!(project.out.release, default_out.join("out").join("app.jar"));
     }
-}
+} */

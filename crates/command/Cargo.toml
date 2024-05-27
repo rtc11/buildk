@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 cache.workspace = true
 manifest.workspace = true
+dependency.workspace = true
 home.workspace = true
 http.workspace = true
 util.workspace = true

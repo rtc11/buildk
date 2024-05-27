@@ -1,181 +1,94 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
 use std::str::FromStr;
+use std::{collections::BTreeMap, fmt::Display};
 
 use anyhow::Context;
-use toml_edit::{Document, Item, Table, Value};
-use util::sub_strings::SubStrings;
+use dependency::{Package, PackageKind};
+use toml_edit::{DocumentMut, Item, Table, Value};
 
 use crate::Section;
 
 // https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
-pub struct Dependency {
-    pub name: Name,
-    pub version: Version,
-    pub kind: Kind,
-    pub target_dir: PathBuf,
-    pub path: String,
-    // url to the artifact directory that contains all the files.
-    pub jar: String,
-    // Filename
-    pub sources: String,
-    pub file_prefix: String,
+#[derive(Clone)]
+pub struct Packages {
+    pub pkgs: Vec<Package>, // TODO: can we make this private?
 }
 
-#[derive(Copy, Clone, Ord, PartialOrd, Debug, Eq, PartialEq, Hash)]
-pub enum Kind {
-    Source,
-    Test,
-    Platform,
-    PlatformTest,
-}
-
-#[derive(Clone, Ord, PartialOrd, Hash, Eq, PartialEq, Debug)]
-pub struct Name(String);
-
-impl Display for Name {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<String> for Name {
-    fn from(value: String) -> Self {
-        Name(value)
-    }
-}
-
-impl Into<String> for Name {
-    fn into(self) -> String {
-        self.0
-    }
-}
-
-impl From<&str> for Name {
-    fn from(value: &str) -> Self {
-        Name(value.to_string())
-    }
-}
-
-#[derive(Clone, Ord, PartialOrd, Hash, Eq, PartialEq, Debug)]
-pub struct Version(String);
-
-impl Display for Dependency {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.name.0, self.version.0)
-    }
-}
-
-impl Display for Version {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<String> for Version {
-    fn from(value: String) -> Self {
-        Version(value)
-    }
-}
-
-impl From<&str> for Version {
-    fn from(value: &str) -> Self {
-        Version(value.to_string())
-    }
-}
-
-pub trait DependenciesTools {
-    fn platform_deps(&self) -> Vec<Dependency>;
-    fn platform_test_deps(&self) -> Vec<Dependency>;
-    fn src_deps(&self) -> Vec<Dependency>;
-    fn test_deps(&self) -> Vec<Dependency>;
-    fn junit_runner(&self) -> Option<Dependency>;
-    fn kotlin_stdlib(&self) -> Option<Dependency>;
-    fn junit_platform(&self) -> Option<Dependency>;
-}
-
-impl DependenciesTools for Vec<Dependency> {
-    fn platform_deps(&self) -> Vec<Dependency> {
-        self.iter()
-            .filter(|dep| dep.kind == Kind::Platform)
-            .cloned()
-            .collect()
-    }
-
-    fn platform_test_deps(&self) -> Vec<Dependency> {
-        self.iter()
-            .filter(|dep| dep.kind == Kind::PlatformTest)
-            .cloned()
-            .collect()
-    }
-
-    fn src_deps(&self) -> Vec<Dependency> {
-        self.iter()
-            .filter(|dep| dep.kind == Kind::Source)
-            .cloned()
-            .collect()
-    }
-
-    fn test_deps(&self) -> Vec<Dependency> {
-        self.iter()
-            .filter(|dep| dep.kind == Kind::Test)
-            .cloned()
-            .collect()
-    }
-
-    fn junit_runner(&self) -> Option<Dependency> {
-        self.platform_test_deps()
+impl Display for Packages {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let pkgs = self
+            .pkgs
             .iter()
-            .find(|dep| {
-                dep.name
-                    .0
-                    .eq("org.junit.platform.junit-platform-console-standalone")
-            })
-            .cloned()
-    }
+            .map(|pkg| format!("{pkg}"))
+            .collect::<Vec<_>>()
+            .join(":");
 
-    fn kotlin_stdlib(&self) -> Option<Dependency> {
-        self.platform_deps()
-            .iter()
-            .find(|dep| dep.name.0.eq("org.jetbrains.kotlin.kotlin-stdlib"))
-            .cloned()
-    }
-
-    fn junit_platform(&self) -> Option<Dependency> {
-        self.platform_test_deps()
-            .iter()
-            .find(|dep| dep.name.0.eq("org.junit.jupiter.junit-jupiter-api"))
-            .cloned()
+        write!(f, "{}", pkgs)
     }
 }
 
-pub(crate) fn create_platform_deps() -> Vec<Dependency> {
+impl Packages {
+    pub(crate) fn new(pkgs: Vec<Package>) -> Self {
+        Packages { pkgs }
+    }
+
+    pub(crate) fn compile(&self) -> Vec<Package> {
+        self.pkgs
+            .clone()
+            .into_iter()
+            .filter(|pkg| pkg.kind == PackageKind::Compile)
+            .collect()
+    }
+
+    pub(crate) fn runtime(&self) -> Vec<Package> {
+        self.pkgs
+            .clone()
+            .into_iter()
+            .filter(|pkg| pkg.kind == PackageKind::Runtime)
+            .collect()
+    }
+
+    pub(crate) fn test(&self) -> Vec<Package> {
+        self.pkgs
+            .clone()
+            .into_iter()
+            .filter(|pkg| pkg.kind == PackageKind::Test)
+            .collect()
+    }
+
+    pub fn filter_cached(&self) -> Vec<Package> {
+        self.pkgs
+            .iter()
+            .filter(|pkg| pkg.is_cached())
+            .cloned()
+            .collect()
+    }
+}
+
+pub(crate) fn provided_pkgs() -> Vec<Package> {
     vec![
-        Dependency::new(
-            Kind::PlatformTest,
-            Name::from("org.junit.platform.junit-platform-console-standalone"),
-            Version::from("1.10.1"),
-        )
-        .unwrap(),
-        Dependency::new(
-            Kind::Platform,
-            Name::from("org.jetbrains.kotlin.kotlin-stdlib"),
-            Version::from("1.9.22"),
-        )
-        .unwrap(),
-        Dependency::new(
-            Kind::PlatformTest,
-            Name::from("org.junit.jupiter.junit-jupiter-api"),
-            Version::from("5.5.2"),
-        )
-        .unwrap(),
+        Package::new(
+            "kotlin-stdlib".to_string(),
+            Some("org.jetbrains.kotlin".to_string()),
+            "1.9.22".to_string(),
+            PackageKind::Compile,
+        ),
+        Package::new(
+            "junit-platform-console-standalone".to_string(),
+            Some("org.junit.platform".to_string()),
+            "1.10.1".to_string(),
+            PackageKind::Test,
+        ),
+        Package::new(
+            "junit-jupiter-api".to_string(),
+            Some("org.junit.jupiter".to_string()),
+            "5.5.2".to_string(),
+            PackageKind::Test,
+        ),
     ]
 }
 
-impl Dependency {
+/* impl Package {
     pub fn classpath(&self) -> String {
         self.transitives()
             .clone()
@@ -185,6 +98,14 @@ impl Dependency {
             .collect::<Vec<_>>()
             .as_slice()
             .join(":")
+    }
+
+    pub fn transitives(&self) -> BTreeSet<Package> {
+
+        dependencies::resolve(&self.target_dir.join(&self.jar))
+            .into_iter()
+            .map(|dep| Dependency::try_from(dep).unwrap())
+            .collect()
     }
 
     pub fn jar_absolute_path(&self) -> PathBuf {
@@ -197,41 +118,20 @@ impl Dependency {
 
         // TODO check that at least one file descriptor exists with length > 0
         jar.exists() && jar.metadata().unwrap().len() > 0
-            //&& pom.exists()
-            //&& pom.metadata().unwrap().len() > 0
+        //&& pom.exists()
+        //&& pom.metadata().unwrap().len() > 0
     }
 
-    pub fn new(kind: Kind, name: Name, version: Version) -> anyhow::Result<Dependency> {
-        let dep = dependency_info(&name, &version).map(|info| Self {
-            name,
-            version,
-            kind,
-            target_dir: info.target_dir.clone(),
-            path: info.path,
-            jar: format!("{}.jar", info.file_prefix),
-            sources: format!("{}-sources.jar", info.file_prefix),
-            file_prefix: info.file_prefix,
-        })?;
-
-        Ok(dep)
-    }
-
-    pub fn from_toml(kind: Kind, name: &str, item: &Value) -> anyhow::Result<Dependency> {
+    pub fn from_toml(kind: Kind, name: &str, item: &Value) -> anyhow::Result<Package> {
         let version = item.as_str().context("missing version")?;
         Self::new(kind, Name::from(name), Version::from(version))
     }
 
-    pub fn transitives(&self) -> BTreeSet<Dependency> {
-        dependencies::resolve(&self.target_dir.join(&self.jar))
-            .into_iter()
-            .map(|dep| Dependency::try_from(dep).unwrap())
-            .collect()
-    }
-}
+} */
 
 /// [name] "org.apache.kafka:kafka-clients"
 /// [version] "3.4.0"
-fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyInfo> {
+/* fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyInfo> {
     let group_id = resolve_group_id(name)?;
     let artifact_id = resolve_artifact_id(name)?;
 
@@ -247,12 +147,12 @@ fn dependency_info(name: &Name, version: &Version) -> anyhow::Result<DependencyI
         file_prefix,
         target_dir,
     })
-}
+} */
 
 /// [name] org.apache.kafka.kafka-clients   [return] org.apache.kafka
 /// [name] org.osgi."org.osgi.core"         [return] org.osgi
 /// [name] org.slf4j:slf4j-api              [return] org.slf4j
-fn resolve_group_id(name: &Name) -> anyhow::Result<String> {
+/* fn resolve_group_id(name: &Name) -> anyhow::Result<String> {
     let until_first_quote = |name: String| -> String {
         let mut name = name.substr_before('"');
         name.pop().expect("empty string, expected a dot");
@@ -270,12 +170,12 @@ fn resolve_group_id(name: &Name) -> anyhow::Result<String> {
 
     let group_id = regex(name.clone().0);
     Ok(group_id)
-}
+} */
 
 /// [name] org.apache.kafka.kafka-clients   [return] kafka-clients
 /// [name] org.osgi."org.osgi.core"         [return] org.osgi.core
 /// [name] org.slf4j:slf4j-api              [return] slf4j-api
-fn resolve_artifact_id(name: &Name) -> anyhow::Result<String> {
+/* fn resolve_artifact_id(name: &Name) -> anyhow::Result<String> {
     let between_double_quotes = |s: String| s.substr_after('"').substr_before('"');
     let after_last_dot = |s: String| s.substr_after_last('.');
     let after_colon = |s: String| s.substr_after(':');
@@ -290,62 +190,52 @@ fn resolve_artifact_id(name: &Name) -> anyhow::Result<String> {
 
     Ok(artifact_id)
 }
+*/
 
-struct DependencyInfo {
+/* struct DependencyInfo {
     pub path: String,
     pub file_prefix: String,
     pub target_dir: PathBuf,
-}
+}  */
 
-pub trait DependenciesKind {
-    fn for_test(&self) -> Vec<&Dependency>;
-    fn for_src(&self) -> Vec<&Dependency>;
-    fn for_platform(&self) -> Vec<&Dependency>;
-}
-
-impl DependenciesKind for Vec<Dependency> {
-    fn for_test(&self) -> Vec<&Dependency> {
-        self.iter().filter(|dep| dep.kind == Kind::Test).collect()
-    }
-
-    fn for_src(&self) -> Vec<&Dependency> {
-        self.iter().filter(|dep| dep.kind == Kind::Source).collect()
-    }
-
-    fn for_platform(&self) -> Vec<&Dependency> {
-        self.iter()
-            .filter(|dep| [Kind::Platform, Kind::PlatformTest].contains(&dep.kind))
-            .collect()
+impl From<&DocumentMut> for Packages {
+    fn from(toml: &DocumentMut) -> Self {
+        let pkgs = dependencies(toml);
+        Packages { pkgs }
     }
 }
 
-pub(crate) fn dependencies(manifest: &Document) -> Vec<Dependency> {
+fn dependencies(manifest: &DocumentMut) -> Vec<Package> {
     let manifested_deps = manifest
         .as_table()
         .into_iter()
         .flat_map(|(key, value)| match Section::from_str(key) {
-            Ok(Section::Dependencies) => match value.as_table() {
+            Ok(Section::CompileDeps) => match value.as_table() {
                 None => vec![],
-                Some(table) => dependencies_for(table, Kind::Source),
+                Some(table) => dependencies_for(table, PackageKind::Compile),
             },
-            Ok(Section::TestDependencies) => match value.as_table() {
+            Ok(Section::RuntimeDeps) => match value.as_table() {
                 None => vec![],
-                Some(table) => dependencies_for(table, Kind::Test),
+                Some(table) => dependencies_for(table, PackageKind::Runtime),
+            },
+            Ok(Section::TestDeps) => match value.as_table() {
+                None => vec![],
+                Some(table) => dependencies_for(table, PackageKind::Test),
             },
             _ => vec![],
         })
-        .collect::<Vec<Dependency>>();
+        .collect::<Vec<Package>>();
 
-    let platform_deps = create_platform_deps();
+    let provided = provided_pkgs();
 
     manifested_deps
         .iter()
-        .chain(platform_deps.iter())
+        .chain(provided.iter())
         .cloned()
         .collect()
 }
 
-fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
+fn dependencies_for(table: &Table, kind: PackageKind) -> Vec<Package> {
     let mut map = BTreeMap::new();
 
     table.iter().for_each(|(key, value)| {
@@ -353,8 +243,28 @@ fn dependencies_for(table: &Table, kind: Kind) -> Vec<Dependency> {
     });
 
     map.into_iter()
-        .filter_map(|(key, value)| Dependency::from_toml(kind, &key, value).ok())
+        .filter_map(|(key, value)| pkg_from_toml(kind.clone(), &key, value).ok())
         .collect()
+}
+
+fn pkg_from_toml(kind: PackageKind, name: &str, item: &Value) -> anyhow::Result<Package> {
+    let version = item.as_str().context("missing version")?.to_string();
+
+    let artifact = name.split("..").collect::<Vec<&str>>();
+    let (name, namespace) = match artifact.len() {
+        1 => {
+            let name = artifact[0].to_string();
+            (name, None)
+        }
+        2 => {
+            let name = artifact[1].to_string();
+            let namespace = artifact[0].to_string();
+            (name, Some(namespace))
+        }
+        _ => panic!("unexpected artifact name"),
+    };
+
+    Ok(Package::new(name, namespace, version, kind))
 }
 
 /**
@@ -382,7 +292,7 @@ fn decend<'a>(
     }
     map
 }
-
+/*
 impl TryFrom<dependencies::Dependency> for Dependency {
     type Error = anyhow::Error;
 
@@ -400,11 +310,14 @@ impl From<dependencies::Kind> for Kind {
         match value {
             dependencies::Kind::Compile => Kind::Source,
             dependencies::Kind::Test => Kind::Test,
+            dependencies::Kind::Runtime => Kind::Source,
+            dependencies::Kind::Transparent => Kind::Source,
+            dependencies::Kind::Internal => Kind::Platform,
         }
     }
 }
-
-#[cfg(test)]
+*/
+/* #[cfg(test)]
 mod tests {
     use super::*;
 
@@ -603,6 +516,15 @@ splendid.test.lib = "3.2.1"
     }
 
     #[test]
+    fn dep_with_dotted_artifact2() {
+        let name = Name::from(r#"org.osgi.osgi.core"#);
+        let version = Version::from("6.0.0");
+        let info = dependency_info(&name, &version).unwrap();
+        assert_eq!(info.file_prefix, "org.osgi.core-6.0.0");
+        assert_eq!(info.path, "org/osgi/org.osgi.core/6.0.0/")
+    }
+
+    #[test]
     fn resolve_quoted_group_id() -> anyhow::Result<()> {
         let name = Name::from(r#"org.osgi."org.osgi.core""#);
         let group_id = resolve_group_id(&name)?;
@@ -702,4 +624,4 @@ splendid.test.lib = "3.2.1"
 
         Ok(())
     }
-}
+} */

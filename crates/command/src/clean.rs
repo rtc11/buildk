@@ -2,8 +2,7 @@ use std::fs::remove_dir_all;
 use std::path::Path;
 
 use cache::cache::Cache;
-use manifest::config::Config;
-use manifest::manifest::Manifest;
+use manifest::{config::BuildK, Manifest};
 use util::buildk_output::BuildkOutput;
 use util::PartialConclusion;
 
@@ -12,7 +11,7 @@ use crate::{Command, CleanSet};
 const OS_2_ERROR: &str = "No such file or directory (os error 2)";
 
 pub (crate) struct Clean<'a> {
-    config: &'a Config,
+    buildk: &'a BuildK,
 }
 
 impl <'a> Command for Clean<'a> {
@@ -32,43 +31,43 @@ impl <'a> Command for Clean<'a> {
 }
 
 impl <'a> Clean<'_> {
-    pub fn new(config: &'a Config) -> Clean<'a> {
-        Clean { config }
+    pub fn new(buildk: &'a BuildK) -> Clean<'a> {
+        Clean { buildk }
     }
 
     fn clean_src(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+        let manifest = <Option<Manifest> as Clone>::clone(&self.buildk.manifest)
             .expect("no buildk.toml found.");
 
-        let path = &manifest.project.out.src;
+        let path = &manifest.project.out_paths().src;
         self.delete(output, path)
     }
 
     fn clean_test(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+        let manifest = <Option<Manifest> as Clone>::clone(&self.buildk.manifest)
             .expect("no buildk.toml found.");
 
-        let path = &manifest.project.out.test;
+        let path = &manifest.project.out_paths().test;
         self.delete(output, path)
     }
 
     fn clean_release(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+        let manifest = <Option<Manifest> as Clone>::clone(&self.buildk.manifest)
             .expect("no buildk.toml found.");
 
-        let path = &manifest.project.out.release;
+        let path = &manifest.project.out_paths().release;
         self.delete(output, path)
     }
 
     fn clean_all(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+        let manifest = <Option<Manifest> as Clone>::clone(&self.buildk.manifest)
             .expect("no buildk.toml found.");
 
-        let path = &manifest.project.out.path;
+        let path = &manifest.project.out_paths().path;
         self.delete(output, path) 
     }
 
@@ -82,10 +81,10 @@ impl <'a> Clean<'_> {
 
     fn cleaned(&mut self, output: &mut BuildkOutput, dir: &Path) -> BuildkOutput {
         // FIXME
-        let manifest = <Option<Manifest> as Clone>::clone(&self.config.manifest)
+        let manifest = <Option<Manifest> as Clone>::clone(&self.buildk.manifest)
             .expect("no buildk.toml found.");
 
-        let mut cache = Cache::load(&manifest.project.out.cache);
+        let mut cache = Cache::load(&manifest.project.out_paths().cache);
         cache.invalidate();
 
         output
