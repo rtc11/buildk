@@ -83,6 +83,7 @@ Commands:
   config     Show the project configuration
   deps       Print the dependencies
   fetch      Fetch the dependencies
+  init       Initialize the project
   release    Create a release (jar)
   run, -r    Run the project
   test, -t   Run JUnit tests
