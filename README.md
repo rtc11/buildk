@@ -138,3 +138,4 @@ RUSTFLAGS="-Z threads=8" cargo +nightly build --release
 - [ ] Use Rayon for parallel compilation?
 - [ ] Use ripgrep for lexing/ksp/avl/build-tree?
 - [ ] Use prodash instead of stdout?
+

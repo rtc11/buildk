@@ -94,7 +94,8 @@ impl<'a> JavaBuilder<'a> {
     }
 
     pub fn jar(&mut self, jar: &PathBuf) -> &mut Self {
-        self.process.args.push(jar.into());
+        self.process.jar(jar);
+        // self.process.args.push(jar.into());
         self
     }
 

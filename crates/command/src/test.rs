@@ -1,11 +1,8 @@
-use std::path::Path;
-
 use manifest::config::BuildK;
 use manifest::Manifest;
 use process::java::Java;
 use util::buildk_output::BuildkOutput;
 
-use crate::tree::HeaderKt;
 use crate::Command;
 
 pub(crate) struct Test<'a> {
@@ -46,8 +43,10 @@ impl<'a> Command for Test<'a> {
             .map(|pkg| pkg.jar_absolute_path())
             .expect("missing junit");
 
+        let kotlin_stdlib = manifest.kotlin_home.unwrap().join("libexec").join("lib").join("kotlin-stdlib.jar");
+
         let out_paths = &manifest.project.out_paths();
-        let mut classpath = vec![&out_paths.src, &out_paths.test, &junit];
+        let mut classpath = vec![&out_paths.src, &out_paths.test, &junit, &kotlin_stdlib];
 
         classpath.extend(&test_deps);
 
@@ -58,9 +57,10 @@ impl<'a> Command for Test<'a> {
             .test_report(&manifest.project.out_paths().test_report)
             .args(&["--details", "tree"])
             .args(&["--exclude-engine", "junit-vintage"])
-            .args(&["--exclude-engine", "junit-platform-suite"]);
+            .args(&["--exclude-engine", "junit-platform-suite"])
+            .args(&["--scan-classpath"]);
 
-        if let Ok(test_files) =
+        /* if let Ok(test_files) =
             util::paths::all_files_recursive(vec![], manifest.project.test.clone())
         {
             let test_packages = test_files
@@ -73,7 +73,7 @@ impl<'a> Command for Test<'a> {
             for pkg in test_packages.iter() {
                 java.args(&["--select-package", &pkg]);
             }
-        }
+        } */
 
         java.run(&mut output)
     }

@@ -8,8 +8,8 @@ use project::Project;
 use repos::Repos;
 
 pub mod config;
-pub mod packages;
 pub mod home;
+pub mod packages;
 pub mod project;
 pub mod repos;
 
@@ -24,6 +24,7 @@ pub(crate) enum Section {
     RuntimeDeps,
     TestDeps,
     Kotlin,
+    Java,
 }
 
 impl FromStr for Section {
@@ -37,6 +38,7 @@ impl FromStr for Section {
             "runtime" => Section::RuntimeDeps,
             "test" => Section::TestDeps,
             "kotlin" => Section::Kotlin,
+            "java" => Section::Java,
             _ => anyhow::bail!("Invalid section: {}", s),
         })
     }
@@ -61,7 +63,7 @@ impl Manifest {
 
         let toml = match content.parse().context("Manifest not valid TOML.") {
             Ok(toml) => toml,
-            Err(err) =>  {
+            Err(err) => {
                 eprintln!("Failed to parse TOML: {}", err);
                 anyhow::bail!("Failed to parse TOML: {}", err)
             }
@@ -83,19 +85,41 @@ impl Manifest {
 }
 
 fn kotlin_home(manifest: &toml_edit::DocumentMut) -> Option<PathBuf> {
-    manifest
+    let kotlins = manifest
         .as_table()
-        .get("kotlin")
-        .and_then(|it| it.as_str())
-        .map(PathBuf::from)
+        .into_iter()
+        .flat_map(|(key, value)| match Section::from_str(key) {
+            Ok(Section::Kotlin) => match value.as_table() {
+                None => vec![],
+                Some(table) => table
+                    .iter()
+                    .map(|(_, path)| PathBuf::from(path.as_str().unwrap()))
+                    .collect(),
+            },
+            _ => vec![],
+        })
+        .collect::<Vec<_>>();
+        
+        kotlins.first().cloned()
 }
 
 fn java_home(manifest: &toml_edit::DocumentMut) -> Option<PathBuf> {
-    manifest
+    let java = manifest
         .as_table()
-        .get("java")
-        .and_then(|it| it.as_str())
-        .map(PathBuf::from)
+        .into_iter()
+        .flat_map(|(key, value)| match Section::from_str(key) {
+            Ok(Section::Java) => match value.as_table() {
+                None => vec![],
+                Some(table) => table
+                    .iter()
+                    .map(|(_, path)| PathBuf::from(path.as_str().unwrap()))
+                    .collect(),
+            },
+            _ => vec![],
+        })
+        .collect::<Vec<_>>();
+        
+        java.first().cloned()
 }
 
 impl Display for Manifest {
