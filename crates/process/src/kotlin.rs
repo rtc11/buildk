@@ -1,4 +1,4 @@
-use std::{fmt::Display, hash::{Hash, Hasher}, path::{Path, PathBuf}};
+use std::{fmt::Display, hash::{Hash, Hasher}, path::PathBuf};
 
 use anyhow::{Context, Result};
 
@@ -12,7 +12,7 @@ use crate::{Process, ProcessBuilder, ProcessError, try_from};
 // runtimeOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.22")
 pub struct Kotlin<'a> {
     buildk: &'a BuildK,
-    pub version: String,
+    // pub version: String,
     pub home: PathBuf,
     pub bin: PathBuf,
 }
@@ -26,7 +26,7 @@ impl<'a> Process<'a> for Kotlin<'a> {
 
         Ok(Kotlin {
             buildk,
-            version: version(buildk, &kotlin_home)?,
+            // version: version(buildk, &kotlin_home)?, // TODO: only provide version in manifest
             bin: kotlin_home.join("bin"),
             home: kotlin_home.to_path_buf(),
         })
@@ -199,7 +199,7 @@ impl Display for Kotlin<'_> {
     }
 }
 
-fn version(_buildk: &BuildK, kotlin_home: &Path) -> Result<String> {
+/* fn version(_buildk: &BuildK, kotlin_home: &Path) -> Result<String> {
     let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
     runner.arg("-version");
 
@@ -221,4 +221,4 @@ fn version(_buildk: &BuildK, kotlin_home: &Path) -> Result<String> {
 */
     Ok("1.9.22".into())
 }
-
+*/

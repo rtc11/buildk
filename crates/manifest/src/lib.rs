@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use anyhow::{Context, Result};
-use kotlin::kotlin_home;
 use packages::Packages;
 use project::Project;
 use repos::Repos;
@@ -11,7 +10,6 @@ use repos::Repos;
 pub mod config;
 pub mod packages;
 pub mod home;
-pub mod kotlin;
 pub mod project;
 pub mod repos;
 
@@ -52,6 +50,7 @@ pub struct Manifest {
     pub runtime_deps: Packages,
     pub test_deps: Packages,
     pub kotlin_home: Option<PathBuf>,
+    pub java_home: Option<PathBuf>,
     pub all_packages: Packages, // TODO: can we remove this?
 }
 
@@ -77,9 +76,26 @@ impl Manifest {
             runtime_deps: Packages::new(packages.runtime()),
             test_deps: Packages::new(packages.test()),
             kotlin_home: kotlin_home(&toml),
+            java_home: java_home(&toml),
             all_packages: packages,
         })
     }
+}
+
+fn kotlin_home(manifest: &toml_edit::DocumentMut) -> Option<PathBuf> {
+    manifest
+        .as_table()
+        .get("kotlin")
+        .and_then(|it| it.as_str())
+        .map(PathBuf::from)
+}
+
+fn java_home(manifest: &toml_edit::DocumentMut) -> Option<PathBuf> {
+    manifest
+        .as_table()
+        .get("java")
+        .and_then(|it| it.as_str())
+        .map(PathBuf::from)
 }
 
 impl Display for Manifest {

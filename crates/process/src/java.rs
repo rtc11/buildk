@@ -1,9 +1,9 @@
 use std::{ffi::OsStr, hash::{Hash, Hasher}, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use cache::cache::{Cache, Cacheable, CacheResult};
-use manifest::config::BuildK;
+use manifest::{config::BuildK, Manifest};
 use util::{buildk_output::BuildkOutput, hasher::StableHasher, PartialConclusion};
 use util::buildk_output::WithBKOutput;
 
@@ -11,7 +11,7 @@ use crate::{Process, ProcessBuilder, ProcessError, try_from};
 
 pub struct Java<'a> {
     buildk: &'a BuildK,
-    pub version: String,
+    // pub version: String,
     pub home: PathBuf,
     pub bin: PathBuf,
 }
@@ -20,17 +20,30 @@ impl<'a> Process<'a> for Java<'a> {
     type Item = Java<'a>;
 
     fn new(buildk: &'a BuildK) -> Result<Self::Item> {
+        let manifest = buildk.clone().manifest.context("manifest missing")?;
+        let java_home = Self::java_home_from_manifest(&manifest);
         Ok(
             Java {
                 buildk,
-                version: "17.0.1".to_string(), // TODO: add version to buildk.toml
-                home: PathBuf::from("/usr/local/Cellar/openjdk/17.0.1/"),
-                bin: PathBuf::from("/usr/bin/"),
+                // version: "17.0.1".to_string(), // TODO: only provide version in manifest
+                home: java_home.to_path_buf(),
+                bin: java_home.join("bin"),
             }
         )
     }
 }
 
+impl<'a> Java<'a> {
+    fn java_home_from_manifest(manifest: &Manifest) -> PathBuf {
+        match manifest.java_home.as_ref() {
+            Some(java_home) => java_home.clone(),
+            None => match option_env!("JAVA_HOME") {
+                Some(dir) => PathBuf::from(dir),
+                None => PathBuf::from("/usr/local/Cellar/openjdk/17.0.1/"),
+            }
+        }
+    }
+}
 impl<'a> Java<'a> {
     pub fn builder(&self) -> JavaBuilder {
         JavaBuilder::new(self)

@@ -118,6 +118,9 @@ pub enum Commands {
         #[arg(value_name = "DEP")]
         dep: String,
     },
+
+    Kotlin,
+    Java,
 }
 
 #[derive(ValueEnum, Copy, Clone, PartialEq, Eq)]
@@ -177,6 +180,16 @@ impl Commands {
                 Err(e) => panic!("{}", e),
             },
             Commands::Path { dep } => DepPath::new(buildk).execute(Some(dep.to_owned())),
+            Commands::Kotlin => {
+                println!("Kotlin home: {:?}", kotlin.unwrap().home);
+                // let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
+                // runner.arg("-version");
+                BuildkOutput::new("kotlin")
+            }
+            Commands::Java => {
+                println!("Java home: {:?}", java.unwrap().home);
+                BuildkOutput::new("java")
+            }
         }
     }
 }
