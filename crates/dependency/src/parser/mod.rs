@@ -7,12 +7,12 @@ pub mod gradle;
 pub mod maven;
 
 pub fn parse(path: &Path) -> BTreeSet<Package> {
-    let descriptor = path.join("pom.xml");
+    let descriptor = path.join("maven.xml");
     if descriptor.exists() {
         return maven::MavenParser::parse(descriptor);
     }
 
-    let descriptor = path.join("gradle.module");
+    let descriptor = path.join("gradle.json");
     if descriptor.exists() {
         return gradle::GradleParser::parse(descriptor);
     }

@@ -12,12 +12,12 @@ where
 }
 
 pub fn resolve_descriptor(path: &Path) -> Option<PathBuf> {
-    let gradle_descriptor = path.join("pom.xml");
+    let gradle_descriptor = path.join("maven.xml");
     if gradle_descriptor.exists() {
         return Some(gradle_descriptor);
     }
 
-    let maven_descriptor = path.join("gradle.module");
+    let maven_descriptor = path.join("gradle.json");
     if maven_descriptor.exists() {
         return Some(maven_descriptor);
     }
@@ -63,7 +63,7 @@ impl Package {
     }
     // todo: if one transitive dep has previously failed, this is not good enough for a check
     pub fn is_cached(&self) -> bool {
-        let jar = self.location.join(&self.name).with_extension("jar");
+        let jar = self.jar_absolute_path();
         let descriptor = resolve_descriptor(&self.location);
 
         if !jar.exists() {
@@ -89,7 +89,7 @@ impl Package {
     }
 
     pub fn jar_absolute_path(&self) -> PathBuf {
-        self.location.join(&self.name).with_extension("jar")
+        self.location.join("pkg.jar")
     }
 
     pub fn classpath(&self) -> String {

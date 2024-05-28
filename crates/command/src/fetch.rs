@@ -108,7 +108,6 @@ impl<'a> Fetch<'a> {
                     let client = client.clone();
 
                     task::block_on(async {
-                        println!("{:<10} {:<16}:{:<26}", "downloading", dep.name, dep.version);
                         client.download_async(&dep, &config).await
                     })
                 })

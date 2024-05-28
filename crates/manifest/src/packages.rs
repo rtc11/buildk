@@ -250,7 +250,7 @@ fn dependencies_for(table: &Table, kind: PackageKind) -> Vec<Package> {
 fn pkg_from_toml(kind: PackageKind, name: &str, item: &Value) -> anyhow::Result<Package> {
     let version = item.as_str().context("missing version")?.to_string();
 
-    let artifact = name.split("..").collect::<Vec<&str>>();
+    let artifact = name.split("_").collect::<Vec<&str>>();
     let (name, namespace) = match artifact.len() {
         1 => {
             let name = artifact[0].to_string();

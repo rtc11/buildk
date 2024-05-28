@@ -69,15 +69,15 @@ impl Client {
     async fn download_jar_and_pom(pkg: &&Package, repo: &Repo) -> (DownloadResult, DownloadResult) {
         let url = Self::resolve_url(&pkg, &repo);
         let target_dir = PathBuf::from(&pkg.location);
-        let pom = target_dir.join("pom.xml");
-        let module = target_dir.join("gradle.module");
+        let maven = target_dir.join("maven.xml");
+        let gradle = target_dir.join("gradle.json");
         let sources = target_dir.join("sources.jar");
-        let jar = target_dir.join(&pkg.name).with_extension("jar");
+        let jar = target_dir.join("pkg").with_extension("jar");
 
         let jar_res = create_target_and_download(&format!{"{}.jar", &url}, &jar).await;
-        let pom_res = create_target_and_download(&format!{"{}.pom", &url}, &pom).await;
+        let pom_res = create_target_and_download(&format!{"{}.pom", &url}, &maven).await;
         let _optional = create_target_and_download(&format!{"{}-sources.jar", &url}, &sources).await;
-        let _optional = create_target_and_download(&format!{"{}.module", &url}, &module).await;
+        let _optional = create_target_and_download(&format!{"{}.module", &url}, &gradle).await;
 
         if !jar_res.is_failed() && !pom_res.is_failed() {
             return (jar_res, pom_res);

@@ -14,32 +14,25 @@ impl<'a> Command for DepPath<'a> {
 
     fn execute(&mut self, arg: Option<Self::Item>) -> BuildkOutput {
         let output = BuildkOutput::new("config");
-
-        // let manifest = <Option<Manifest> as Clone>::clone(&self.buildk.manifest)
-        //     .expect("no buildk.toml found.");
-
         let arg = arg.expect("missing arg <namespace>..<name>=<version>");
-        let artifact = arg.split("=").collect::<Vec<&str>>();
-        if artifact.len() != 2 {
-            panic!("unexpected artifact name. Missing artifact or version: <namespace>..<name>=<version>");
-        }
-        
-        let (artifact, version) = (artifact[0], artifact[1].to_string());
+        let artifact = arg.split(":").collect::<Vec<&str>>();
 
-        let artifact = artifact.split("..").collect::<Vec<&str>>();
-        let (name, namespace) = match artifact.len() {
-            1 => {
-                let name = artifact[0].to_string();
-                (name, None)
+        let (name, namespace, version) = match artifact.len() {
+            2 => (
+                artifact[1].to_string(),
+                None,
+                artifact[2].to_string(),
+                ),
+            3 => (
+                artifact[1].to_string(),
+                Some(artifact[0].to_string()),
+                artifact[2].to_string(),
+                ),
+            _ => {
+                eprintln!("Package must be defined by <namespace>:<name>:<version>");
+                panic!("Package must be defined by <namespace>:<name>:<version>");
             }
-            2 => {
-                let name = artifact[1].to_string();
-                let namespace = artifact[0].to_string();
-                (name, Some(namespace))
-            }
-            _ => panic!("unexpected artifact name"),
         };
-
         
         let pkg = Package::new(name, namespace, version, PackageKind::Compile);
         

@@ -79,7 +79,7 @@ impl <'a> Build<'_> {
 
         let project_test_libs = test_deps.filter_cached()
             .iter()
-            .map(|pkg| pkg.location.join(&pkg.name).with_extension("jar"))
+            .map(|pkg| pkg.location.join("pkg").with_extension("jar"))
             .collect::<Vec<PathBuf>>();
 
         let test_libs = self.kotlin.test_libs();
