@@ -61,6 +61,10 @@ impl Kotlin<'_> {
     pub fn compiler(&self) -> PathBuf {
         self.bin.join("kotlinc")
     }
+
+    pub fn runner(&self) -> PathBuf {
+        self.bin.join("kotlin")
+    }
 }
 
 pub struct KotlinBuilder<'a> {
@@ -126,7 +130,7 @@ impl<'a> KotlinBuilder<'a> {
     }
 
     pub fn run(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
-        self.process.program(self.kotlin.compiler());
+        self.process.program(self.kotlin.runner());
         // self.process.include_runtime();
         self.execute_with_cache(output, &self.process.clone()).to_owned()
     }
