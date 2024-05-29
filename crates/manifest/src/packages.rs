@@ -74,9 +74,27 @@ pub(crate) fn provided_pkgs() -> Vec<Package> {
             PackageKind::Compile,
         ),
         Package::new(
+            "kotlin-test".to_string(),
+            Some("org.jetbrains.kotlin".to_string()),
+            "1.9.22".to_string(),
+            PackageKind::Test,
+        ),
+        Package::new(
+            "kotlin-test-junit5".to_string(),
+            Some("org.jetbrains.kotlin".to_string()),
+            "1.9.22".to_string(),
+            PackageKind::Test,
+        ),
+        Package::new(
+            "testng".to_string(),
+            Some("org.testng".to_string()),
+            "7.10.2".to_string(),
+            PackageKind::Test,
+        ),
+        Package::new(
             "junit-platform-console-standalone".to_string(),
             Some("org.junit.platform".to_string()),
-            "1.10.1".to_string(),
+            "1.10.2".to_string(),
             PackageKind::Test,
         ),
         Package::new(

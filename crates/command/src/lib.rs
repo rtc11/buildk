@@ -167,8 +167,8 @@ impl Commands {
                 Ok(kotlin) => Release::new(buildk, &kotlin).execute(None),
                 Err(e) => panic!("{}", e),
             },
-            Commands::Run { name } => match java {
-                Ok(java) => Run::new(buildk, &java).execute(name.clone()),
+            Commands::Run { name } => match kotlin {
+                Ok(kotlin) => Run::new(buildk, &kotlin).execute(name.clone()),
                 Err(e) => panic!("{}", e),
             },
             Commands::Test { name } => match java {

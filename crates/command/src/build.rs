@@ -82,11 +82,11 @@ impl <'a> Build<'_> {
             .map(|pkg| pkg.location.join("pkg").with_extension("jar"))
             .collect::<Vec<PathBuf>>();
 
-        let test_libs = self.kotlin.test_libs();
+        // let test_libs = self.kotlin.test_libs();
         let output_paths = &manifest.project.out_paths();
         let mut classpath = vec![&output_paths.src];
         classpath.extend(project_test_libs.iter());
-        classpath.extend(test_libs.iter());
+        // classpath.extend(test_libs.iter());
 
         self.kotlin.builder()
             .workdir(&manifest.project.path)

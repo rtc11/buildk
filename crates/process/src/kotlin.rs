@@ -46,12 +46,13 @@ impl<'a> Kotlin<'a> {
 }
 
 impl Kotlin<'_> {
-    pub fn test_libs(&self) -> Vec<PathBuf> {
-        vec![
-            self.home.join("libexec/lib/kotlin-test-junit5.jar"),
-            self.home.join("libexec/lib/kotlin-test.jar"),
-        ]
-    }
+    // pub fn test_libs(&self) -> Vec<PathBuf> {
+    //     vec![
+    //         self.home.join("libexec/lib/kotlin-test-junit5.jar"),
+    //         self.home.join("libexec/lib/kotlin-test-testng.jar"),
+    //         self.home.join("libexec/lib/kotlin-test.jar"),
+    //     ]
+    // }
 
     pub fn builder(&self) -> KotlinBuilder {
         KotlinBuilder::new(self)
@@ -80,6 +81,11 @@ impl<'a> KotlinBuilder<'a> {
             cache_key: 0,
             process: ProcessBuilder::new(""),
         }
+    }
+
+    pub fn main(&mut self, main: String) -> &mut Self {
+        self.process.sources(&main);
+        self
     }
 
     pub fn sources(&'a mut self, sources: Vec<&'a PathBuf>) -> &'a mut Self {
@@ -121,12 +127,13 @@ impl<'a> KotlinBuilder<'a> {
 
     pub fn run(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         self.process.program(self.kotlin.compiler());
-        self.process.include_runtime();
+        // self.process.include_runtime();
         self.execute_with_cache(output, &self.process.clone()).to_owned()
     }
 
     pub fn compile(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         self.process.program(self.kotlin.compiler());
+        self.process.include_runtime();
         self.execute_with_cache(output, &self.process.clone()).to_owned()
     }
 

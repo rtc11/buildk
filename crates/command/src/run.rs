@@ -1,12 +1,12 @@
 use manifest::{config::BuildK, Manifest};
-use process::java::Java;
+use process::kotlin::Kotlin;
 use util::buildk_output::BuildkOutput;
 
 use crate::Command;
 
 pub(crate) struct Run<'a> {
     buildk: &'a BuildK,
-    java: &'a Java<'a>,
+    kotlin: &'a Kotlin<'a>,
 }
 
 impl<'a> Command for Run<'a> {
@@ -35,7 +35,7 @@ impl<'a> Command for Run<'a> {
             None => manifest.project.main.replace(".kt", "Kt"),
         };
 
-        self.java
+        self.kotlin
             .builder()
             .workdir(&manifest.project.path)
             .classpath(classpath)
@@ -45,7 +45,7 @@ impl<'a> Command for Run<'a> {
 }
 
 impl<'a> Run<'_> {
-    pub fn new(buildk: &'a BuildK, java: &'a Java) -> Run<'a> {
-        Run { buildk, java }
+    pub fn new(buildk: &'a BuildK, kotlin: &'a Kotlin) -> Run<'a> {
+        Run { buildk, kotlin }
     }
 }
