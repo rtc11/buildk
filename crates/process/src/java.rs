@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, hash::{Hash, Hasher}, path::PathBuf};
+use std::{ffi::OsStr, fmt::Display, hash::{Hash, Hasher}, path::PathBuf};
 
 use anyhow::{Context, Result};
 
@@ -186,3 +186,8 @@ impl<'a> Cacheable for JavaBuilder<'a> {
     }
 }
 
+impl Display for Java<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:<26}{}", "java.home", self.home.display())
+    }
+}

@@ -70,7 +70,7 @@ pub(crate) fn provided_pkgs() -> Vec<Package> {
         Package::new(
             "kotlin-stdlib".to_string(),
             Some("org.jetbrains.kotlin".to_string()),
-            "1.9.22".to_string(),
+            "2.0.0".to_string(),
             PackageKind::Compile,
         ),
         // Package::new(
@@ -82,7 +82,7 @@ pub(crate) fn provided_pkgs() -> Vec<Package> {
         Package::new(
             "kotlin-test-junit5".to_string(),
             Some("org.jetbrains.kotlin".to_string()),
-            "1.9.22".to_string(),
+            "2.0.0".to_string(),
             PackageKind::Test,
         ),
         Package::new(

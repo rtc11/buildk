@@ -1,12 +1,18 @@
-use std::{fmt::Display, hash::{Hash, Hasher}, path::PathBuf};
+use std::{
+    fmt::Display,
+    hash::{Hash, Hasher},
+    path::PathBuf,
+};
 
 use anyhow::{Context, Result};
 
-use cache::cache::{Cache, Cacheable, CacheResult};
+use cache::cache::{Cache, CacheResult, Cacheable};
 use manifest::{config::BuildK, Manifest};
-use util::{buildk_output::BuildkOutput, colorize::Colorize, hasher::StableHasher, PartialConclusion};
+use util::{
+    buildk_output::BuildkOutput, colorize::Colorize, hasher::StableHasher, PartialConclusion,
+};
 
-use crate::{Process, ProcessBuilder, ProcessError, try_from};
+use crate::{try_from, Process, ProcessBuilder, ProcessError};
 
 // // https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-compiler-embeddable
 // runtimeOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.22")
@@ -36,24 +42,25 @@ impl<'a> Process<'a> for Kotlin<'a> {
 impl<'a> Kotlin<'a> {
     fn kotlin_home_from_manifest(manifest: &Manifest) -> PathBuf {
         match manifest.kotlin_home.as_ref() {
-            Some(kotlin_home) => kotlin_home.clone(),
-            None => match option_env!("KOTLIN_HOME") {
-                Some(dir) => PathBuf::from(dir),
-                None => PathBuf::from("/usr/local/Cellar/kotlin/1.9.22/"),
+            Some(kotlin_home) => {
+                // println!("kotlin is set in manifest");
+                kotlin_home.clone()
             }
+            None => match option_env!("KOTLIN_HOME") {
+                Some(dir) => {
+                    // println!("kotlin was found in $KOTLIN_HOME");
+                    PathBuf::from(dir)
+                },
+                None => {
+                    // println!("kotlin was not found, using default: /usr/local/bin/");
+                    PathBuf::from("/usr/local/bin/")
+                },
+            },
         }
     }
 }
 
 impl Kotlin<'_> {
-    // pub fn test_libs(&self) -> Vec<PathBuf> {
-    //     vec![
-    //         self.home.join("libexec/lib/kotlin-test-junit5.jar"),
-    //         self.home.join("libexec/lib/kotlin-test-testng.jar"),
-    //         self.home.join("libexec/lib/kotlin-test.jar"),
-    //     ]
-    // }
-
     pub fn builder(&self) -> KotlinBuilder {
         KotlinBuilder::new(self)
     }
@@ -132,16 +139,22 @@ impl<'a> KotlinBuilder<'a> {
     pub fn run(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         self.process.program(self.kotlin.runner());
         // self.process.include_runtime();
-        self.execute_with_cache(output, &self.process.clone()).to_owned()
+        self.execute_with_cache(output, &self.process.clone())
+            .to_owned()
     }
 
     pub fn compile(&mut self, output: &mut BuildkOutput) -> BuildkOutput {
         self.process.program(self.kotlin.compiler());
         self.process.include_runtime();
-        self.execute_with_cache(output, &self.process.clone()).to_owned()
+        self.execute_with_cache(output, &self.process.clone())
+            .to_owned()
     }
 
-    fn execute_with_cache(&mut self, output: &mut BuildkOutput, cmd: &ProcessBuilder) -> BuildkOutput {
+    fn execute_with_cache(
+        &mut self,
+        output: &mut BuildkOutput,
+        cmd: &ProcessBuilder,
+    ) -> BuildkOutput {
         match self.cache(&mut self.cache.clone(), cmd.clone()) {
             Ok(cache_res) => output.apply(BuildkOutput::from(cache_res)),
             Err(err) => {
@@ -173,23 +186,20 @@ impl Cacheable for KotlinBuilder<'_> {
 
         let output = cache.get(&key);
         match output.success {
-            true => {
-                Ok(CacheResult {
-                    conclusion: partial_conclusion,
-                    stdout: Some(output.stdout.clone()),
-                    stderr: Some(output.stderr.clone()),
-                    status: output.code.unwrap_or(0),
-                })
-            }
-            false => {
-                Err(ProcessError::new_with_raw_output(
-                    &format!("process didn't exit successfully (cache): {item}"),
-                    output.code,
-                    &output.status,
-                    Some(output.stdout.as_ref()),
-                    Some(output.stderr.as_ref()),
-                ).into())
-            }
+            true => Ok(CacheResult {
+                conclusion: partial_conclusion,
+                stdout: Some(output.stdout.clone()),
+                stderr: Some(output.stderr.clone()),
+                status: output.code.unwrap_or(0),
+            }),
+            false => Err(ProcessError::new_with_raw_output(
+                &format!("process didn't exit successfully (cache): {item}"),
+                output.code,
+                &output.status,
+                Some(output.stdout.as_ref()),
+                Some(output.stderr.as_ref()),
+            )
+            .into()),
         }
     }
 

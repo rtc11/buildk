@@ -11,7 +11,7 @@ use crate::{Package, PackageKind, Parser};
 pub struct MavenParser;
 
 impl Parser<Package> for MavenParser {
-    fn parse(path: PathBuf) -> BTreeSet<Package> {
+    fn parse(path: PathBuf, kind: PackageKind) -> BTreeSet<Package> {
         let content = match fs::read_to_string(path) {
             Ok(content) => content,
             Err(_) => return BTreeSet::default(),
@@ -31,6 +31,7 @@ impl Parser<Package> for MavenParser {
 
         deps.into_iter()
             .filter(|it| it.version.is_some())
+            .filter(|it| kind == it.scope.clone().into())
             .for_each(|it| {
                 unique_deps.insert(it);
             });
@@ -38,6 +39,7 @@ impl Parser<Package> for MavenParser {
         managed
             .into_iter()
             .filter(|it| it.version.is_some())
+            .filter(|it| kind == it.scope.clone().into())
             .for_each(|it| {
                 unique_deps.insert(it);
             });

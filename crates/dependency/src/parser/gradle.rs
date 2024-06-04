@@ -26,7 +26,7 @@ pub enum GradleVariant {
 
 // https://docs.gradle.org/current/userguide/dependency_management.html#sec:how-gradle-downloads-deps
 impl Parser<Package> for GradleParser {
-    fn parse(path: PathBuf) -> BTreeSet<Package> {
+    fn parse(path: PathBuf, kind: PackageKind) -> BTreeSet<Package> {
         let content = match fs::read_to_string(path) {
             Ok(content) => content,
             Err(_) => return BTreeSet::default(),
@@ -46,7 +46,8 @@ impl Parser<Package> for GradleParser {
             return BTreeSet::default();
         };
 
-        descriptor.into()
+        let packages: BTreeSet<Package> = descriptor.into();
+        packages.into_iter().filter(|it| kind == it.kind).collect()
     }
 }
 

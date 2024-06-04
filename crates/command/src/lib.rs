@@ -2,6 +2,7 @@ use clap::{command, Parser, Subcommand, ValueEnum};
 
 use build::Build;
 use clean::Clean;
+use config::Config;
 use dep_path::DepPath;
 use deps::Deps;
 use fetch::Fetch;
@@ -118,9 +119,6 @@ pub enum Commands {
         #[arg(value_name = "DEP")]
         dep: String,
     },
-
-    Kotlin,
-    Java,
 }
 
 #[derive(ValueEnum, Copy, Clone, PartialEq, Eq)]
@@ -146,50 +144,38 @@ trait Command {
 
 impl Commands {
     pub fn apply(&mut self, buildk: &BuildK) -> BuildkOutput {
-        let kotlin = Kotlin::new(buildk);
-        let java = Java::new(buildk);
+        let kotlin = match Kotlin::new(buildk) {
+            Ok(kotlin) => kotlin,
+            Err(err) => panic!("{}: {}", err, "Kotlin not found.")
+        };
+
+        let java = match Java::new(buildk) {
+            Ok(java) => java,
+            Err(err) => panic!("{}: {}", err, "Java not found.")
+        };
+
         let tree = Tree::new(buildk);
 
         match self {
-            Commands::Build { set } => match kotlin {
-                Ok(kotlin) => match tree {
+            Commands::Build { set } => {
+                match tree {
                     Ok(tree) => Build::new(buildk, &kotlin, &tree).execute(Some(*set)),
                     Err(e) => panic!("{}", e),
-                },
-                Err(e) => panic!("{}", e),
-            },
+                }
+            }, 
             Commands::Clean { set } => Clean::new(buildk).execute(Some(*set)),
-            Commands::Config => config::Config::new(buildk).execute(None),
+            Commands::Config => Config::new(buildk, &kotlin, &java).execute(None),
             Commands::Deps { limit } => Deps::new(buildk).execute(*limit),
             Commands::Fetch { artifact } => Fetch::new(buildk).execute(artifact.clone()),
             Commands::Init => Init::new().execute(None),
-            Commands::Release => match kotlin {
-                Ok(kotlin) => Release::new(buildk, &kotlin).execute(None),
-                Err(e) => panic!("{}", e),
-            },
-            Commands::Run { name } => match kotlin {
-                Ok(kotlin) => Run::new(buildk, &kotlin).execute(name.clone()),
-                Err(e) => panic!("{}", e),
-            },
-            Commands::Test { name } => match java {
-                Ok(java) => Test::new(buildk, &java).execute(name.clone()),
-                Err(e) => panic!("{}", e),
-            },
+            Commands::Release => Release::new(buildk, &kotlin).execute(None),
+            Commands::Run { name } => Run::new(buildk, &kotlin).execute(name.clone()),
+            Commands::Test { name } =>Test::new(buildk, &java).execute(name.clone()), 
             Commands::Tree => match tree {
                 Ok(mut tree) => tree.execute(None),
                 Err(e) => panic!("{}", e),
             },
             Commands::Path { dep } => DepPath::new(buildk).execute(Some(dep.to_owned())),
-            Commands::Kotlin => {
-                println!("Kotlin home: {:?}", kotlin.unwrap().home);
-                // let mut runner = ProcessBuilder::new(kotlin_home.join("bin/kotlin"));
-                // runner.arg("-version");
-                BuildkOutput::new("kotlin")
-            }
-            Commands::Java => {
-                println!("Java home: {:?}", java.unwrap().home);
-                BuildkOutput::new("java")
-            }
         }
     }
 }

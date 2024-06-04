@@ -8,7 +8,7 @@ pub trait Parser<T>
 where
     T: Ord,
 {
-    fn parse(path: PathBuf) -> BTreeSet<T>;
+    fn parse(path: PathBuf, kind: PackageKind) -> BTreeSet<T>;
 }
 
 pub fn resolve_descriptor(path: &Path) -> Option<PathBuf> {
@@ -83,9 +83,9 @@ impl Package {
 
         true
     }
-
+    
     pub fn transitives(&self) -> Vec<Package> {
-        parser::parse(&self.location).into_iter().collect()
+        parser::parse(&self.location, self.kind.clone()).into_iter().collect()
     }
 
     pub fn jar_absolute_path(&self) -> PathBuf {
