@@ -106,9 +106,28 @@ impl Package {
 
 impl Display for Package {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
+        writeln!(f, "\r{:<26}{}", Into::<String>::into(self.kind.clone()), self.name)?;
+
+        let _ = self.transitives().iter()
+            .filter_map(|pkg| {
+                writeln!(f, "{:<26}{}", Into::<String>::into(self.kind.clone()), pkg.name).into()
+            }).collect::<Vec<_>>();
+            
+        write!(f, "")
     }
 }
+
+impl Into<String> for PackageKind {
+    fn into(self) -> String {
+        match self {
+            PackageKind::Compile => "Compile",
+            PackageKind::Runtime => "Runtime",
+            PackageKind::Test => "Test",
+        }
+        .to_string()
+    }
+}
+
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Default, Clone, Debug)]
 pub enum PackageKind {

@@ -134,9 +134,8 @@ impl Display for Manifest {
             write!(f, "{}", repo)?;
         }
 
-        writeln!(f, "{:<26}{}", "Compile", self.compile_deps)?;
-        writeln!(f, "{:<26}{}", "Runtime", self.runtime_deps)?;
-        writeln!(f, "{:<26}{}", "Test", self.test_deps)?;
-        write!(f, "")
+        write!(f, "{:<26}{}", "Compile", self.compile_deps)?;
+        write!(f, "{:<26}{}", "Runtime", self.runtime_deps)?;
+        write!(f, "{:<26}{}", "Test", self.test_deps)
     }
 }

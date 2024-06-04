@@ -16,14 +16,17 @@ pub struct Packages {
 
 impl Display for Packages {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let pkgs = self
-            .pkgs
-            .iter()
-            .map(|pkg| format!("{pkg}"))
-            .collect::<Vec<_>>()
-            .join(":");
+        // let pkgs = self
+        //     .pkgs
+        //     .iter()
+        //     .map(|pkg| format!("{pkg}"))
+        //     .collect::<Vec<_>>()
+        //     .join(":");
 
-        write!(f, "{}", pkgs)
+        Ok(for pkg in self.pkgs.iter() {
+            write!(f, "{}", pkg)?;
+        })
+
     }
 }
 
